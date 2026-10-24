@@ -31,7 +31,7 @@ A small floating box on your screen that lists everything the Workshop needs fro
 - **Clear** sends `/clear`: same window, empty conversation.
 - **Fresh chat** closes the current chat and starts a brand-new one for this task, without the factory history. Use it when you want a clean slate for the next thing.
 - **Reset all chats** (in the ⋯ menu) does the same for every task. Old conversations are never deleted. You can still find them with `/resume` in Claude Code.
-- **Permissions:** the chat asks your permission before it edits files, just like Claude Code in a terminal.
+- **Permissions:** the chat uses your normal Claude Code permission settings. The factory's session runs in auto mode, and a forked chat inherits that, so every task brief tells Claude not to edit Workshop files unless you ask. Press Shift+Tab inside the chat to change the mode.
 
 **Handing results back.** Pressing Done or Skip adds an entry to `ops\FROM_NICK.md`: date, lane, task, Done/Skipped, your notes, everything you pasted or chose, and how many steps you ticked. That is the **only** factory file the app ever writes. Paste the message in `HANDOFF.md` into your Workshop session once, so the factory reads FROM_NICK.md on every daily tick.
 

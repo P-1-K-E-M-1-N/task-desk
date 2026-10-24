@@ -8,12 +8,16 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');
 const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
+const NEEDS = path.join(ROOT, 'test-fixtures', 'ops', 'NEEDS_NICK.md');
+const SETTINGS = path.join(ROOT, 'data', 'settings.json');
+let mainLog = '';
 const results = [];
 const ok = (name, cond, extra = '') => { results.push([cond ? 'PASS' : 'FAIL', name, extra]); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, name + '.png') });
 
 async function launch() {
   const app = await _electron.launch({ executablePath: require('electron'), args: [ROOT], cwd: ROOT });
+  app.process().stdout.on('data', (d) => (mainLog += d));
   await app.evaluate(({ shell, clipboard }) => {
     global.__opened = [];
     shell.openExternal = async (u) => { global.__opened.push(['url', u]); };
@@ -56,7 +60,14 @@ async function waitTerm(win, re, ms = 90000) {
 
 (async () => {
   try { fs.unlinkSync(FROM_NICK); } catch {}
+  // Always test against the copies, then put the previous mode back.
+  const settingsBefore = fs.readFileSync(SETTINGS, 'utf8');
+  fs.writeFileSync(SETTINGS, JSON.stringify({ ...JSON.parse(settingsBefore), mode: 'test' }, null, 2));
+  process.on('exit', () => fs.writeFileSync(SETTINGS, settingsBefore));
+  const needsBefore = fs.readFileSync(NEEDS, 'utf8');
+  process.on('exit', () => fs.writeFileSync(NEEDS, needsBefore));
   let { app, box } = await launch();
+  ok('global hotkey Ctrl+Alt+T registered', await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered('Control+Alt+T')));
 
   // ---- Screen 1 ----
   const n = await box.locator('.card').count();
@@ -210,6 +221,14 @@ async function waitTerm(win, re, ms = 90000) {
   const [nextWin] = await Promise.all([app.waitForEvent('window', { timeout: 10000 }).catch(() => null), win.locator('#bnext').click()]);
   ok('Done & next opens the next task', !!nextWin);
   if (nextWin) { await nextWin.waitForSelector('h1'); await shot(nextWin, '09-next-task'); await nextWin.close(); }
+
+  // ---- new urgent task -> notification + appears in box ----
+  fs.writeFileSync(NEEDS, needsBefore.replace(/## menu-boards\r?\n/, (m) => m + '\n- [ ] **E2E urgent test item** (2026-10-24): added by the test.\n'));
+  await box.waitForSelector('.card:has-text("E2E urgent test item")', { timeout: 15000 }).catch(() => {});
+  ok('new task appears without restart', (await box.locator('.card', { hasText: 'E2E urgent test item' }).count()) === 1);
+  await box.waitForTimeout(500);
+  ok('urgent new task triggers a Windows notification', /notify: new urgent task/.test(mainLog));
+  fs.writeFileSync(NEEDS, needsBefore);
 
   await app.close();
   const fails = results.filter((r) => r[0] === 'FAIL');
