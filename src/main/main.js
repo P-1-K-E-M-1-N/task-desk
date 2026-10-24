@@ -21,6 +21,12 @@ const ICON_ICO = path.join(config.APP_ROOT, 'assets', 'icon.ico');
 const BOX_W = 340;
 const BOX_H = 520;
 const BAR_H = 56;
+const ZOOM = { s: 0.9, m: 1, l: 1.1, xl: 1.22 };
+// Window background behind the page (shown while it loads), per theme.
+const THEME_BG = {
+  clay: ['#f6f1e9', '#1c1a17'], sage: ['#eef1ea', '#171b18'], ocean: ['#edf1f5', '#141820'],
+  plum: ['#f4eff3', '#1b161b'], honey: ['#f8f2e2', '#1b1812'], graphite: ['#f2f2f1', '#141414'],
+};
 
 let box = null;
 let tray = null;
@@ -119,6 +125,23 @@ const findTask = (id) => tasks.find((t) => t.id === id);
 
 // ---------- windows ----------
 
+function windowBg() {
+  const pair = THEME_BG[config.get().look.theme] || THEME_BG.clay;
+  return pair[nativeTheme.shouldUseDarkColors ? 1 : 0];
+}
+
+// Light/dark follows the setting; "system" follows Windows.
+function applyLook() {
+  const look = config.get().look;
+  nativeTheme.themeSource = look.appearance;
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue;
+    w.webContents.setZoomFactor(ZOOM[look.size] || 1);
+    if (w !== box) w.setBackgroundColor(windowBg());
+    w.webContents.send('look', look);
+  }
+}
+
 function createBox() {
   const s = config.get();
   const wa = screen.getPrimaryDisplay().workArea;
@@ -132,6 +155,7 @@ function createBox() {
   });
   box.setAlwaysOnTop(true, 'floating');
   box.loadFile(path.join(RENDERER, 'box.html'));
+  box.webContents.on('did-finish-load', () => box.webContents.setZoomFactor(ZOOM[s.look.size] || 1));
   box.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) box.show(); });
   box.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); box.hide(); } });
   const saveBounds = () => {
@@ -172,11 +196,12 @@ function openTask(id) {
   const y = Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H));
   const w = new BrowserWindow({
     x: x + taskWins.size * 24, y: y + taskWins.size * 24, width: Math.min(W, wa.width), height: Math.min(H, wa.height),
-    minWidth: 880, minHeight: 560, frame: false, show: false, icon: ICON_PNG, backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1a17' : '#f6f1e9',
+    minWidth: 880, minHeight: 560, frame: false, show: false, icon: ICON_PNG, backgroundColor: windowBg(),
     title: t.title,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
   w.loadFile(path.join(RENDERER, 'task.html'), { query: { id } });
+  w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
   w.on('closed', () => { chat.stop(id); taskWins.delete(id); broadcast(); });
   taskWins.set(id, w);
@@ -260,6 +285,7 @@ function menu() {
     { label: 'Refresh tasks now', click: refresh },
     { label: 'Reset all chats…', click: resetAllChats },
     { label: 'Show snoozed & done again', click: () => { for (const t of Object.values(state.state.tasks)) if (t.status === 'snoozed') t.status = 'open'; state.save(); broadcast(); } },
+    { label: 'Customize look…', click: () => { box.show(); box.webContents.send('look:open'); } },
     { label: 'Open FROM_NICK.md', click: () => shell.openPath(path.join(config.root(), 'ops', 'FROM_NICK.md')) },
     { label: 'Open app data folder', click: () => shell.openPath(config.DATA_DIR) },
     { type: 'separator' },
@@ -293,11 +319,28 @@ ipcMain.handle('task:tick', (e, id, key, val) => {
   state.save();
   broadcast();
 });
+// Typed text is written to disk right away, so "Saved" in the window means saved.
 ipcMain.handle('task:paste', (e, id, key, label, value) => {
   state.task(id).pastes[key] = { label, value };
-  state.save();
+  state.flush();
+  return true;
 });
-ipcMain.handle('task:notes', (e, id, notes) => state.update(id, { notes }));
+ipcMain.handle('task:notes', (e, id, notes) => { state.update(id, { notes }); state.flush(); return true; });
+// Used when a window closes mid-typing: blocks until the text is on disk.
+ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
+  try {
+    if (kind === 'notes') state.update(id, { notes: value });
+    else state.task(id).pastes[key] = { label, value };
+    state.flush();
+    e.returnValue = true;
+  } catch { e.returnValue = false; }
+});
+ipcMain.on('look:get', (e) => { e.returnValue = config.get().look; });
+ipcMain.handle('look:set', (e, patch) => {
+  config.set({ look: { ...config.get().look, ...patch } });
+  applyLook();
+  return config.get().look;
+});
 ipcMain.handle('task:replan', (e, id) => { const t = findTask(id); if (t) planner.regenerate(t); });
 ipcMain.handle('task:snooze', (e, id, when) => {
   const d = new Date();
@@ -410,6 +453,7 @@ app.on('will-quit', () => globalShortcut.unregisterAll());
 app.whenReady().then(() => {
   if (!fs.existsSync(ICON_PNG)) { fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true }); fs.writeFileSync(ICON_PNG, icon.png(256)); }
   if (!fs.existsSync(ICON_ICO)) fs.writeFileSync(ICON_ICO, icon.ico());
+  nativeTheme.themeSource = config.get().look.appearance;
   createTray();
   createBox();
   if (!globalShortcut.register(config.get().hotkey, toggleBox)) console.warn('Hotkey already taken:', config.get().hotkey);

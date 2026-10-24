@@ -1,7 +1,7 @@
 @import url('../../node_modules/@fontsource-variable/fraunces/index.css');
 @import url('../../node_modules/@fontsource-variable/inter/index.css');
 
-:root {
+:root, [data-theme=clay] {
   --bg: #f6f1e9;
   --bg-2: #efe7da;
   --surface: #fffdf9;
@@ -36,8 +36,8 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Dark mode: .dark is set on <html> from the Appearance setting (System / Light / Dark). */
+.dark, .dark [data-theme=clay] {
     --bg: #1c1a17;
     --bg-2: #22201c;
     --surface: #282520;
@@ -65,7 +65,6 @@
     --term-bg: #282520;
     --term-fg: #f2ece3;
     color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -152,3 +151,119 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .popmenu button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; text-align: left; font-size: 12.5px; }
 .popmenu button:hover { background: var(--surface-2); }
 .popmenu small { margin-left: auto; color: var(--ink-3); }
+
+/* ---------- themes (color palettes) ----------
+   Each theme sets the same variables for light and dark, so the two never mix.
+   The selectors also work on any element, which is how the theme swatches preview themselves. */
+[data-theme=sage] { --bg: #eef1ea; --bg-2: #e4e9de; --surface: #fbfcf9; --surface-2: #e8ede3; --clay: #4f7a5a; --clay-2: #5f8d69; --clay-soft: #dce8dc; --clay-ink: #f8fbf7; --term-bg: #fbfcf9; }
+.dark[data-theme=sage], .dark [data-theme=sage] { --bg: #171b18; --bg-2: #1c211d; --surface: #232a24; --surface-2: #2b332c; --clay: #86b98f; --clay-2: #9ccaa4; --clay-soft: #24342a; --clay-ink: #121613; --term-bg: #232a24; }
+[data-theme=ocean] { --bg: #edf1f5; --bg-2: #e2e8ef; --surface: #fbfcfe; --surface-2: #e7edf4; --clay: #2f6fae; --clay-2: #4282c0; --clay-soft: #dae6f3; --clay-ink: #f7faff; --term-bg: #fbfcfe; }
+.dark[data-theme=ocean], .dark [data-theme=ocean] { --bg: #141820; --bg-2: #191e27; --surface: #20262f; --surface-2: #283039; --clay: #6fa8e6; --clay-2: #88b9ee; --clay-soft: #1f2d40; --clay-ink: #0f1319; --term-bg: #20262f; }
+[data-theme=plum] { --bg: #f4eff3; --bg-2: #ebe3e9; --surface: #fdfafc; --surface-2: #efe7ed; --clay: #8a4a87; --clay-2: #9d5a9a; --clay-soft: #eedded; --clay-ink: #fff8fe; --term-bg: #fdfafc; }
+.dark[data-theme=plum], .dark [data-theme=plum] { --bg: #1b161b; --bg-2: #211b21; --surface: #292229; --surface-2: #322a32; --clay: #d39ad0; --clay-2: #e0b0dd; --clay-soft: #3a2639; --clay-ink: #1b161b; --term-bg: #292229; }
+[data-theme=honey] { --bg: #f8f2e2; --bg-2: #f0e7cf; --surface: #fffcf3; --surface-2: #f3ebd6; --clay: #a87414; --clay-2: #bb8623; --clay-soft: #f3e4c0; --clay-ink: #fffaf0; --term-bg: #fffcf3; }
+.dark[data-theme=honey], .dark [data-theme=honey] { --bg: #1b1812; --bg-2: #211d15; --surface: #29241a; --surface-2: #322c20; --clay: #e2b866; --clay-2: #f0cd84; --clay-soft: #3a301c; --clay-ink: #1b1812; --term-bg: #29241a; }
+[data-theme=graphite] { --bg: #f2f2f1; --bg-2: #e8e8e6; --surface: #ffffff; --surface-2: #eeeeec; --clay: #2b2b2b; --clay-2: #454545; --clay-soft: #e3e3e1; --clay-ink: #ffffff; --term-bg: #ffffff; }
+.dark[data-theme=graphite], .dark [data-theme=graphite] { --bg: #141414; --bg-2: #1a1a1a; --surface: #222222; --surface-2: #2b2b2b; --clay: #e8e8e8; --clay-2: #ffffff; --clay-soft: #333333; --clay-ink: #141414; --term-bg: #222222; }
+
+/* ---------- frame materials ----------
+   --frame-w  thickness of the window frame
+   --frame    what the frame is made of (background layers)
+   --bar      the title bar / box header (sits on the frame)
+   --bar-ink  text and icon color on the bar
+   --app-r    corner radius of the content inside the frame */
+:root, [data-material=paper] {
+  --frame-w: 1px; --frame: linear-gradient(var(--line-2), var(--line-2)); --bar: var(--bg-2); --bar-ink: var(--ink-2);
+  --app-r: 0px; --frame-glow: none; --stitch: none;
+}
+[data-material=glass] {
+  --frame-w: 7px;
+  --frame: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.25) 38%, rgba(255,255,255,.55) 62%, rgba(255,255,255,.2)), color-mix(in srgb, var(--clay) 34%, rgba(196,212,228,.8));
+  --bar: linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.25)), color-mix(in srgb, var(--clay) 24%, rgba(205,218,232,.85));
+  --bar-ink: var(--ink); --app-r: 11px; --frame-glow: inset 0 0 0 1px rgba(255,255,255,.7), 0 0 0 1px rgba(0,0,0,.06);
+}
+.dark[data-material=glass], .dark [data-material=glass] {
+  --frame: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.05) 38%, rgba(255,255,255,.15) 62%, rgba(255,255,255,.04)), color-mix(in srgb, var(--clay) 25%, rgba(40,46,56,.7));
+  --bar: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.03)), color-mix(in srgb, var(--clay) 18%, rgba(36,40,48,.85));
+  --frame-glow: inset 0 0 0 1px rgba(255,255,255,.14), 0 0 0 1px rgba(0,0,0,.3);
+}
+[data-material=linen] {
+  --frame-w: 7px;
+  --frame: repeating-linear-gradient(0deg, rgba(110,90,60,.09) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(110,90,60,.08) 0 1px, transparent 1px 3px), #e6dcc8;
+  --bar: var(--frame); --bar-ink: #4a4033; --app-r: 10px; --frame-glow: 0 0 0 1px rgba(90,70,40,.12);
+}
+.dark[data-material=linen], .dark [data-material=linen] {
+  --frame: repeating-linear-gradient(0deg, rgba(255,240,210,.05) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(255,240,210,.045) 0 1px, transparent 1px 3px), #3a342b;
+  --bar-ink: #e3d8c6; --frame-glow: 0 0 0 1px rgba(0,0,0,.35);
+}
+[data-material=wood] {
+  --frame-w: 9px;
+  --frame: repeating-linear-gradient(178deg, transparent 0 5px, rgba(60,25,5,.13) 5px 6px, rgba(255,220,180,.05) 6px 11px),
+           repeating-linear-gradient(181.5deg, transparent 0 17px, rgba(50,20,0,.12) 17px 19px, transparent 19px 31px),
+           linear-gradient(180deg, #a86f42, #8f5a33 50%, #7d4c2a);
+  --bar: var(--frame); --bar-ink: #fbefe2; --app-r: 9px; --frame-glow: inset 0 1px 0 rgba(255,230,200,.25), 0 0 0 1px rgba(40,15,0,.35);
+}
+.dark[data-material=wood], .dark [data-material=wood] {
+  --frame: repeating-linear-gradient(178deg, transparent 0 5px, rgba(0,0,0,.2) 5px 6px, rgba(255,210,170,.03) 6px 11px),
+           repeating-linear-gradient(181.5deg, transparent 0 17px, rgba(0,0,0,.18) 17px 19px, transparent 19px 31px),
+           linear-gradient(180deg, #5e3b22, #4d2f1b 50%, #412716);
+}
+[data-material=leather] {
+  --frame-w: 11px;
+  --frame: radial-gradient(circle at 30% 40%, rgba(255,255,255,.05) 0 1px, transparent 1.5px) 0 0 / 5px 5px,
+           radial-gradient(circle at 70% 70%, rgba(0,0,0,.10) 0 1px, transparent 1.5px) 0 0 / 7px 7px,
+           linear-gradient(180deg, #6e412b, #5b3322);
+  --bar: var(--frame); --bar-ink: #f4e2d0; --app-r: 8px; --frame-glow: 0 0 0 1px rgba(30,10,0,.4);
+  --stitch: 1.5px dashed rgba(250,220,190,.55);
+}
+.dark[data-material=leather], .dark [data-material=leather] {
+  --frame: radial-gradient(circle at 30% 40%, rgba(255,255,255,.04) 0 1px, transparent 1.5px) 0 0 / 5px 5px,
+           radial-gradient(circle at 70% 70%, rgba(0,0,0,.15) 0 1px, transparent 1.5px) 0 0 / 7px 7px,
+           linear-gradient(180deg, #3f2519, #321d13);
+  --stitch: 1.5px dashed rgba(230,190,150,.4);
+}
+[data-material=metal] {
+  --frame-w: 8px;
+  --frame: repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 1px, rgba(0,0,0,.05) 1px 2px, transparent 2px 4px),
+           linear-gradient(180deg, #e2e5e8, #bcc1c6 45%, #ced2d6 55%, #aeb3b8);
+  --bar: var(--frame); --bar-ink: #24272b; --app-r: 7px; --frame-glow: inset 0 1px 0 rgba(255,255,255,.7), 0 0 0 1px rgba(0,0,0,.2);
+}
+.dark[data-material=metal], .dark [data-material=metal] {
+  --frame: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.08) 1px 2px, transparent 2px 4px),
+           linear-gradient(180deg, #62676e, #474b51 45%, #53585e 55%, #3c4045);
+  --bar-ink: #eef0f2; --frame-glow: inset 0 1px 0 rgba(255,255,255,.15), 0 0 0 1px rgba(0,0,0,.5);
+}
+[data-material=neon] {
+  --frame-w: 3px;
+  --frame: linear-gradient(135deg, var(--clay), #8a5cff 50%, #20c4e8);
+  --bar: var(--bg-2); --bar-ink: var(--ink-2); --app-r: 12px;
+  --frame-glow: 0 0 18px -2px color-mix(in srgb, var(--clay) 70%, transparent), 0 0 30px -8px #8a5cff;
+}
+
+/* ---------- autosave notes ---------- */
+.saved { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); transition: color .2s; white-space: nowrap; }
+.saved svg.i { width: 12px; height: 12px; stroke-width: 2.4; }
+.saved[data-s=saved] { color: var(--ok); }
+.saved[data-s=saving]::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse .8s infinite; }
+.field-head { display: flex; align-items: baseline; gap: 8px; width: 100%; }
+.field-head .field-label { flex: 1; width: auto; margin-bottom: 0; }
+
+/* ---------- look panel ---------- */
+.popmenu.lookpanel { width: 300px; padding: 12px 12px 10px; max-height: calc(100vh - 16px); overflow-y: auto; }
+.lookpanel h4 { margin: 0 0 7px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.lookpanel h4:not(:first-child) { margin-top: 13px; }
+.lookpanel .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.lookpanel .grid button {
+  flex-direction: column; justify-content: center; gap: 5px; padding: 7px 2px 6px; border-radius: 10px;
+  border: 1px solid transparent; font-size: 10.5px; font-weight: 600; color: var(--ink-2); text-align: center;
+}
+.lookpanel .grid button.on { border-color: var(--clay); background: var(--clay-soft); color: var(--ink); }
+.swatch { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--bg) 0 50%, var(--clay) 50% 100%); box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); }
+.mat { width: 44px; height: 30px; border-radius: 7px; background: var(--frame); box-shadow: var(--frame-glow); position: relative; }
+.mat::after { content: ''; position: absolute; inset: 7px; border-radius: 3px; background: var(--bg); outline: var(--stitch); outline-offset: 2px; }
+.mat[data-material=paper]::after { inset: 1px; border-radius: 6px; }
+.lookpanel .seg { display: flex; padding: 3px; border-radius: 10px; background: var(--surface-2); gap: 2px; }
+.lookpanel .seg button { flex: 1; height: 26px; border-radius: 8px; padding: 0; justify-content: center; font-size: 11.5px; font-weight: 600; color: var(--ink-2); }
+.lookpanel .seg button:hover { background: color-mix(in srgb, var(--surface) 50%, transparent); }
+.lookpanel .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.lookpanel .foot { margin-top: 11px; font-size: 10.5px; color: var(--ink-3); text-align: center; }

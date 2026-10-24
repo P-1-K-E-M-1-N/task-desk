@@ -10,6 +10,25 @@ A small floating box on your screen that lists everything the Workshop needs fro
 4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
 5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes land in the factory's `ops/FROM_NICK.md`.
 
+## Everything you type saves itself
+
+There's no Save button to remember. Every box (your notes, every paste box, the Keyword Planner results) saves while you type.
+- **"Saving…"** shows while you're typing. About a third of a second after you stop, it changes to a green **✓ Saved**, and by then the text is written to disk.
+- **"All changes saved"** in the top bar of the task window is the one place to glance at.
+- **Closing the window mid-sentence** still saves: the window writes what you typed before it closes.
+- **Ticks and decision choices** save the moment you click them.
+- **The API-key box is the one exception.** The app never stores it. The key only goes into the `.env` file, after you press **Save key** and confirm.
+
+## Make it look the way you like
+
+Click the **palette** button (top of the task box, or the top bar of any task window), or choose **Customize look…** in the ⋯ menu.
+- **Theme:** Clay, Sage, Ocean, Plum, Honey or Graphite. This sets the colors and the accent used for buttons.
+- **Frame:** what the window's border is made of. Paper (plain), Glass, Linen, Wood, Leather (with stitching), Brushed metal or Neon.
+- **Light or dark:** Auto (follows Windows), Light or Dark.
+- **Text size:** Small, Normal, Large or Larger.
+
+Changes show up instantly in every open window and are remembered after a restart. The chat panel's colors follow the theme too.
+
 ## What it does, in plain language
 
 **The task box** reads `C:\MrC\idea-factory\ops\NEEDS_NICK.md` every 60 seconds (and immediately when the file changes). It also picks up unchecked `- [ ]` lines that mention Nick in any `lanes/*/LANE.md`.
@@ -59,13 +78,13 @@ On first run the app put a shortcut on your desktop and one in your Startup fold
 | The app | `C:\MrC\task-desk` |
 | Your ticks, notes, snoozes, chat links (live) | `data\state.json` |
 | Cached plans | `data\plans\live\`, `data\plans\test\` |
-| Settings (mode, paths, hotkey) | `data\settings.json` |
+| Settings (mode, paths, hotkey, look) | `data\settings.json` |
 | Test copies of the factory files | `test-fixtures\` |
 
 `data\` is not committed to git.
 
 ## For agents working on this repo
 
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode.
+- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`.
 - The main process is in `src/main/`: `tasks.js` (parser), `planner.js`, `chat.js` (node-pty + claude), `state.js`, `handback.js`, `main.js`. The screens are in `src/renderer/`.
 - Rules: the Workshop folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.
