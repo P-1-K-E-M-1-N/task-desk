@@ -1,0 +1,46 @@
+{
+  "slug": "snow-alerts",
+  "name": "Snow Alerts",
+  "type": "revenue",
+  "order": 2,
+  "pitch": "Morning-after alerts for snow-plow contractors listing the ZIP codes that got 6 inches or more overnight, $50-100/month. Sources: the national weather feed's snowfall reports. G0 includes a 24-month backtest of alert frequency.",
+  "gate": "G3",
+  "status": "waiting",
+  "blocker": "Send outreach emails",
+  "next_step": "tally replies, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:31:23+00:00",
+      "finished": "2026-10-24T05:43:58+00:00",
+      "result": "pass",
+      "note": "daily snowfall reports live (public domain); 24-month backtest: 61 alert days, all between November and March"
+    },
+    "G1": {
+      "started": "2026-10-24T05:43:58+00:00",
+      "finished": "2026-10-24T05:45:29+00:00",
+      "result": "pass",
+      "note": "snow_alert.pdf/html/csv for 2026-10-20 (2 reports) plus 2026-02-03 example (14 inches, 9 counties)"
+    },
+    "G2": {
+      "started": "2026-10-24T05:45:30+00:00",
+      "finished": "2026-10-24T05:45:30+00:00",
+      "result": "pass",
+      "note": "3 targets + drafts in outreach/; nothing sent"
+    },
+    "G3": {
+      "started": "2026-10-24T05:45:30+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score pending replies"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:45:30+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "slug": "trail-reports",
+  "name": "Trail Reports",
+  "type": "traffic",
+  "order": 3,
+  "pitch": "One auto-updating page per hiking trail (weather, closures, recent conditions). Free, ad-supported. Sources: the national weather feed, the parks department's closures RSS, public trail-head webcams.",
+  "gate": "G3",
+  "status": "waiting",
+  "blocker": "Keyword volumes: 40 queries to run through Keyword Planner",
+  "next_step": "load volumes, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:31:55+00:00",
+      "finished": "2026-10-24T05:36:58+00:00",
+      "result": "pass",
+      "note": "all three feeds live and keyless; weather + closures public domain; webcams need an attribution line"
+    },
+    "G1": {
+      "started": "2026-10-24T05:36:59+00:00",
+      "finished": "2026-10-24T05:39:26+00:00",
+      "result": "pass",
+      "note": "samples/pine_ridge.html built live by refresh.py: 48 F, light rain, 1 closure, 2 webcams"
+    },
+    "G2": {
+      "started": "2026-10-24T05:39:26+00:00",
+      "finished": "2026-10-24T05:42:27+00:00",
+      "result": "pass",
+      "note": "40 queries + Keyword Planner steps + 10-query competitor audit in LANE.md; volumes pending"
+    },
+    "G3": {
+      "started": "2026-10-24T05:42:27+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score pending keyword volumes"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:42:45+00:00"
+}

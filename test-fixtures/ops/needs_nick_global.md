@@ -1,0 +1,1 @@
+- [ ] **Approve the nightly job's schedule** (2026-10-24): it runs at 06:00 as a scheduled task on this computer and needs nothing paid. If you would rather run it by hand, the command is in ops/STATUS.md.

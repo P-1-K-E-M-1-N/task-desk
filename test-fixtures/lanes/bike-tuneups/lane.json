@@ -1,0 +1,46 @@
+{
+  "slug": "bike-tuneups",
+  "name": "Bike Tune-up Reminders",
+  "type": "revenue",
+  "order": 4,
+  "pitch": "Seasonal tune-up reminder calendars for bike shops, built from the makers' published service intervals.",
+  "gate": "G3",
+  "status": "waiting",
+  "blocker": "Send outreach emails; decide whether the smaller product is worth building",
+  "next_step": "tally replies, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:32:36+00:00",
+      "finished": "2026-10-24T05:36:58+00:00",
+      "result": "pass",
+      "note": "service-interval tables for 6 makers live and keyless; NO per-bike history anywhere public, product shrinks to a model-year calendar"
+    },
+    "G1": {
+      "started": "2026-10-24T05:36:58+00:00",
+      "finished": "2026-10-24T05:41:36+00:00",
+      "result": "pass",
+      "note": "tuneup_calendar.csv/html/pdf for 20 common models; refresh.py rebuilds"
+    },
+    "G2": {
+      "started": "2026-10-24T05:41:36+00:00",
+      "finished": "2026-10-24T05:41:36+00:00",
+      "result": "pass",
+      "note": "3 targets + 3 draft emails + 3-question survey in outreach/; nothing sent"
+    },
+    "G3": {
+      "started": "2026-10-24T05:41:36+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score before replies"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:41:37+00:00"
+}

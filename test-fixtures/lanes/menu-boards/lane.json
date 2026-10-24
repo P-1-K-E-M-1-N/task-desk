@@ -1,0 +1,46 @@
+{
+  "slug": "menu-boards",
+  "name": "Menu Boards",
+  "type": "revenue",
+  "order": 1,
+  "pitch": "A printable weekly menu board for small cafes, built from what is in season and what it costs this week, about $30/month. Sources: the Open Recipes Project's ingredient and price tables; a seasonal produce calendar.",
+  "gate": "G2",
+  "status": "waiting",
+  "blocker": "Send 3 outreach emails (lanes/menu-boards/outreach/emails.md) and ask the Open Recipes Project for written OK on commercial use",
+  "next_step": "tally replies in outreach/replies.md, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:32:26+00:00",
+      "finished": "2026-10-24T05:37:22+00:00",
+      "result": "pass",
+      "note": "ingredient table (2,140 rows) + weekly price table (310 rows) live, keyless, updated Mondays. About page allows reuse; terms page says non-commercial without defining it, written confirmation flagged."
+    },
+    "G1": {
+      "started": "2026-10-24T05:37:22+00:00",
+      "finished": "2026-10-24T05:42:33+00:00",
+      "result": "pass",
+      "note": "menu_board.csv/html/pdf from this week's 310 prices: 12 dishes, 3 specials, cost per plate"
+    },
+    "G2": {
+      "started": "2026-10-24T05:42:33+00:00",
+      "finished": null,
+      "result": null,
+      "note": "outreach pack drafted; nothing sent"
+    },
+    "G3": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:53:29+00:00"
+}

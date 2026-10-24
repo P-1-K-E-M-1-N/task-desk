@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' file: data:">
+<title>Task</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+<style>
+  body { display: flex; flex-direction: column; background: var(--bg); }
+  .titlebar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 14px; flex: none; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+  .titlebar .tile { width: 24px; height: 24px; border-radius: 7px; }
+  .titlebar .tile svg.i { width: 13px; height: 13px; }
+  .titlebar .name { font-weight: 600; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .titlebar .sp { flex: 1; }
+  .split { flex: 1; display: grid; grid-template-columns: minmax(440px, 46%) minmax(0, 1fr); min-height: 0; }
+
+  /* plan */
+  .plan { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); position: relative; }
+  .plan::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 220px; pointer-events: none; background: radial-gradient(90% 100% at 0% 0%, color-mix(in srgb, var(--clay) 9%, transparent), transparent 70%); }
+  .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 26px 30px 24px; position: relative; }
+  .eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .eyebrow .pill.lane { text-transform: capitalize; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 27px; line-height: 1.15; letter-spacing: -.018em; margin: 14px 0 10px; font-variation-settings: 'opsz' 72; user-select: text; }
+  .summary { font-size: 14px; line-height: 1.6; color: var(--ink-2); margin: 0 0 20px; user-select: text; max-width: 62ch; }
+  .progress { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
+  .progress .bar { flex: 1; height: 5px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .progress .bar i { display: block; height: 100%; background: var(--ok); border-radius: 5px; transition: width .4s cubic-bezier(.2,.8,.2,1); }
+  .progress span { font-size: 11.5px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+  .sect { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 22px 0 9px; display: flex; align-items: center; gap: 8px; }
+  .sect .sp { flex: 1; }
+  .sect .link { text-transform: none; letter-spacing: 0; font-weight: 550; font-size: 11.5px; color: var(--ink-3); background: none; border: 0; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+  .sect .link:hover { color: var(--clay); }
+  .sect .link svg.i { width: 13px; height: 13px; }
+
+  .steps { display: flex; flex-direction: column; gap: 8px; counter-reset: s; }
+  .step {
+    display: grid; grid-template-columns: 26px minmax(0, 1fr) 28px; gap: 12px; padding: 13px 12px 13px 14px; border-radius: var(--r);
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); transition: background .2s, border-color .2s, opacity .2s;
+    animation: rise .3s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .step:hover { border-color: var(--line-2); }
+  .step.done { background: color-mix(in srgb, var(--ok-soft) 45%, var(--bg)); box-shadow: none; }
+  .step.done .stext { color: var(--ink-3); }
+  .check {
+    width: 24px; height: 24px; margin-top: -1px; border-radius: 50%; border: 1.5px solid var(--line-2); background: var(--surface);
+    display: grid; place-items: center; cursor: pointer; color: transparent; transition: all .18s cubic-bezier(.2,.8,.2,1); padding: 0;
+  }
+  .check:hover { border-color: var(--ok); color: color-mix(in srgb, var(--ok) 50%, transparent); }
+  .check svg.i { width: 14px; height: 14px; stroke-width: 2.6; }
+  .step.done .check { background: var(--ok); border-color: var(--ok); color: #fff; transform: scale(1.04); }
+  .stext { font-size: 13.5px; line-height: 1.5; user-select: text; padding-top: 1px; }
+  .num { display: inline-block; min-width: 18px; font-family: var(--serif); font-weight: 600; color: var(--clay); font-size: 14px; }
+  .stext code, .summary code { font-family: var(--mono); font-size: 11.5px; padding: 1px 5px; border-radius: 5px; background: var(--surface-2); color: var(--ink); word-break: break-all; }
+  .sact { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .sact:empty { display: none; }
+  .ask { align-self: start; opacity: .55; }
+  .step:hover .ask { opacity: 1; }
+  .ask:hover { color: var(--clay); background: var(--clay-soft); }
+  .preview { width: 100%; margin-top: 2px; padding: 9px 11px; border-radius: 9px; background: var(--surface-2); color: var(--ink-2); font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 64px; overflow: hidden; position: relative; cursor: pointer; user-select: text; }
+  .preview.open { max-height: none; }
+  .preview:not(.open)::after { content: ''; position: absolute; inset: auto 0 0 0; height: 28px; background: linear-gradient(transparent, var(--surface-2)); }
+  textarea.box, input.box {
+    width: 100%; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg); padding: 9px 11px; resize: vertical;
+    outline: none; transition: border-color .15s, box-shadow .15s; font-size: 12.5px; line-height: 1.5;
+  }
+  textarea.box:focus, input.box:focus { border-color: var(--clay); box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 18%, transparent); }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+  .opt { position: relative; height: auto; min-height: 30px; padding: 6px 12px; white-space: normal; text-align: left; line-height: 1.35; }
+  .opt.rec { border-color: color-mix(in srgb, var(--clay) 50%, var(--line-2)); }
+  .opt .rectag { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10.5px; color: var(--clay); font-weight: 700; }
+  .opt .rectag svg.i { width: 10px; height: 10px; fill: currentColor; stroke: none; }
+  .opt.chosen { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .opt.chosen .rectag { color: var(--clay-2); }
+  .field-label { font-size: 11.5px; color: var(--ink-3); font-weight: 600; width: 100%; margin-bottom: -2px; }
+  .muted-note { font-size: 11.5px; color: var(--ink-3); width: 100%; }
+
+  .emails { width: 100%; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+  .emails .ehead { display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); flex-wrap: wrap; }
+  .emails .ehead b { font-size: 12px; margin-right: auto; }
+  .erow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border-bottom: 1px solid var(--line); }
+  .erow:last-child { border-bottom: 0; }
+  .erow .check { width: 20px; height: 20px; }
+  .erow .check svg.i { width: 12px; height: 12px; }
+  .erow.done .check { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .erow.done .ename { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-2); }
+  .ename { font-size: 12.3px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ename small { display: block; font-weight: 500; color: var(--ink-3); font-size: 11px; }
+  .ebtns { display: flex; gap: 4px; }
+  .ebtns .btn { height: 24px; padding: 0 8px; font-size: 11.5px; box-shadow: none; }
+  .ebtns .btn.iconly { width: 26px; padding: 0; justify-content: center; }
+
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+  details.raw { margin-top: 20px; color: var(--ink-3); font-size: 12px; }
+  details.raw summary { cursor: pointer; font-weight: 600; }
+  details.raw p { user-select: text; line-height: 1.55; color: var(--ink-2); }
+  .skel { display: flex; flex-direction: column; gap: 10px; }
+  .skel .shimmer { height: 58px; border-radius: var(--r); }
+  .drafting-note { display: flex; align-items: center; gap: 8px; color: var(--clay); font-weight: 600; font-size: 12.5px; margin-bottom: 12px; }
+  .drafting-note svg.i { animation: pulse 1.4s infinite; }
+  .warn { padding: 10px 12px; border-radius: 10px; background: var(--clay-soft); color: var(--ink); font-size: 12.5px; margin-bottom: 14px; }
+
+  .finish { flex: none; padding: 14px 30px 16px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg-2) 80%, transparent); backdrop-filter: blur(8px); }
+  .finish textarea.box { min-height: 52px; max-height: 160px; background: var(--surface); }
+  .frow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .frow .sp { flex: 1; }
+  .frow .btn { height: 34px; padding: 0 14px; font-size: 13px; }
+  .celebrate { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(6px); z-index: 60; animation: rise .2s; }
+  .celebrate div { text-align: center; font-family: var(--serif); font-size: 26px; }
+  .celebrate .tile { margin: 0 auto 12px; width: 56px; height: 56px; border-radius: 18px; --tc: var(--ok); }
+  .celebrate .tile svg.i { width: 28px; height: 28px; stroke-width: 2.4; }
+
+  /* chat */
+  .chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 12px; background: var(--bg-2); }
+  .chatcard { flex: 1; display: flex; flex-direction: column; min-height: 0; border-radius: 16px; border: 1px solid var(--line-2); background: var(--term-bg); box-shadow: var(--shadow); overflow: hidden; position: relative; }
+  .chead { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
+  .avatar { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(140deg, var(--clay-2), var(--clay)); color: #fff; flex: none; box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--clay) 60%, transparent); }
+  .avatar svg.i { width: 16px; height: 16px; stroke-width: 1.6; fill: rgba(255,255,255,.25); }
+  .cwho { flex: 1; min-width: 0; }
+  .cwho b { display: block; font-size: 13px; font-weight: 650; }
+  .cstat { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cstat .dot { background: var(--ink-3); }
+  .cstat.live .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .cstat.connecting .dot { background: var(--t-keywords); animation: pulse 1s infinite; }
+  .term { flex: 1; min-height: 0; min-width: 0; overflow: hidden; padding: 12px 6px 6px 16px; }
+  .term .xterm-viewport { background: transparent !important; }
+  .term .xterm-viewport::-webkit-scrollbar-thumb { background: var(--line-2); }
+  .cfoot { display: flex; align-items: center; gap: 8px; padding: 8px 14px 10px; font-size: 11px; color: var(--ink-3); border-top: 1px solid var(--line); flex: none; }
+  .overlay { position: absolute; inset: 52px 0 0 0; display: grid; place-items: center; background: color-mix(in srgb, var(--term-bg) 82%, transparent); backdrop-filter: blur(3px); z-index: 5; }
+  .overlay .inner { text-align: center; max-width: 320px; color: var(--ink-2); }
+  .overlay b { display: block; font-family: var(--serif); font-weight: 500; font-size: 20px; color: var(--ink); margin-bottom: 6px; }
+  .overlay .row { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="titlebar drag">
+    <div class="tile" id="ttile"></div>
+    <span class="name" id="tname"></span>
+    <div class="sp"></div>
+    <button class="iconbtn" id="wmin" title="Minimize"></button>
+    <button class="iconbtn" id="wmax" title="Maximize"></button>
+    <button class="iconbtn close" id="wclose" title="Close (the chat is saved and resumes next time)"></button>
+  </div>
+  <div class="split">
+    <section class="plan">
+      <div class="scroll" id="scroll"></div>
+      <div class="finish" id="finish">
+        <textarea class="box" id="notes" placeholder="Notes and results for the factory: what you did, replies you got, anything it should know…"></textarea>
+        <div class="frow">
+          <button class="btn primary" id="bdone"></button>
+          <button class="btn" id="bnext"></button>
+          <div class="sp"></div>
+          <button class="btn ghost" id="bsnooze"></button>
+          <button class="btn ghost" id="bskip"></button>
+        </div>
+      </div>
+    </section>
+    <section class="chat">
+      <div class="chatcard">
+        <div class="chead">
+          <div class="avatar" id="avatar"></div>
+          <div class="cwho"><b>Claude Code</b><div class="cstat" id="cstat"><span class="dot"></span><span id="cstatText">Waiting for the plan…</span></div></div>
+          <button class="btn sm ghost" id="cclear" title="Clear the conversation (/clear) and keep going in the same chat"></button>
+          <button class="btn sm ghost" id="cfresh" title="Close this chat and start a brand-new one for this task"></button>
+          <button class="iconbtn" id="cmore" title="More chat options"></button>
+        </div>
+        <div class="term" id="term"></div>
+        <div class="overlay" id="overlay" hidden></div>
+        <div class="cfoot"><span id="cfoot">Tip: hover a step and click the chat icon to send it here.</span></div>
+      </div>
+    </section>
+  </div>
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="ui.js"></script>
+  <script src="task.js"></script>
+</body>
+</html>
