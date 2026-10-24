@@ -17,6 +17,8 @@ const DEFAULTS = {
   plannerModel: '',
   boxBounds: null,
   collapsed: false,
+  // How the windows look: color theme, frame material, light/dark, text size.
+  look: { theme: 'clay', material: 'paper', appearance: 'system', size: 'm' },
 };
 
 fs.mkdirSync(PLANS_DIR, { recursive: true });
@@ -25,7 +27,8 @@ let settings = load();
 
 function load() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
+    const saved = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    return { ...DEFAULTS, ...saved, look: { ...DEFAULTS.look, ...saved.look } };
   } catch {
     return { ...DEFAULTS };
   }

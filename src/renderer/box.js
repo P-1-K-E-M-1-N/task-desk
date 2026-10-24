@@ -8,6 +8,9 @@ $('#menu').innerHTML = icon('more');
 $('#hide').innerHTML = icon('x');
 $('#hide').onclick = () => desk.hide();
 $('#menu').onclick = () => desk.menu();
+$('#look').innerHTML = icon('palette');
+$('#look').onclick = (e) => { e.stopPropagation(); if (data && data.collapsed) desk.collapse(false); lookPanel($('#look')); };
+desk.onLookOpen(() => { if (data && data.collapsed) desk.collapse(false); setTimeout(() => lookPanel($('#look')), 250); });
 $('#collapse').onclick = () => desk.collapse(!data.collapsed);
 
 function greeting() {

@@ -60,6 +60,7 @@ async function waitTerm(win, re, ms = 90000) {
 
 (async () => {
   try { fs.unlinkSync(FROM_NICK); } catch {}
+  try { fs.unlinkSync(path.join(ROOT, 'data', 'state.test.json')); } catch {} // test-mode memory only; start clean
   // Always test against the copies, then put the previous mode back.
   const settingsBefore = fs.readFileSync(SETTINGS, 'utf8');
   fs.writeFileSync(SETTINGS, JSON.stringify({ ...JSON.parse(settingsBefore), mode: 'test' }, null, 2));

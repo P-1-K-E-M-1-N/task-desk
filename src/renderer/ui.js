@@ -31,6 +31,7 @@ const ICONS = {
   key: '<circle cx="8" cy="15" r="4"/><path d="m10.9 12.1 8.6-8.6M16 7l2.5 2.5"/>',
   paste: '<rect x="5.5" y="5" width="13" height="15.5" rx="2"/><path d="M9 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 11h6M9 14.5h4"/>',
   play: '<path d="M8 5.5v13l10-6.5z"/>',
+  palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-.9.7-1.6 1.7-1.6h2.1a4 4 0 0 0 4-4C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.8" cy="11" r="1.1"/><circle cx="10.5" cy="7.4" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/>',
 };
 
 function icon(name, cls = '') {
@@ -95,15 +96,96 @@ function actBtn(label, ic, fn, { cls = '', done = 'Done' } = {}) {
 }
 
 function popMenu(anchor, items) {
-  document.querySelectorAll('.popmenu').forEach((m) => m.remove());
-  const r = anchor.getBoundingClientRect();
   const m = h('div', { class: 'popmenu' },
     items.map((it) => h('button', { onclick: () => { m.remove(); it.run(); }, html: `${icon(it.icon)}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}` })));
+  placePopup(anchor, m);
+}
+
+// Show a popup under (or above) a button; clicking outside closes it.
+function placePopup(anchor, m) {
+  document.querySelectorAll('.popmenu').forEach((x) => x.remove());
+  const r = anchor.getBoundingClientRect();
   document.body.append(m);
   const mw = m.offsetWidth, mh = m.offsetHeight;
   let top = r.bottom + 6;
-  if (top + mh > innerHeight - 8) top = r.top - mh - 6;
+  if (top + mh > innerHeight - 8) top = Math.max(8, r.top - mh - 6);
   m.style.top = top + 'px';
   m.style.left = Math.max(8, Math.min(r.right - mw, innerWidth - mw - 8)) + 'px';
   setTimeout(() => document.addEventListener('click', function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', off); } }), 0);
 }
+
+// ---------- look: theme, frame material, light/dark, text size ----------
+const THEMES = [['clay', 'Clay'], ['sage', 'Sage'], ['ocean', 'Ocean'], ['plum', 'Plum'], ['honey', 'Honey'], ['graphite', 'Graphite']];
+const MATERIALS = [['paper', 'Paper'], ['glass', 'Glass'], ['linen', 'Linen'], ['wood', 'Wood'], ['leather', 'Leather'], ['metal', 'Metal'], ['neon', 'Neon']];
+let LOOK = desk.lookNow();
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+
+function applyLook(look = LOOK) {
+  LOOK = look;
+  const root = document.documentElement;
+  root.dataset.theme = look.theme;
+  root.dataset.material = look.material;
+  root.classList.toggle('dark', look.appearance === 'dark' || (look.appearance === 'system' && darkQuery.matches));
+  document.dispatchEvent(new Event('lookchange'));
+}
+applyLook();
+darkQuery.addEventListener('change', () => applyLook());
+desk.onLook((look) => applyLook(look));
+
+function lookPanel(anchor) {
+  const set = (patch) => { applyLook({ ...LOOK, ...patch }); desk.setLook(patch); draw(); };
+  const tile = (on, kids, run) => h('button', { class: on ? 'on' : '', onclick: (e) => { e.stopPropagation(); run(); } }, kids);
+  const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, label]) => tile(LOOK[key] === v, label, () => set({ [key]: v }))));
+  const m = h('div', { class: 'popmenu lookpanel' });
+  const draw = () => m.replaceChildren(
+    h('h4', {}, 'Theme'),
+    h('div', { class: 'grid' }, THEMES.map(([v, label]) => tile(LOOK.theme === v, [h('span', { class: 'swatch', 'data-theme': v }), label], () => set({ theme: v })))),
+    h('h4', {}, 'Frame'),
+    h('div', { class: 'grid' }, MATERIALS.map(([v, label]) => tile(LOOK.material === v, [h('span', { class: 'mat', 'data-material': v }), label], () => set({ material: v })))),
+    h('h4', {}, 'Light or dark'),
+    seg('appearance', [['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']]),
+    h('h4', {}, 'Text size'),
+    seg('size', [['s', 'Small'], ['m', 'Normal'], ['l', 'Large'], ['xl', 'Larger']]),
+    h('div', { class: 'foot' }, 'Changes apply to every window and are saved.'),
+  );
+  draw();
+  placePopup(anchor, m);
+}
+
+// ---------- autosave ----------
+// Every text box saves itself as you type (and again when you click away or
+// close the window). The little "Saved" note next to it shows it happened.
+const pendingSaves = new Set();
+function saveStatus() {
+  const el = document.getElementById('savestate');
+  if (!el) return;
+  const busy = pendingSaves.size > 0;
+  el.dataset.s = busy ? 'saving' : 'saved';
+  el.innerHTML = busy ? 'Saving…' : `${icon('check')}All changes saved`;
+}
+
+function autosave(el, save, saveSync) {
+  const note = h('span', { class: 'saved' });
+  let timer = null;
+  const mark = (s) => {
+    note.dataset.s = s;
+    note.innerHTML = s === 'saving' ? 'Saving…' : `${icon('check')}Saved`;
+    if (s === 'saved') note.title = 'Saved at ' + new Date().toLocaleTimeString();
+  };
+  const run = async () => {
+    clearTimeout(timer);
+    if (!pendingSaves.has(flush)) return;
+    pendingSaves.delete(flush);
+    await save(el.value);
+    if (!pendingSaves.has(flush)) mark('saved');
+    saveStatus();
+  };
+  const flush = () => { clearTimeout(timer); saveSync(el.value); };
+  el.addEventListener('input', () => { pendingSaves.add(flush); mark('saving'); saveStatus(); clearTimeout(timer); timer = setTimeout(run, 350); });
+  el.addEventListener('blur', run);
+  if (el.value) mark('saved');
+  note.markSaved = () => mark('saved');
+  return note;
+}
+// Closing the window mid-typing still saves: flush synchronously.
+window.addEventListener('beforeunload', () => { for (const f of pendingSaves) f(); pendingSaves.clear(); });

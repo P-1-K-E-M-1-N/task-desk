@@ -7,16 +7,24 @@
 <link rel="stylesheet" href="styles.css">
 <style>
   html, body { background: transparent; }
+  /* The border is the frame material (paper, wood, glass…), the header sits on it too. */
   .panel {
     position: absolute; inset: 8px; display: flex; flex-direction: column; overflow: hidden;
-    background: var(--bg); border-radius: 18px; border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+    border: var(--frame-w) solid transparent; border-radius: 18px;
+    background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--frame);
+    background-origin: border-box; box-shadow: var(--frame-glow), var(--shadow-lg);
+    outline: var(--stitch); outline-offset: calc(var(--frame-w) / -2 - 1px);
   }
+  :root:not([data-material=paper]) header { background: var(--bar); color: var(--bar-ink); margin: 0 0 8px; }
+  :root:not([data-material=paper]) header .brand, :root:not([data-material=paper]) header .iconbtn { color: var(--bar-ink); }
+  :root:not([data-material=paper]) header .iconbtn:hover { background: rgba(127,127,127,.18); }
+  :root[data-material=neon] header { background: var(--bg-2); }
   .panel::before {
     content: ''; position: absolute; inset: 0 0 auto 0; height: 160px; pointer-events: none;
     background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--clay) 13%, transparent), transparent 60%);
   }
   header { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; flex: none; }
-  .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 12px; letter-spacing: .01em; color: var(--ink-2); }
+  .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 650; font-size: 12px; letter-spacing: .01em; color: var(--ink-2); }
   .brand img { width: 18px; height: 18px; border-radius: 5px; }
   header .sp { flex: 1; }
   .hero { position: relative; padding: 4px 18px 12px; flex: none; }
@@ -79,7 +87,8 @@
   .barsum { display: none; font-weight: 650; font-size: 12.5px; white-space: nowrap; }
   .barsum em { font-style: normal; color: var(--ink-3); font-weight: 550; margin-left: 4px; }
   .bar-mode .barsum { display: block; }
-  .bar-mode .panel { border-radius: 14px; }
+  .bar-mode .panel { border-radius: 14px; border-width: min(var(--frame-w), 3px); outline: none; }
+  .bar-mode header { margin: 0 !important; }
   .bar-mode .panel::before { display: none; }
 </style>
 </head>
@@ -90,6 +99,7 @@
       <div class="barsum" id="barsum"></div>
       <span class="pill mode-test" id="mode" hidden>TEST</span>
       <div class="sp"></div>
+      <button class="iconbtn" id="look" title="Customize the look (themes and frames)"></button>
       <button class="iconbtn" id="collapse" title="Collapse to a slim bar"></button>
       <button class="iconbtn" id="menu" title="Menu"></button>
       <button class="iconbtn" id="hide" title="Hide to tray (Ctrl+Alt+T)"></button>

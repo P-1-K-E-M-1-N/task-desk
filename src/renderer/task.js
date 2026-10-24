@@ -12,6 +12,9 @@ $('#wclose').innerHTML = icon('x');
 $('#wmin').onclick = () => desk.minimize();
 $('#wmax').onclick = () => desk.maximize();
 $('#wclose').onclick = () => desk.close();
+$('#wlook').innerHTML = icon('palette');
+$('#wlook').onclick = (e) => { e.stopPropagation(); lookPanel($('#wlook')); };
+saveStatus();
 $('#avatar').innerHTML = icon('sparkle');
 $('#bdone').innerHTML = `${icon('check')}<span>Done</span>`;
 $('#bnext').innerHTML = `<span>Done &amp; next</span>${icon('send')}`;
@@ -37,7 +40,7 @@ async function load() {
   $('#ttile').className = `tile t-${T.type}`;
   $('#ttile').innerHTML = icon(T.type);
   $('#tname').textContent = `${laneName(T.lane)}  ·  ${T.title}`;
-  if (document.activeElement !== $('#notes')) $('#notes').value = ST.notes || '';
+  if (document.activeElement !== $('#notes')) { $('#notes').value = ST.notes || ''; if (ST.notes) notesSaved.markSaved(); }
   renderPlan(r.planOk);
   if (!chatStarted && (P || T.planStatus === 'ready')) startChat('auto');
 }
@@ -112,9 +115,10 @@ function pasteBox(key, label, placeholder) {
   const saved = ST.pastes[key];
   const ta = h('textarea', { class: 'box', rows: 3, placeholder: placeholder || 'Paste here…' });
   ta.value = saved ? saved.value : '';
-  let t;
-  ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => desk.paste(ID, key, label, ta.value), 400); });
-  return [h('div', { class: 'field-label' }, label), ta];
+  const note = autosave(ta,
+    (v) => { ST.pastes[key] = { label, value: v }; return desk.paste(ID, key, label, v); },
+    (v) => desk.saveSync(ID, 'paste', v, key, label));
+  return [h('div', { class: 'field-head' }, h('div', { class: 'field-label' }, label), note), ta];
 }
 
 function actions(step, i) {
@@ -178,7 +182,7 @@ function actions(step, i) {
       if (d.signup_url) add(actBtn('Open signup page', 'external', () => desk.openUrl(d.signup_url), { done: 'Opened' }));
       if (d.env_path && d.var_name) {
         const inp = h('input', { class: 'box', type: 'password', placeholder: `Paste ${d.var_name} here` });
-        add(h('div', { class: 'field-label' }, `Goes only into ${d.env_path} as ${d.var_name}. You'll be asked first.`), inp,
+        add(h('div', { class: 'field-label' }, `Goes only into ${d.env_path} as ${d.var_name}, after you confirm. The app never stores it anywhere else, so this box isn't auto-saved.`), inp,
           actBtn('Save key to .env', 'key', async () => {
             if (!inp.value.trim()) return { ok: false, error: 'Paste the key first' };
             const r = await desk.writeEnv(ID, d.env_path, d.var_name, inp.value);
@@ -247,11 +251,12 @@ function iconAct(ic, title, fn) {
 }
 
 // ---------- finish ----------
-let notesT;
-$('#notes').addEventListener('input', () => { clearTimeout(notesT); notesT = setTimeout(() => desk.notes(ID, $('#notes').value), 400); });
+const notesSaved = autosave($('#notes'),
+  (v) => { if (ST) ST.notes = v; return desk.notes(ID, v); },
+  (v) => desk.saveSync(ID, 'notes', v));
+$('#notesSaved').replaceWith(notesSaved);
 
 async function finish(status, next) {
-  clearTimeout(notesT);
   const r = await desk.finish(ID, status, $('#notes').value, next);
   if (!r.ok) { toast(r.error || 'Couldn\'t save'); return; }
   const msg = status === 'done' ? 'Nice. Sent to the factory.' : 'Skipped. The factory will know.';
@@ -273,7 +278,6 @@ async function snooze(when) {
 // ---------- chat ----------
 const css = getComputedStyle(document.documentElement);
 const v = (n) => css.getPropertyValue(n).trim();
-const dark = matchMedia('(prefers-color-scheme: dark)').matches;
 const term = new Terminal({
   fontFamily: v('--mono'),
   fontSize: 13,
@@ -282,18 +286,27 @@ const term = new Terminal({
   cursorStyle: 'bar',
   allowProposedApi: true,
   scrollback: 5000,
-  theme: dark ? {
-    background: v('--term-bg'), foreground: v('--term-fg'), cursor: v('--clay'), cursorAccent: v('--term-bg'),
-    selectionBackground: 'rgba(224,123,87,.30)',
+  theme: termTheme(),
+});
+// Chat colors follow the theme and light/dark setting.
+function termTheme() {
+  const css = getComputedStyle(document.documentElement);
+  const v = (n) => css.getPropertyValue(n).trim();
+  const accent = v('--clay');
+  const sel = accent.startsWith('#') ? accent + '40' : 'rgba(127,127,127,.3)';
+  return document.documentElement.classList.contains('dark') ? {
+    background: v('--term-bg'), foreground: v('--term-fg'), cursor: accent, cursorAccent: v('--term-bg'),
+    selectionBackground: sel,
     black: '#3a362f', red: '#e5806e', green: '#9cc58f', yellow: '#e2b866', blue: '#8fb0e0', magenta: '#d39ad0', cyan: '#80c4bd', white: '#d9d1c5',
     brightBlack: '#7d7468', brightRed: '#f09a87', brightGreen: '#b5d9a8', brightYellow: '#f0cd84', brightBlue: '#a9c5ee', brightMagenta: '#e3b2e0', brightCyan: '#9ad7d0', brightWhite: '#f6f1e9',
   } : {
     background: v('--term-bg'), foreground: v('--term-fg'), cursor: v('--clay'), cursorAccent: v('--term-bg'),
-    selectionBackground: 'rgba(201,100,66,.22)',
+    selectionBackground: sel,
     black: '#2a2723', red: '#b8452f', green: '#4e7a3a', yellow: '#9a6a12', blue: '#3a5f9a', magenta: '#8a4a87', cyan: '#2f7a73', white: '#8a8276',
     brightBlack: '#7a7266', brightRed: '#c9583f', brightGreen: '#5e8c48', brightYellow: '#b07d1c', brightBlue: '#4a70ad', brightMagenta: '#9d5a9a', brightCyan: '#3a8c84', brightWhite: '#2a2723',
-  },
-});
+  };
+}
+document.addEventListener('lookchange', () => { term.options.theme = termTheme(); setTimeout(refit, 50); });
 const fit = new FitAddon.FitAddon();
 term.loadAddon(fit);
 term.open($('#term'));
@@ -320,7 +333,8 @@ function startChat(mode) {
   refit();
   setStat('connecting', 'Starting Claude Code…');
   desk.chatStart(ID, mode, term.cols, term.rows);
-  setTimeout(() => term.focus(), 300);
+  // Don't steal the keyboard from a notes or paste box you're typing in.
+  setTimeout(() => { const a = document.activeElement; if (!a || a === term.textarea || !/^(TEXTAREA|INPUT)$/.test(a.tagName)) term.focus(); }, 300);
 }
 
 function sendToChat(text) {

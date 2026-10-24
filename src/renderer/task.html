@@ -7,13 +7,25 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
 <style>
-  body { display: flex; flex-direction: column; background: var(--bg); }
+  /* The body is the window frame (its material comes from the Frame setting); the content sits inside it. */
+  body { display: flex; flex-direction: column; background: var(--frame); background-color: var(--bg-2); padding: var(--frame-w); }
   .titlebar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 14px; flex: none; border-bottom: 1px solid var(--line); background: var(--bg-2); }
   .titlebar .tile { width: 24px; height: 24px; border-radius: 7px; }
   .titlebar .tile svg.i { width: 13px; height: 13px; }
   .titlebar .name { font-weight: 600; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .titlebar .sp { flex: 1; }
-  .split { flex: 1; display: grid; grid-template-columns: minmax(440px, 46%) minmax(0, 1fr); min-height: 0; }
+  .split {
+    flex: 1; display: grid; grid-template-columns: minmax(440px, 46%) minmax(0, 1fr); min-height: 0; background: var(--bg);
+    border-radius: var(--app-r); overflow: hidden; box-shadow: var(--frame-glow); outline: var(--stitch); outline-offset: 4px;
+  }
+  :root:not([data-material=paper]):not([data-material=neon]) .titlebar { background: transparent; border-bottom: 0; }
+  :root:not([data-material=paper]) .titlebar .name, :root:not([data-material=paper]) .titlebar .iconbtn { color: var(--bar-ink); }
+  :root:not([data-material=paper]) .titlebar .iconbtn:not(.close):hover { background: rgba(127,127,127,.2); }
+  :root:not([data-material=paper]):not([data-material=neon]) .titlebar .saved:not([data-s=saving]) { color: var(--bar-ink); opacity: .85; }
+  :root[data-material=neon] .titlebar { border-radius: var(--app-r) var(--app-r) 0 0; margin-bottom: 3px; }
+  .titlebar .saved { margin-right: 6px; }
+  .notes-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .notes-head b { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); flex: 1; }
 
   /* plan */
   .plan { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); position: relative; }
@@ -137,6 +149,8 @@
     <div class="tile" id="ttile"></div>
     <span class="name" id="tname"></span>
     <div class="sp"></div>
+    <span class="saved" id="savestate"></span>
+    <button class="iconbtn" id="wlook" title="Customize the look (themes and frames)"></button>
     <button class="iconbtn" id="wmin" title="Minimize"></button>
     <button class="iconbtn" id="wmax" title="Maximize"></button>
     <button class="iconbtn close" id="wclose" title="Close (the chat is saved and resumes next time)"></button>
@@ -145,6 +159,7 @@
     <section class="plan">
       <div class="scroll" id="scroll"></div>
       <div class="finish" id="finish">
+        <div class="notes-head"><b>Notes for the factory</b><span id="notesSaved"></span></div>
         <textarea class="box" id="notes" placeholder="Notes and results for the factory: what you did, replies you got, anything it should know…"></textarea>
         <div class="frow">
           <button class="btn primary" id="bdone"></button>
