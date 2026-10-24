@@ -1,0 +1,109 @@
+// Small shared helpers: icons, element builder, lane colors, toasts.
+const ICONS = {
+  email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/>',
+  keywords: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+  decision: '<path d="M12 4v16M8 20h8M5 8h14M5 8l-2.5 5.5a2.5 2.5 0 0 0 5 0zM19 8l-2.5 5.5a2.5 2.5 0 0 0 5 0zM12 4l-1 1M12 4l1 1"/>',
+  signup: '<circle cx="8" cy="15" r="4"/><path d="m10.9 12.1 8.6-8.6M16 7l2.5 2.5M13.8 9.2l2 2"/>',
+  review: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  question: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.6M12 16.8v.01"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2.2"/><path d="M15.5 8.5V6.2A1.7 1.7 0 0 0 13.8 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v7.6a1.7 1.7 0 0 0 1.7 1.7h2.3"/>',
+  external: '<path d="M14 4.5h5.5V10M19.5 4.5 11 13M18 14v4.3a1.7 1.7 0 0 1-1.7 1.7H5.7A1.7 1.7 0 0 1 4 18.3V7.7A1.7 1.7 0 0 1 5.7 6H10"/>',
+  folder: '<path d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5h4l2 2.2h7.6a1.7 1.7 0 0 1 1.7 1.7v8.4a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z"/>',
+  file: '<path d="M14 3.5H7.2a1.7 1.7 0 0 0-1.7 1.7v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8z"/><path d="M14 3.5V8h4.5M9 13h6M9 16.5h4"/>',
+  send: '<path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/>',
+  chat: '<path d="M20 12.5a7.5 7.5 0 0 1-11 6.6L4.5 20l1-4A7.5 7.5 0 1 1 20 12.5z"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  more: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
+  x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  minus: '<path d="M6 12h12"/>',
+  square: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
+  chevDown: '<path d="m7 10 5 5 5-5"/>',
+  chevUp: '<path d="m7 14 5-5 5 5"/>',
+  sparkle: '<path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5z"/><path d="M18.5 15.5c.3 1.6 1 2.3 2.5 2.5-1.5.2-2.2.9-2.5 2.5-.3-1.6-1-2.3-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5z"/>',
+  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
+  eraser: '<path d="m8.5 19.5-4-4a1.5 1.5 0 0 1 0-2.1l8.9-8.9a1.5 1.5 0 0 1 2.1 0l4 4a1.5 1.5 0 0 1 0 2.1L12 18.1M8.5 19.5h11M9.5 8.5l6 6"/>',
+  plus: '<path d="M12 5.5v13M5.5 12h13"/>',
+  bolt: '<path d="M13 3.5 5.5 13.5h6l-1 7 7.5-10h-6z"/>',
+  star: '<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
+  moon: '<path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10z"/>',
+  skip: '<path d="m6 6.5 7 5.5-7 5.5zM16.5 6.5v11"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="m10.9 12.1 8.6-8.6M16 7l2.5 2.5"/>',
+  paste: '<rect x="5.5" y="5" width="13" height="15.5" rx="2"/><path d="M9 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 11h6M9 14.5h4"/>',
+  play: '<path d="M8 5.5v13l10-6.5z"/>',
+};
+
+function icon(name, cls = '') {
+  return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'html') el.innerHTML = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) el.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return el;
+}
+
+function laneColor(lane) {
+  if (lane === 'factory') return 'var(--ink-3)';
+  let n = 0;
+  for (const c of lane) n = (n * 31 + c.charCodeAt(0)) % 360;
+  const hues = [18, 42, 150, 190, 222, 268, 320, 95];
+  return `hsl(${hues[n % hues.length]} 48% 52%)`;
+}
+
+const TYPE_LABEL = { email: 'Email', keywords: 'Keywords', decision: 'Decision', signup: 'Key / signup', review: 'Review', question: 'Question' };
+const laneName = (l) => (l === 'factory' ? 'Factory-wide' : l.replace(/-/g, ' '));
+
+function fmtMin(m) {
+  if (!m) return '';
+  if (m < 60) return `${m} min`;
+  const hh = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${hh} h ${mm} min` : `${hh} h`;
+}
+
+let toastTimer;
+function toast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) { t = h('div', { class: 'toast' }); document.body.append(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// Button that briefly shows a confirmation label after it runs.
+function actBtn(label, ic, fn, { cls = '', done = 'Done' } = {}) {
+  const b = h('button', { class: `btn sm ${cls}`, html: `${icon(ic)}<span>${label}</span>` });
+  b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const r = await fn();
+    if (r && r.ok === false) { toast(r.error || 'That didn\'t work'); return; }
+    if (done) {
+      b.classList.add('done-flash');
+      b.innerHTML = `${icon('check')}<span>${done}</span>`;
+      setTimeout(() => { b.classList.remove('done-flash'); b.innerHTML = `${icon(ic)}<span>${label}</span>`; }, 1400);
+    }
+  });
+  return b;
+}
+
+function popMenu(anchor, items) {
+  document.querySelectorAll('.popmenu').forEach((m) => m.remove());
+  const r = anchor.getBoundingClientRect();
+  const m = h('div', { class: 'popmenu' },
+    items.map((it) => h('button', { onclick: () => { m.remove(); it.run(); }, html: `${icon(it.icon)}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}` })));
+  document.body.append(m);
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  let top = r.bottom + 6;
+  if (top + mh > innerHeight - 8) top = r.top - mh - 6;
+  m.style.top = top + 'px';
+  m.style.left = Math.max(8, Math.min(r.right - mw, innerWidth - mw - 8)) + 'px';
+  setTimeout(() => document.addEventListener('click', function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', off); } }), 0);
+}

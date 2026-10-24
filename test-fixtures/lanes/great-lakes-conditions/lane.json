@@ -1,0 +1,48 @@
+{
+  "slug": "great-lakes-conditions",
+  "name": "Great Lakes Conditions",
+  "type": "traffic",
+  "order": 3,
+  "pitch": "One auto-updating page per Michigan lake, harbor and launch (waves, wind, water temp, water level, advisories). Launch target April 1, 2027. Sources: NOAA NDBC, GLERL/GLOS, NWS marine forecasts, NOAA CO-OPS, Open-Meteo.",
+  "gate": "G3",
+  "status": "waiting_nick",
+  "blocker": "Nick must run 40 queries through Keyword Planner",
+  "next_step": "load volumes, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:31:55+00:00",
+      "finished": "2026-10-24T05:36:58+00:00",
+      "result": "pass",
+      "note": "114 live requests: NDBC 76/111 MI stations reporting (offshore buoys already pulled), CO-OPS 8/8 gauges, NWS 17 GL alerts + NSH forecast text, GLERL GLSEA daily temps; all public domain. GLOS terms unknown, Open-Meteo non-commercial: not needed."
+    },
+    "G1": {
+      "started": "2026-10-24T05:36:59+00:00",
+      "finished": "2026-10-24T05:39:26+00:00",
+      "result": "pass",
+      "note": "samples/holland_mi.html built live by refresh.py: waves 1.0 ft (45029), wind 8 kt (HLNM4), water 58 F, level 579.07 ft +0.16 vs 35-yr Oct avg (CO-OPS), 0 advisories + NWS zone forecast; all public domain"
+    },
+    "G2": {
+      "started": "2026-10-24T05:39:26+00:00",
+      "finished": "2026-10-24T05:42:27+00:00",
+      "result": "pass",
+      "note": "40 queries + Keyword Planner steps + 10-query competitor audit in g2_keywords.md; volumes pending from Nick"
+    },
+    "G3": {
+      "started": "2026-10-24T05:42:27+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score pending keyword volumes"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [
+    "river-levels"
+  ],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:42:45+00:00"
+}

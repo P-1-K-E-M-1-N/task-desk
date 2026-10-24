@@ -1,0 +1,21 @@
+business,type,city,contact_url,source,why
+Four Seasons Kanga Roof,roofer,"Roseville, MI",https://kanga-roof.com/contact-us/,company website (verified 2026-10-24),large residential+commercial roofer serving metro Detroit; roof + solar rows
+Pro Home Improvement,roofer,"Ferndale, MI",https://www.buildzoom.com/contractor/pro-home-improvement-ferndale,BuildZoom public listing,full-replacement roofing/siding; general + roofing rows are replacement candidates
+Schoenherr Roofing,roofer,"Romeo, MI (serves SE Michigan)",https://www.buildzoom.com/contractor/schoenherr-roofing-mi,BuildZoom public listing,29-year SE Michigan roofer; competitor-map use of roofing rows
+"Tresnak Construction, Inc.",roofer,"Royal Oak, MI",https://www.bbb.org/us/mi/royal-oak/category/gutters,BBB category listing,local Royal Oak roofing/siding contractor; Nick's home turf
+McChesney Electric,electrician,"Ferndale, MI",https://www.mcchesneyelectric.com/contact,company website (BBB link references Ferndale),family-owned residential/commercial electrician; electrical + general rows
+Superior Electric of Greater Detroit,electrician,"Detroit, MI",https://www.expertise.com/home-improvement/electricians/michigan/detroit,Expertise.com listing,50+ year tri-county electrical contractor; electrical rows (78/week)
+KMR Construction Services,electrician,"Detroit, MI",https://homeguide.com/mi/detroit/electricians/,HomeGuide listing,in-house licensed electricians serving Detroit; renovation (general) rows
+"Royal Oak Heating, Cooling, Electrical & Plumbing",HVAC contractor,"Troy, MI",https://royaloakheating.com/contact-us/,company website (verified 2026-10-24),multi-trade since 1951; hvac rows are the biggest bucket (130/week)
+Thornton & Grooms,HVAC contractor,"Farmington Hills, MI",https://thorntonandgrooms.com/about/contact,company website (verified 2026-10-24),large HVAC+plumbing shop; tests whether a bigger firm values permit intel
+Beyer Heating & Cooling,HVAC contractor,"Ferndale, MI",https://www.trane.com/residential/en/dealers/beyer-heating-and-cooling-ferndale-michigan-991506/,Trane dealer directory,small local HVAC since 1977; price sensitivity at $30
+Winslow Heating & Cooling,HVAC contractor,"Lincoln Park, MI",https://www.thumbtack.com/mi/lincoln-park/hvac,Thumbtack listing,"family-run, serves Wayne + Oakland; furnace replacement season"
+JLH Heating & Air Conditioning,HVAC contractor,"Detroit, MI",https://www.promptloop.com/directory/detroit-hvac,directory listing,Detroit-based residential furnace/boiler shop; in-city rows
+"Cregger Plumbing, Heating & Cooling",plumber,"Ferndale, MI",https://www.creggerplumbing.com/contact-us/,company website (verified 2026-10-24),large local plumbing/HVAC; plumbing + hvac rows
+WaterWork Plumbing,plumber,"Ferndale, MI",https://waterworkplumbing.com/contact/,company website (verified 2026-10-24),commercial+residential plumber in Detroit since 2006; hotel/commercial plumbing rows
+Nelson Brothers Sewer & Plumbing,plumber,"Royal Oak, MI",https://www.nelsonbrothersplumbing.com/contact-us,company website + BBB profile,100-year Royal Oak plumber; sewer/back-water-valve rows
+Mr. Rooter Plumbing of Detroit,plumber,"Detroit, MI",https://mrrooter.com/detroit,franchise website,franchise with marketing budget; tests franchise appetite
+Michigan Made Dumpster Rentals,dumpster rental,"Brownstown Twp, MI",https://michiganmadedumpsterrental.com/,company website,Wayne County roll-off company; demolition/dumpster rows (39/week) are direct leads
+Bin There Dump That Southeast Michigan,dumpster rental,"Metro Detroit, MI",https://semichigan.bintheredumpthatusa.com/contactus,franchise website,residential-friendly dumpsters; renovation/rehab rows
+Priority Waste,dumpster rental,"Detroit, MI",https://www.prioritywaste.com/cities-we-serve/dumpster-rental-detroit-mi,company website,Michigan hauler with Detroit roll-off page; demolition permits list the wrecking contractor
+Discount Dumpster,dumpster rental,"Detroit, MI",https://discountdumpsterco.com/locations/detroit-dumpster-rental/,company website,greater-Detroit roll-off; tests whether permit timing beats their current lead sources

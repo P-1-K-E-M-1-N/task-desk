@@ -1,0 +1,46 @@
+{
+  "slug": "recall-checks",
+  "name": "Recall Checks for Used-Car Dealers",
+  "type": "revenue",
+  "order": 4,
+  "pitch": "Open-recall checks on dealer inventory via NHTSA vPIC + recalls API.",
+  "gate": "G3",
+  "status": "waiting_nick",
+  "blocker": "Nick must send outreach emails",
+  "next_step": "tally replies, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:32:36+00:00",
+      "finished": "2026-10-24T05:36:58+00:00",
+      "result": "pass",
+      "note": "vPIC decode (single+batch) and recallsByVehicle both live, public domain, daily flat file; NO public VIN-level open-recall API (web tool only), product shrinks to recall exposure report"
+    },
+    "G1": {
+      "started": "2026-10-24T05:36:58+00:00",
+      "finished": "2026-10-24T05:41:36+00:00",
+      "result": "pass",
+      "note": "recall_exposure_sheet.csv/html/pdf from 20 vehicles, 170 NHTSA campaigns, 3 park-it/park-outside flags; refresh.py rebuilds"
+    },
+    "G2": {
+      "started": "2026-10-24T05:41:36+00:00",
+      "finished": "2026-10-24T05:41:36+00:00",
+      "result": "pass",
+      "note": "20 targets + 20 draft emails + 3-question survey in outreach/; nothing sent"
+    },
+    "G3": {
+      "started": "2026-10-24T05:41:36+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score before replies"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:41:37+00:00"
+}

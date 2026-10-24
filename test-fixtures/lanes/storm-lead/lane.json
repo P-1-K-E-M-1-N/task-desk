@@ -1,0 +1,46 @@
+{
+  "slug": "storm-lead",
+  "name": "Storm Lead",
+  "type": "revenue",
+  "order": 2,
+  "pitch": "Morning-after alerts for Michigan roofing/restoration contractors listing ZIPs hit by hail 1in+ or damaging wind, $50-100/month. Sources: NOAA SPC storm reports, NWS alerts, OpenFEMA. G0 includes a 24-month Michigan backtest of alert frequency.",
+  "gate": "G3",
+  "status": "waiting_nick",
+  "blocker": "Nick must send outreach emails",
+  "next_step": "tally replies, then final G3",
+  "gates": {
+    "G0": {
+      "started": "2026-10-24T05:31:23+00:00",
+      "finished": "2026-10-24T05:43:58+00:00",
+      "result": "pass",
+      "note": "SPC daily+bulk CSVs live (public domain); 24-month MI backtest: 974 qualifying reports on 88 alert days, 0 in Nov-Feb"
+    },
+    "G1": {
+      "started": "2026-10-24T05:43:58+00:00",
+      "finished": "2026-10-24T05:45:29+00:00",
+      "result": "pass",
+      "note": "storm_lead_alert.pdf/html/csv for 2026-10-07 (latest MI day, 4 reports) plus 2026-09-03 example (46 reports, 15 counties); ZIPs via Census ZCTA centroids"
+    },
+    "G2": {
+      "started": "2026-10-24T05:45:30+00:00",
+      "finished": "2026-10-24T05:45:30+00:00",
+      "result": "pass",
+      "note": "20 targets + drafts in outreach/; nothing sent"
+    },
+    "G3": {
+      "started": "2026-10-24T05:45:30+00:00",
+      "finished": null,
+      "result": null,
+      "note": "provisional score pending replies"
+    },
+    "PLAN": {
+      "started": null,
+      "finished": null,
+      "result": null,
+      "note": ""
+    }
+  },
+  "merge_candidates": [],
+  "created": "2026-10-24T05:27:31+00:00",
+  "updated": "2026-10-24T05:45:30+00:00"
+}

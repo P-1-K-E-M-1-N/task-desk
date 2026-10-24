@@ -1,0 +1,120 @@
+// Runs the real `claude` CLI in a pseudo-terminal for each open task window.
+//
+// Session rules:
+//  - Reopening a task resumes that task's own session (`--resume <id>`).
+//  - First open forks the working folder's newest session (`--resume <newest>
+//    --fork-session --session-id <new>`), so the chat starts with the factory's
+//    context but never writes into the factory's running session.
+//  - Fallbacks: `--continue --fork-session`, then a fresh `claude`.
+//  - "Fresh chat" skips the fork and starts clean.
+const fs = require('fs');
+const crypto = require('crypto');
+const pty = require('@lydell/node-pty');
+const state = require('./state');
+const { sessionFile, newestSession, claudeExe, cleanEnv } = require('./sessions');
+
+const live = new Map(); // taskId -> { proc, sessionId }
+
+function ownSessionIds() {
+  const ids = Object.values(state.state.tasks).map((t) => t.chatSessionId).filter(Boolean);
+  return new Set([...ids, ...(state.state.ownSessions || [])]);
+}
+
+function remember(sid) {
+  state.state.ownSessions = [...(state.state.ownSessions || []), sid].slice(-500);
+  state.save();
+}
+
+function firstMessage(task, plan) {
+  const steps = plan && plan.steps ? plan.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : '(plan not ready yet)';
+  const lane = task.lane === 'factory' ? 'factory-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
+  const msg = `Nick is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Idea Factory files unless he explicitly asks: his results go back through the Done notes. When it's done, give him a short summary to paste into the Done notes.`;
+  return msg.replace(/\s+/g, ' ').slice(0, 7000);
+}
+
+function attempts(task, plan, mode) {
+  const st = state.task(task.id);
+  const msg = firstMessage(task, plan);
+  const list = [];
+  if (mode === 'auto' && st.chatSessionId && fs.existsSync(sessionFile(task.workDir, st.chatSessionId))) {
+    list.push({ label: 'Resuming this task\'s chat', sid: st.chatSessionId, args: ['--resume', st.chatSessionId] });
+  }
+  if (mode !== 'fresh') {
+    const base = newestSession(task.workDir, ownSessionIds());
+    if (base) {
+      const sid = crypto.randomUUID();
+      list.push({ label: 'Starting from the factory\'s latest session', sid, args: ['--resume', base, '--fork-session', '--session-id', sid, msg] });
+    }
+    const sid2 = crypto.randomUUID();
+    list.push({ label: 'Continuing the folder\'s last conversation', sid: sid2, args: ['--continue', '--fork-session', '--session-id', sid2, msg] });
+  }
+  const sid3 = crypto.randomUUID();
+  list.push({ label: 'Starting a fresh chat', sid: sid3, args: ['--session-id', sid3, msg] });
+  return list;
+}
+
+function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExit, onInfo }) {
+  stop(task.id);
+  const tries = attempts(task, plan, mode);
+  const run = (i) => {
+    const a = tries[i];
+    onInfo && onInfo({ label: a.label, sessionId: a.sid });
+    const startedAt = Date.now();
+    const proc = pty.spawn(claudeExe(), a.args, {
+      name: 'xterm-256color', cols, rows, cwd: task.workDir,
+      env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor' }),
+    });
+    const entry = { proc, sessionId: a.sid, stopped: false };
+    live.set(task.id, entry);
+    remember(a.sid);
+    state.update(task.id, { chatSessionId: a.sid });
+    proc.onData((d) => onData && onData(d));
+    proc.onExit(({ exitCode }) => {
+      if (entry.stopped) return;
+      // A launch that dies within a few seconds means that start method failed: try the next one.
+      if (exitCode !== 0 && Date.now() - startedAt < 8000 && i + 1 < tries.length) {
+        onData && onData(`\r\n\x1b[2m(${a.label.toLowerCase()} didn't work, trying the next option…)\x1b[0m\r\n`);
+        run(i + 1);
+        return;
+      }
+      live.delete(task.id);
+      onExit && onExit(exitCode);
+    });
+  };
+  run(0);
+}
+
+function write(id, data) {
+  const e = live.get(id);
+  if (e) e.proc.write(data);
+}
+
+// Paste text as a single block (bracketed paste) and press Enter.
+function send(id, text) {
+  const e = live.get(id);
+  if (!e) return false;
+  e.proc.write('\x1b[200~' + text + '\x1b[201~');
+  setTimeout(() => e.proc.write('\r'), 120);
+  return true;
+}
+
+function resize(id, cols, rows) {
+  const e = live.get(id);
+  if (e && cols > 0 && rows > 0) try { e.proc.resize(cols, rows); } catch {}
+}
+
+function stop(id) {
+  const e = live.get(id);
+  if (!e) return;
+  e.stopped = true;
+  live.delete(id);
+  try { e.proc.kill(); } catch {}
+}
+
+function stopAll() {
+  for (const id of [...live.keys()]) stop(id);
+}
+
+const isLive = (id) => live.has(id);
+
+module.exports = { start, write, send, resize, stop, stopAll, isLive, firstMessage };

@@ -1,0 +1,1 @@
+- [ ] **Approve the two scheduled jobs' cost model** (2026-10-24): both jobs run as Claude Code cloud routines on your plan (no new paid service). If you would rather run them locally, see ops/AUTOMATIONS.md for the Windows Task Scheduler alternative.

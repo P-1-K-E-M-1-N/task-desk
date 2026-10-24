@@ -1,0 +1,20 @@
+[
+  {"order": 1, "slug": "permit-radar", "name": "Permit Radar", "type": "revenue", "pitch": "Weekly Detroit-area building-permit lead lists for trades (roofers, electricians, HVAC, plumbers, dumpster rental), ~$30/month. Sources: data.detroitmi.gov permits; check Royal Oak and Oakland County. Address, permit details and contractor of record only; no homeowner enrichment."},
+  {"order": 2, "slug": "storm-lead", "name": "Storm Lead", "type": "revenue", "pitch": "Morning-after alerts for Michigan roofing/restoration contractors listing ZIPs hit by hail 1in+ or damaging wind, $50-100/month. Sources: NOAA SPC storm reports, NWS alerts, OpenFEMA. G0 includes a 24-month Michigan backtest of alert frequency."},
+  {"order": 3, "slug": "great-lakes-conditions", "name": "Great Lakes Conditions", "type": "traffic", "pitch": "One auto-updating page per Michigan lake, harbor and launch (waves, wind, water temp, water level, advisories). Launch target April 1, 2027. Sources: NOAA NDBC, GLERL/GLOS, NWS marine forecasts, NOAA CO-OPS, Open-Meteo."},
+  {"order": 4, "slug": "recall-checks", "name": "Recall Checks for Used-Car Dealers", "type": "revenue", "pitch": "Open-recall checks on dealer inventory via NHTSA vPIC + recalls API."},
+  {"order": 5, "slug": "contract-winner-intel", "name": "Contract-Winner Intel (BidRadar add-on)", "type": "revenue", "pitch": "Who won what, as a BidRadar add-on. Source: USAspending API."},
+  {"order": 6, "slug": "benchmarking-backend", "name": "Benchmarking Compliance Backend", "type": "revenue", "pitch": "ENERGY STAR Portfolio Manager web services; access requires approval, so draft the request for Nick."},
+  {"order": 7, "slug": "weather-trigger-jobs", "name": "Weather-Trigger Job Alerts", "type": "revenue", "pitch": "Alerts for roofers, landscapers and venues from the NWS API. May merge with Storm Lead."},
+  {"order": 8, "slug": "site-selection", "name": "Site-Selection Reports", "type": "revenue", "pitch": "Reports for new shop owners from the Census API."},
+  {"order": 9, "slug": "satellite-change", "name": "Satellite Change Alerts", "type": "revenue", "pitch": "Change alerts for land owners and farmers from Copernicus Sentinel-2."},
+  {"order": 10, "slug": "filing-alerts", "name": "Filing Alerts (SEC EDGAR)", "type": "revenue", "pitch": "Niche filing alerts, e.g. Michigan companies' 8-Ks."},
+  {"order": 11, "slug": "supplier-news", "name": "Supplier News Monitor", "type": "revenue", "pitch": "Supplier news monitor from GDELT."},
+  {"order": 12, "slug": "energy-cost-pages", "name": "Energy Cost by Area Pages", "type": "traffic", "pitch": "EIA API pages."},
+  {"order": 13, "slug": "river-levels", "name": "River Levels for Paddlers", "type": "traffic", "pitch": "USGS Water Services. May merge with Great Lakes Conditions."},
+  {"order": 14, "slug": "air-quality-alerts", "name": "Air-Quality Alerts for Schools and Youth Sports", "type": "traffic", "pitch": "AirNow."},
+  {"order": 15, "slug": "food-drug-recalls", "name": "Food and Drug Recall Alerts", "type": "traffic", "pitch": "openFDA alerts for restaurants, daycares, pharmacies."},
+  {"order": 16, "slug": "rare-bird-alerts", "name": "Rare-Bird Alerts", "type": "traffic", "pitch": "eBird API. Check terms first; likely KILL for commercial use."},
+  {"order": 17, "slug": "ev-road-trip", "name": "EV Road-Trip Planner", "type": "traffic", "pitch": "NREL Alt Fuel Stations. Crowded market."},
+  {"order": 18, "slug": "next-bus-displays", "name": "Next-Bus Lobby Displays", "type": "revenue", "pitch": "GTFS / GTFS-Realtime displays for coffee shops and apartments."}
+]
