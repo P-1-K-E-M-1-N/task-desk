@@ -83,6 +83,7 @@ function refresh() {
     const isNew = !state.has(t.id);
     state.task(t.id).lastTitle = t.title;
     if (isNew && !firstEver && t.important && Notification.isSupported()) {
+      console.log('notify: new urgent task', t.id);
       const n = new Notification({ title: 'New urgent task', body: `${t.title} · ${t.lane}`, icon: ICON_PNG });
       n.on('click', () => openTask(t.id));
       n.show();
