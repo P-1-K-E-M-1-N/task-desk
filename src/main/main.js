@@ -8,6 +8,7 @@ const chat = require('./chat');
 const { readTasks, parseEmails } = require('./tasks');
 const { appendFromNick, writeEnv } = require('./handback');
 const icon = require('./icon');
+const bridge = require('./bridge');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -300,6 +301,64 @@ function createTray() {
   tray.on('right-click', () => tray.popUpContextMenu(menu()));
 }
 
+// ---------- chat tools (taskdesk MCP) ----------
+// What the chat's Claude can do to its own task: read the plan, tick/comment a
+// step, add to the notes. Changes show up live in the task window and the box.
+
+function planView(t) {
+  const c = planner.cached(t);
+  const st = state.task(t.id);
+  const steps = c && c.plan ? c.plan.steps : [];
+  return {
+    task: t.title, lane: t.lane, text: t.text,
+    summary: c && c.plan ? c.plan.summary : null,
+    steps: steps.map((s, i) => ({ step: i + 1, text: s.text, done: !!st.ticks['s' + i], comment: (st.stepNotes || {})['s' + i] || '' })),
+    notes: st.notes || '',
+    planReady: !!steps.length,
+  };
+}
+
+function toWindow(id, change) {
+  const w = taskWins.get(id);
+  if (w && !w.isDestroyed()) w.webContents.send('task:changed', id, change);
+}
+
+async function chatTool(id, tool, args) {
+  const t = findTask(id);
+  if (!t) return { ok: false, error: 'This task is no longer open in Task Desk.' };
+  const st = state.task(id);
+  if (tool === 'get_task') return { ok: true, result: planView(t) };
+  if (tool === 'update_step') {
+    const c = planner.cached(t);
+    const steps = c && c.plan ? c.plan.steps : [];
+    const n = Number(args.step);
+    if (!steps.length) return { ok: false, error: 'The plan is not ready yet.' };
+    if (!Number.isInteger(n) || n < 1 || n > steps.length) return { ok: false, error: `Step must be 1-${steps.length}.` };
+    const key = 's' + (n - 1);
+    const change = { kind: 'step', key };
+    if (typeof args.done === 'boolean') { st.ticks[key] = args.done; change.done = args.done; }
+    if (typeof args.comment === 'string') {
+      st.stepNotes = st.stepNotes || {};
+      const text = args.comment.trim().slice(0, 1000);
+      if (text) st.stepNotes[key] = text; else delete st.stepNotes[key];
+      change.comment = text;
+    }
+    state.flush();
+    toWindow(id, change);
+    broadcast();
+    return { ok: true, result: `Step ${n} updated${change.done === true ? ': done' : change.done === false ? ': not done' : ''}${change.comment ? ' (comment saved)' : ''}.` };
+  }
+  if (tool === 'add_note') {
+    const text = String(args.text || '').trim().slice(0, 4000);
+    if (!text) return { ok: false, error: 'Nothing to add.' };
+    st.notes = st.notes ? `${st.notes.trimEnd()}\n${text}` : text;
+    state.flush();
+    toWindow(id, { kind: 'note', text, notes: st.notes });
+    return { ok: true, result: 'Added to his notes.' };
+  }
+  return { ok: false, error: 'Unknown tool ' + tool };
+}
+
 // ---------- IPC ----------
 
 const winOf = (e) => BrowserWindow.fromWebContents(e.sender);
@@ -358,6 +417,7 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
   const steps = c ? c.plan.steps.length : 0;
   const ticked = c ? c.plan.steps.filter((_, i) => st.ticks['s' + i]).length : 0;
   const results = Object.values(st.pastes).filter((p) => p && p.value && String(p.value).trim());
+  if (c) c.plan.steps.forEach((s, i) => { const n = (st.stepNotes || {})['s' + i]; if (n) results.push({ label: `Step ${i + 1} comment (${s.text.slice(0, 60)})`, value: n }); });
   let file;
   try {
     file = appendFromNick(config.root(), { lane: t.lane, text: t.text, status, notes, results, ticked: steps ? `${ticked}/${steps}` : '' });
@@ -450,7 +510,8 @@ app.on('window-all-closed', () => {});
 app.on('before-quit', () => { app.isQuitting = true; chat.stopAll(); state.flush(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await bridge.start(chatTool).catch((e) => console.warn('chat tools unavailable:', e.message));
   if (!fs.existsSync(ICON_PNG)) { fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true }); fs.writeFileSync(ICON_PNG, icon.png(256)); }
   if (!fs.existsSync(ICON_ICO)) fs.writeFileSync(ICON_ICO, icon.ico());
   nativeTheme.themeSource = config.get().look.appearance;

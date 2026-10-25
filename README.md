@@ -6,7 +6,7 @@ A small floating box on your screen that lists everything the Workshop needs fro
 
 1. Press **Ctrl+Alt+T** (or click the check-mark icon in the tray) to show or hide the task box.
 2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
-3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it.
+3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
 4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
 5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes land in the factory's `ops/FROM_NICK.md`.
 
@@ -52,6 +52,15 @@ Changes show up instantly in every open window and are remembered after a restar
 - **Reset all chats** (in the ⋯ menu) does the same for every task. Old conversations are never deleted. You can still find them with `/resume` in Claude Code.
 - **Permissions:** the chat uses your normal Claude Code permission settings. The factory's session runs in auto mode, and a forked chat inherits that, so every task brief tells Claude not to edit Workshop files unless you ask. Press Shift+Tab inside the chat to change the mode.
 
+**The chat keeps your plan up to date.** Each task's chat has three Task Desk tools, and they only work on that one task:
+- **Read the plan:** see the steps, which are ticked, any comments, and your notes. Claude checks this when it starts or resumes, so it knows what's already done.
+- **Update a step:** tick it done (or un-tick it) and leave a short comment under it, marked "Claude", such as "Form sent 10/24, ticket #123".
+- **Add to your notes:** append a line to "Notes for the factory". It never replaces what you wrote.
+
+Claude does this as soon as a step is finished or you tell it you did one ("I sent the form"). You'll see the step tick itself, a short highlight, and a small pop-up. Claude never presses Done or Skip; you still finish the task yourself. Step comments go to FROM_NICK.md with your notes when you press Done.
+- **How it works:** the app listens on your own computer only (127.0.0.1), with a secret code that changes every time the app starts. Each chat is told which task it belongs to, so it can't change any other task.
+- **Older chats** get the tools too, the next time they're opened.
+
 **Handing results back.** Pressing Done or Skip adds an entry to `ops\FROM_NICK.md`: date, lane, task, Done/Skipped, your notes, everything you pasted or chose, and how many steps you ticked. That is the **only** factory file the app ever writes. Paste the message in `HANDOFF.md` into your Workshop session once, so the factory reads FROM_NICK.md on every daily tick.
 
 **API keys.** If a plan has a "Save key to .env" step, the key goes only into the `.env` file the task names, and the app asks you first. It's never saved in app data, logs or git.
@@ -85,6 +94,6 @@ On first run the app put a shortcut on your desktop and one in your Startup fold
 
 ## For agents working on this repo
 
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`.
+- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`.
 - The main process is in `src/main/`: `tasks.js` (parser), `planner.js`, `chat.js` (node-pty + claude), `state.js`, `handback.js`, `main.js`. The screens are in `src/renderer/`.
 - Rules: the Workshop folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.

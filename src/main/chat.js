@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const pty = require('@lydell/node-pty');
 const state = require('./state');
 const { sessionFile, newestSession, claudeExe, cleanEnv } = require('./sessions');
+const bridge = require('./bridge');
 
 const live = new Map(); // taskId -> { proc, sessionId }
 
@@ -28,8 +29,26 @@ function remember(sid) {
 function firstMessage(task, plan) {
   const steps = plan && plan.steps ? plan.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : '(plan not ready yet)';
   const lane = task.lane === 'factory' ? 'factory-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
-  const msg = `Sam is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Workshop files unless he explicitly asks: his results go back through the Done notes. When it's done, give him a short summary to paste into the Done notes.`;
+  const msg = `Sam is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Workshop files unless he explicitly asks: his results go back through the Done notes. As steps get done, tick them in his plan with the Task Desk tools.`;
   return msg.replace(/\s+/g, ' ').slice(0, 7000);
+}
+
+// Sent with every launch (fresh or resumed), so even older chats know about the tools.
+function systemNote(task) {
+  return [
+    `You are running inside Nick's Task Desk, in the chat window for one task: "${task.title}" (lane ${task.lane}).`,
+    "The taskdesk tools update THIS task's plan, which Nick sees next to this chat:",
+    'get_task shows the numbered steps, which are done, comments, and his notes. Call it when you start or resume, so you know what is already done.',
+    'update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or Nick says he did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).',
+    'add_note appends a line to his "Notes for the factory" (results, replies, dates). Do not repeat what is already there.',
+    'Never press Done/Skip for him; he finishes the task himself.',
+  ].join(' ');
+}
+
+function withTools(task, args) {
+  if (!bridge.ready()) return args;
+  // These options take lists, so they go first: the next "--" option ends each list.
+  return ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk', '--append-system-prompt', systemNote(task), ...args];
 }
 
 function attempts(task, plan, mode) {
@@ -60,7 +79,7 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
     const a = tries[i];
     onInfo && onInfo({ label: a.label, sessionId: a.sid });
     const startedAt = Date.now();
-    const proc = pty.spawn(claudeExe(), a.args, {
+    const proc = pty.spawn(claudeExe(), withTools(task, a.args), {
       name: 'xterm-256color', cols, rows, cwd: task.workDir,
       env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor' }),
     });
