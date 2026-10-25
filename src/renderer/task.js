@@ -90,18 +90,17 @@ function renderPlan(planOk) {
 
 function stepEl(step, i) {
   const key = 's' + i;
-  const el = h('div', { class: 'step' + (ST.ticks[key] ? ' done' : ''), style: `animation-delay:${i * 35}ms` });
+  const el = h('div', { class: 'step' + (ST.ticks[key] ? ' done' : ''), style: `animation-delay:${i * 35}ms`, 'data-key': key });
   const check = h('button', { class: 'check', title: 'Mark this step done', html: icon('check') });
   check.onclick = async () => {
     ST.ticks[key] = !ST.ticks[key];
     el.classList.toggle('done', ST.ticks[key]);
     await desk.tick(ID, key, ST.ticks[key]);
-    const d = P.steps.filter((_, j) => ST.ticks['s' + j]).length;
-    $('.progress .bar i').style.width = `${(d / P.steps.length) * 100}%`;
-    $('.progress span').textContent = `${d} of ${P.steps.length} steps`;
+    updateProgress();
   };
   const body = h('div', {},
     h('div', { class: 'stext', html: `<span class="num">${i + 1}</span>${rich(step.text)}` }),
+    commentEl(key),
     actions(step, i),
   );
   const ask = h('button', { class: 'iconbtn ask', title: 'Send this step to the chat', html: icon('chat') });
@@ -109,6 +108,45 @@ function stepEl(step, i) {
   el.append(check, body, ask);
   return el;
 }
+
+function updateProgress() {
+  if (!P || !$('.progress')) return;
+  const d = P.steps.filter((_, j) => ST.ticks['s' + j]).length;
+  $('.progress .bar i').style.width = `${(d / P.steps.length) * 100}%`;
+  $('.progress span').textContent = `${d} of ${P.steps.length} steps`;
+}
+
+// Comment Claude left on a step (through the chat's taskdesk tools).
+function commentEl(key) {
+  const text = (ST.stepNotes || {})[key];
+  return h('div', { class: 'scomment', hidden: !text }, h('span', { class: 'who', html: `${icon('sparkle')}Claude` }), h('span', { class: 'ctext' }, text || ''));
+}
+
+// The chat updated this task: tick/untick a step, comment on it, or add to the notes.
+desk.onTaskChanged((id, ch) => {
+  if (id !== ID || !ST) return;
+  if (ch.kind === 'step') {
+    const el = document.querySelector(`.step[data-key="${ch.key}"]`);
+    const n = Number(ch.key.slice(1)) + 1;
+    if (typeof ch.done === 'boolean') { ST.ticks[ch.key] = ch.done; if (el) el.classList.toggle('done', ch.done); }
+    if (typeof ch.comment === 'string') {
+      ST.stepNotes = { ...(ST.stepNotes || {}), [ch.key]: ch.comment };
+      const c = el && el.querySelector('.scomment');
+      if (c) { c.hidden = !ch.comment; c.querySelector('.ctext').textContent = ch.comment; }
+    }
+    if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+    updateProgress();
+    toast(ch.done === true ? `Claude ticked step ${n}` : ch.done === false ? `Claude un-ticked step ${n}` : `Claude commented on step ${n}`);
+  }
+  if (ch.kind === 'note') {
+    const ta = $('#notes');
+    // Keep anything typed but not saved yet, then add Claude's line and save it all.
+    const cur = ta.value.trimEnd();
+    ta.value = cur ? (cur.includes(ch.text) ? cur : cur + String.fromCharCode(10) + ch.text) : ch.notes;
+    ta.dispatchEvent(new Event('input'));
+    toast('Claude added to your notes');
+  }
+});
 
 // ---------- step actions ----------
 function pasteBox(key, label, placeholder) {

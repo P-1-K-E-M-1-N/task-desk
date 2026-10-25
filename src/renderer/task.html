@@ -64,6 +64,11 @@
   .stext { font-size: 13.5px; line-height: 1.5; user-select: text; padding-top: 1px; }
   .num { display: inline-block; min-width: 18px; font-family: var(--serif); font-weight: 600; color: var(--clay); font-size: 14px; }
   .stext code, .summary code { font-family: var(--mono); font-size: 11.5px; padding: 1px 5px; border-radius: 5px; background: var(--surface-2); color: var(--ink); word-break: break-all; }
+  .scomment { display: flex; gap: 8px; align-items: baseline; margin-top: 8px; padding: 7px 10px; border-radius: 9px; background: color-mix(in srgb, var(--clay-soft) 55%, var(--surface)); font-size: 12.5px; line-height: 1.45; color: var(--ink-2); user-select: text; }
+  .scomment .who { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--clay); flex: none; }
+  .scomment .who svg.i { width: 11px; height: 11px; }
+  .step.flash { animation: stepflash 1.2s ease-out; }
+  @keyframes stepflash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 45%, transparent); } 100% { box-shadow: var(--shadow-sm); } }
   .sact { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .sact:empty { display: none; }
   .ask { align-self: start; opacity: .55; }

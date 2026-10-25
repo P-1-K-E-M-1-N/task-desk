@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('desk', {
   lookNow: () => ipcRenderer.sendSync('look:get'),
   setLook: call('look:set'),
   onLook: on('look'),
+  onTaskChanged: on('task:changed'),
   onLookOpen: on('look:open'),
   onTasks: on('tasks'),
   onPlan: on('plan'),
