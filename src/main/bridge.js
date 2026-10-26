@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const config = require('./config');
 
 const TOKEN = crypto.randomBytes(24).toString('hex');
-const MCP_DIR = path.join(config.DATA_DIR, 'mcp');
+const MCP_DIR = path.join(config.LOCAL_DIR, 'mcp'); // per computer, never synced
 const SCRIPT = path.join(__dirname, '..', 'mcp', 'taskdesk-mcp.js');
 let port = 0;
 

@@ -4,25 +4,23 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
+const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');
-const SETTINGS = path.join(ROOT, 'data', 'settings.json');
-const STATE = path.join(ROOT, 'data', 'state.test.json');
+const SETTINGS = path.join(DATA, 'settings.json');
+const STATE = path.join(DATA, 'state.test.json');
 const results = [];
 const ok = (name, cond, extra = '') => { results.push(cond); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
 const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
 
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
-  const before = fs.readFileSync(SETTINGS, 'utf8');
-  const s0 = JSON.parse(before);
-  fs.writeFileSync(SETTINGS, JSON.stringify({ ...s0, mode: 'test', collapsed: false, look: { theme: 'clay', material: 'paper', appearance: 'light', size: 'm' } }, null, 2));
-  process.on('exit', () => fs.writeFileSync(SETTINGS, before));
+  useTestSettings({ look: { theme: 'clay', material: 'paper', appearance: 'light', size: 'm' } });
   try { fs.unlinkSync(STATE); } catch {} // test-mode memory only; start clean
 
   const launch = async () => {
-    const app = await _electron.launch({ executablePath: require('electron'), args: [ROOT], cwd: ROOT });
+    const app = await _electron.launch(launchOpts());
     await app.evaluate(({ shell }) => { shell.openExternal = async () => {}; shell.openPath = async () => ''; });
     const box = await app.firstWindow();
     box.on('pageerror', (e) => ok('no box errors', false, e.message));

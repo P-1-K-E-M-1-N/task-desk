@@ -17,7 +17,7 @@ const bridge = require('./bridge');
 const live = new Map(); // taskId -> { proc, sessionId }
 
 function ownSessionIds() {
-  const ids = Object.values(state.state.tasks).map((t) => t.chatSessionId).filter(Boolean);
+  const ids = state.allTasks().map((t) => t.chatSessionId).filter(Boolean);
   return new Set([...ids, ...(state.state.ownSessions || [])]);
 }
 
@@ -26,17 +26,29 @@ function remember(sid) {
   state.save();
 }
 
+const isProject = (task) => !!task.project && task.project !== 'factory';
+
 function firstMessage(task, plan) {
   const steps = plan && plan.steps ? plan.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : '(plan not ready yet)';
-  const lane = task.lane === 'factory' ? 'factory-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
-  const msg = `Nick is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Idea Factory files unless he explicitly asks: his results go back through the Done notes. As steps get done, tick them in his plan with the Task Desk tools.`;
+  let msg;
+  if (isProject(task)) {
+    const where = task.projectFolder ? ` (folder ${task.projectFolder})` : '';
+    const edits = task.allowEdits
+      ? 'You may change files in the project folder when a step needs it.'
+      : 'Don\'t change files in the project folder unless he explicitly asks: his results go back through the Done notes.';
+    msg = `Nick is working on this task from his project "${task.projectName}"${where}: ${task.text}. The plan he's following: ${steps} Help him finish it. ${edits} As steps get done, tick them in his plan with the Task Desk tools.`;
+  } else {
+    const lane = task.lane === 'factory' ? 'factory-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
+    msg = `Nick is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Idea Factory files unless he explicitly asks: his results go back through the Done notes. As steps get done, tick them in his plan with the Task Desk tools.`;
+  }
   return msg.replace(/\s+/g, ' ').slice(0, 7000);
 }
 
 // Sent with every launch (fresh or resumed), so even older chats know about the tools.
 function systemNote(task) {
+  const where = isProject(task) ? `project "${task.projectName}"` : `lane ${task.lane}`;
   return [
-    `You are running inside Nick's Task Desk, in the chat window for one task: "${task.title}" (lane ${task.lane}).`,
+    `You are running inside Nick's Task Desk, in the chat window for one task: "${task.title}" (${where}).`,
     "The taskdesk tools update THIS task's plan, which Nick sees next to this chat:",
     'get_task shows the numbered steps, which are done, comments, and his notes. Call it when you start or resume, so you know what is already done.',
     'update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or Nick says he did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).',
@@ -62,7 +74,7 @@ function attempts(task, plan, mode) {
     const base = newestSession(task.workDir, ownSessionIds());
     if (base) {
       const sid = crypto.randomUUID();
-      list.push({ label: 'Starting from the factory\'s latest session', sid, args: ['--resume', base, '--fork-session', '--session-id', sid, msg] });
+      list.push({ label: isProject(task) ? 'Starting from this project\'s latest session' : 'Starting from the factory\'s latest session', sid, args: ['--resume', base, '--fork-session', '--session-id', sid, msg] });
     }
     const sid2 = crypto.randomUUID();
     list.push({ label: 'Continuing the folder\'s last conversation', sid: sid2, args: ['--continue', '--fork-session', '--session-id', sid2, msg] });

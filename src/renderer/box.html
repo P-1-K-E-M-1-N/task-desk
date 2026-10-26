@@ -90,12 +90,44 @@
   .bar-mode .panel { border-radius: 14px; border-width: min(var(--frame-w), 3px); outline: none; }
   .bar-mode header { margin: 0 !important; }
   .bar-mode .panel::before { display: none; }
+
+  /* project switcher (the "main menu") */
+  .switch {
+    display: flex; align-items: center; gap: 7px; min-width: 0; height: 30px; padding: 0 8px 0 4px; margin-left: -6px; border: 0; border-radius: 9px;
+    background: none; cursor: pointer; font-weight: 650; font-size: 12.5px; color: var(--ink); white-space: nowrap;
+  }
+  .switch:hover { background: rgba(127,127,127,.14); }
+  .switch img { width: 18px; height: 18px; border-radius: 5px; flex: none; }
+  .switch .lbl { overflow: hidden; text-overflow: ellipsis; }
+  .switch svg.i { width: 14px; height: 14px; color: var(--ink-3); }
+  :root:not([data-material=paper]) header .switch, :root:not([data-material=paper]) header .switch svg.i { color: var(--bar-ink); }
+  .bar-mode .switch .lbl, .bar-mode .switch svg.i { display: none; }
+  .popmenu.projects { width: 250px; }
+  .popmenu.projects button .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .popmenu.projects button .cnt { color: var(--ink-3); font-size: 11.5px; font-weight: 600; }
+  .popmenu.projects button.on { background: var(--clay-soft); }
+  .popmenu.projects button .dot { width: 9px; height: 9px; }
+  .popmenu.projects .warnico { color: var(--clay); font-size: 11px; font-weight: 700; }
+  .popmenu hr { border: 0; border-top: 1px solid var(--line); margin: 5px 4px; }
+  .popmenu .head { padding: 4px 10px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* quick add */
+  .quickadd { position: relative; display: flex; gap: 6px; padding: 0 12px 10px; flex: none; }
+  .quickadd input {
+    flex: 1; min-width: 0; height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface);
+    font-size: 12.5px; outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .quickadd input:focus { border-color: var(--clay); box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 18%, transparent); }
+  .quickadd button { height: 34px; width: 34px; padding: 0; justify-content: center; }
+  .bar-mode .quickadd, .bar-mode .warnline { display: none; }
+  .warnline { position: relative; margin: 0 12px 10px; padding: 8px 11px; border-radius: 10px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); background: var(--clay-soft); flex: none; }
+  .warnline button { border: 0; background: none; padding: 0; color: var(--clay); font-weight: 650; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
   <div class="panel">
     <header class="drag">
-      <div class="brand"><img src="../../assets/icon.png" alt=""><span class="lbl">Task Desk</span></div>
+      <button class="switch" id="switch" title="Switch project, or add one"><img src="../../assets/icon.png" alt=""><span class="lbl" id="pname">Task Desk</span><span id="pchev"></span></button>
       <div class="barsum" id="barsum"></div>
       <span class="pill mode-test" id="mode" hidden>TEST</span>
       <div class="sp"></div>
@@ -109,7 +141,9 @@
       <div class="big"><b id="count">…</b><span id="mins"></span></div>
       <div class="meter"><div class="bar"><i id="prog" style="width:0"></i></div><span id="progtxt"></span></div>
     </section>
+    <div class="warnline" id="warn" hidden></div>
     <nav class="chips" id="chips"></nav>
+    <form class="quickadd" id="quickadd" hidden><input id="qtext" maxlength="1000" autocomplete="off"><button class="btn primary" type="submit" id="qadd" title="Add this task"></button></form>
     <main class="list" id="list"></main>
     <footer><span id="updated">Loading…</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
   </div>
