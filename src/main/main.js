@@ -1,15 +1,19 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, shell, clipboard, dialog, nativeImage, nativeTheme, Notification, screen } = require('electron');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
 const chat = require('./chat');
 const { readTasks, parseEmails } = require('./tasks');
-const { appendFromNick, writeEnv } = require('./handback');
+const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./handback');
+const projects = require('./projects');
 const icon = require('./icon');
 const bridge = require('./bridge');
 
+// Tests can run beside the real desk with their own browser profile (and so their own lock).
+if (process.env.TASKDESK_USERDATA) app.setPath('userData', process.env.TASKDESK_USERDATA);
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
@@ -34,7 +38,7 @@ let tray = null;
 let tasks = [];
 const taskWins = new Map();
 let pollTimer = null;
-let watcher = null;
+let watchers = [];
 
 // ---------- tasks ----------
 
@@ -54,14 +58,26 @@ function decorate(t) {
     status: st.status,
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
+    projectName: t.project === 'factory' ? 'Workshop' : t.projectName,
+    projectColor: projects.colorOf(t.project),
   };
 }
 
 const tier = (t) => (t.important ? 0 : t.low ? 2 : 1);
 
+// Which project the box shows: 'all', 'factory' or a project id.
+function currentView() {
+  const v = config.get().view;
+  return v === 'all' || v === 'factory' || projects.get(v) ? v : 'all';
+}
+
 function payload() {
-  const all = tasks.map(decorate);
-  const open = all.filter((t) => state.isOpen(t.id)).sort((a, b) => tier(a) - tier(b) || a.minutes - b.minutes || (a.date || '').localeCompare(b.date || ''));
+  const view = currentView();
+  const everything = tasks.map(decorate);
+  const openAll = everything.filter((t) => state.isOpen(t.id)).sort((a, b) => tier(a) - tier(b) || a.minutes - b.minutes || (a.date || '').localeCompare(b.date || ''));
+  const inView = (t) => view === 'all' || t.project === view;
+  const all = everything.filter(inView);
+  const open = openAll.filter(inView);
   const s = config.get();
   return {
     tasks: open,
@@ -71,48 +87,67 @@ function payload() {
       done: all.filter((t) => t.status === 'done').length,
       snoozed: all.filter((t) => t.status === 'snoozed').length,
     },
+    totalOpen: openAll.length,
+    view,
+    projects: projects.summary().map((p) => ({ ...p, open: openAll.filter((t) => t.project === p.id).length })),
     mode: s.mode,
     root: config.root(),
     collapsed: s.collapsed,
+    synced: config.synced(),
   };
 }
 
 function broadcast() {
   const p = payload();
   for (const w of [box, ...taskWins.values()]) if (w && !w.isDestroyed()) w.webContents.send('tasks', p);
-  updateTray(p.counts.open);
+  updateTray(p.totalOpen);
 }
 
+// Reads every project's tasks: the Workshop first, then the others.
 function refresh() {
-  const firstEver = !state.state.everScanned;
-  const fresh = readTasks(config.root());
-  for (const t of fresh) {
-    const isNew = !state.has(t.id);
-    state.task(t.id).lastTitle = t.title;
-    if (isNew && !firstEver && t.important && Notification.isSupported()) {
-      console.log('notify: new urgent task', t.id);
-      const n = new Notification({ title: 'New urgent task', body: `${t.title} · ${t.lane}`, icon: ICON_PNG });
-      n.on('click', () => openTask(t.id));
-      n.show();
-    }
-  }
-  state.state.everScanned = true;
+  const fresh = [];
+  scan('factory', readTasks(config.root()), fresh);
+  for (const p of projects.list()) scan(p.id, projects.read(p), fresh);
   state.save();
   tasks = fresh;
   planner.ensure(tasks);
   broadcast();
 }
 
+// Notifies about new urgent tasks (never on a project's very first scan).
+function scan(key, list, out) {
+  const mem = state.store(key);
+  const firstEver = !mem.everScanned;
+  for (const t of list) {
+    const isNew = !state.has(t.id);
+    state.task(t.id).lastTitle = t.title;
+    if (isNew && !firstEver && t.important && Notification.isSupported()) {
+      console.log('notify: new urgent task', t.id);
+      const where = t.project === 'factory' ? t.lane : t.projectName;
+      const n = new Notification({ title: 'New urgent task', body: `${t.title} · ${where}`, icon: ICON_PNG });
+      n.on('click', () => openTask(t.id));
+      n.show();
+    }
+  }
+  mem.everScanned = true;
+  out.push(...list);
+}
+
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, config.get().pollSeconds * 1000);
-  try { watcher && watcher.close(); } catch {}
-  try {
-    let t = null;
-    watcher = fs.watch(path.join(config.root(), 'ops'), (ev, f) => {
-      if (f && /NEEDS_NICK/i.test(f)) { clearTimeout(t); t = setTimeout(refresh, 800); }
-    });
-  } catch {}
+  for (const w of watchers) try { w.close(); } catch {}
+  watchers = [];
+  // Re-read a moment after a task list file changes.
+  let t = null;
+  const watch = (dir, test) => {
+    try { watchers.push(fs.watch(dir, (ev, f) => { if (f && test(f)) { clearTimeout(t); t = setTimeout(refresh, 800); } })); } catch {}
+  };
+  watch(path.join(config.root(), 'ops'), (f) => /NEEDS_NICK/i.test(f));
+  for (const p of projects.list()) {
+    const f = projects.tasksFile(p);
+    if (f) watch(path.dirname(f), (name) => name.toLowerCase() === path.basename(f).toLowerCase());
+  }
 }
 
 planner.events.on('status', () => broadcast());
@@ -208,11 +243,39 @@ function openTask(id) {
   taskWins.set(id, w);
 }
 
+// The "Add a project" / "Edit project" window. One per project.
+const projectWins = new Map();
+function openProjectEditor(id) {
+  const key = id || 'new';
+  const existing = projectWins.get(key);
+  if (existing && !existing.isDestroyed()) { existing.show(); existing.focus(); return; }
+  const bb = box ? box.getBounds() : { x: 0, y: 0, width: 0 };
+  const wa = screen.getDisplayMatching(bb).workArea;
+  const W = 620, H = Math.min(820, wa.height);
+  let x = bb.x - W - 16;
+  if (x < wa.x) x = Math.max(wa.x, Math.round(wa.x + (wa.width - W) / 2));
+  const w = new BrowserWindow({
+    x, y: Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H)), width: W, height: H, minWidth: 520, minHeight: 520,
+    frame: false, show: false, icon: ICON_PNG, backgroundColor: windowBg(), title: id ? 'Edit project' : 'Add a project',
+    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
+  });
+  w.loadFile(path.join(RENDERER, 'project.html'), { query: { id: id || '' } });
+  w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
+  w.once('ready-to-show', () => w.show());
+  w.on('closed', () => projectWins.delete(key));
+  projectWins.set(key, w);
+}
+
+function setView(view) {
+  config.set({ view });
+  broadcast();
+}
+
 // ---------- tray & shortcuts ----------
 
 function updateTray(count) {
   if (!tray) return;
-  tray.setToolTip(`Nick's Task Desk · ${count} open task${count === 1 ? '' : 's'}`);
+  tray.setToolTip(`Nick's Task Desk · ${count} open task${count === 1 ? '' : 's'}${projects.list().length ? ' (all projects)' : ''}`);
 }
 
 function startupLink() {
@@ -248,14 +311,13 @@ function setMode(mode) {
   if (mode === 'live') {
     const r = dialog.showMessageBoxSync({
       type: 'question', buttons: ['Switch to live', 'Cancel'], defaultId: 0, cancelId: 1,
-      message: 'Switch to the live Workshop?',
+      message: 'Switch the Workshop to live?',
       detail: `Tasks will come from ${config.get().livePath}. The app only ever appends to ops\\FROM_NICK.md there.`,
     });
     if (r !== 0) return;
   }
-  chat.stopAll();
-  for (const w of taskWins.values()) w.destroy();
-  taskWins.clear();
+  // Only the Workshop's windows close: other projects don't change with the mode.
+  for (const [id, w] of [...taskWins]) if (state.projectOf(id) === 'factory') { chat.stop(id); w.destroy(); taskWins.delete(id); }
   config.set({ mode });
   state.use(mode);
   startPolling();
@@ -270,29 +332,148 @@ function resetAllChats() {
   });
   if (r !== 0) return;
   chat.stopAll();
-  for (const t of Object.values(state.state.tasks)) delete t.chatSessionId;
+  for (const t of state.allTasks()) delete t.chatSessionId;
   state.save();
   for (const [id, w] of taskWins) if (!w.isDestroyed()) w.webContents.send('chat:reset', id);
 }
 
+// Where Done notes go for what the box is showing (the Workshop's FROM_NICK.md when "All").
+function resultsFor(view) {
+  const p = projects.get(view);
+  return p ? projects.resultsFile(p) : path.join(config.root(), 'ops', 'FROM_NICK.md');
+}
+
 function menu() {
   const s = config.get();
+  const view = currentView();
+  const cur = projects.get(view);
+  const show = (v) => () => { setView(v); if (box) { box.show(); box.focus(); } };
   return Menu.buildFromTemplate([
     { label: box && box.isVisible() ? 'Hide task box' : 'Show task box', accelerator: 'Ctrl+Alt+T', click: toggleBox },
     { type: 'separator' },
-    { label: 'Test mode (copies)', type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
-    { label: 'Live Workshop', type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
+    { label: 'All projects', type: 'radio', checked: view === 'all', click: show('all') },
+    ...projects.summary().map((p) => ({ label: p.name, type: 'radio', checked: view === p.id, click: show(p.id) })),
+    { label: 'Add a project…', click: () => openProjectEditor(null) },
+    ...(cur ? [{ label: `Edit "${cur.name}"…`, click: () => openProjectEditor(cur.id) }] : []),
+    { type: 'separator' },
+    { label: 'Workshop: test copies', type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
+    { label: 'Workshop: live', type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
     { type: 'separator' },
     { label: 'Refresh tasks now', click: refresh },
     { label: 'Reset all chats…', click: resetAllChats },
-    { label: 'Show snoozed & done again', click: () => { for (const t of Object.values(state.state.tasks)) if (t.status === 'snoozed') t.status = 'open'; state.save(); broadcast(); } },
+    { label: 'Show snoozed & done again', click: () => { for (const t of state.allTasks()) if (t.status === 'snoozed') t.status = 'open'; state.save(); broadcast(); } },
     { label: 'Customize look…', click: () => { box.show(); box.webContents.send('look:open'); } },
-    { label: 'Open FROM_NICK.md', click: () => shell.openPath(path.join(config.root(), 'ops', 'FROM_NICK.md')) },
+    { label: cur ? `Open "${cur.name}" results` : 'Open FROM_NICK.md', click: () => shell.openPath(resultsFor(view)) },
     { label: 'Open app data folder', click: () => shell.openPath(config.DATA_DIR) },
     { type: 'separator' },
+    config.synced()
+      ? { label: 'Move my data back to this computer…', click: moveDataHome }
+      : { label: 'Keep my data in OneDrive…', click: moveDataToCloud },
     { label: 'Start with Windows', type: 'checkbox', checked: fs.existsSync(startupLink()), click: (i) => setAutostart(i.checked) },
     { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } },
   ]);
+}
+
+// ---------- OneDrive ----------
+// Moving the data folder copies settings, projects, ticks, notes and plans, then
+// restarts. Chat history stays with each computer's Claude Code, and API keys are
+// never in the data folder. A small in-use.json warns when the desk is already
+// open on another computer, because OneDrive can't merge two copies of a file.
+
+const SHARED = ['settings.json', 'state.json', 'state.test.json', 'plans', 'projects'];
+
+function copyData(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const n of SHARED) {
+    const src = path.join(from, n);
+    if (fs.existsSync(src)) fs.cpSync(src, path.join(to, n), { recursive: true, force: true });
+  }
+}
+
+function oneDriveRoot() {
+  const env = process.env.OneDrive || process.env.OneDriveConsumer || process.env.OneDriveCommercial;
+  return env && fs.existsSync(env) ? env : null;
+}
+
+function restart() {
+  releaseLock();
+  state.flush();
+  app.relaunch();
+  app.isQuitting = true;
+  app.exit(0);
+}
+
+function moveDataToCloud() {
+  let base = oneDriveRoot();
+  if (!base) {
+    const pick = dialog.showOpenDialogSync({ title: 'Choose your OneDrive folder', properties: ['openDirectory'] });
+    if (!pick) return;
+    base = pick[0];
+  }
+  const target = path.join(base, 'Task Desk');
+  if (fs.existsSync(path.join(target, 'settings.json'))) {
+    const r = dialog.showMessageBoxSync({
+      type: 'question', buttons: ['Use the data in OneDrive', 'Replace it with this computer\'s data', 'Cancel'], defaultId: 0, cancelId: 2,
+      message: 'There\'s already Task Desk data in OneDrive',
+      detail: `${target}\n\nIt's probably from your other computer. "Use the data in OneDrive" picks up where you left off there. "Replace" puts this computer's data there instead (the old copy is kept in a backup folder next to it).`,
+    });
+    if (r === 2) return;
+    if (r === 1) {
+      fs.cpSync(target, `${target} backup ${new Date().toISOString().slice(0, 10)}`, { recursive: true });
+      copyData(config.DATA_DIR, target);
+    }
+  } else {
+    const r = dialog.showMessageBoxSync({
+      type: 'question', buttons: ['Move to OneDrive', 'Cancel'], defaultId: 0, cancelId: 1,
+      message: 'Keep your Task Desk data in OneDrive?',
+      detail: `Your projects, ticks, notes, plans and look settings move to:\n${target}\n\nOn another computer, install Task Desk and choose this again to pick up the same data. Chat history stays on each computer, and API keys are never stored there.\n\nTip: use Task Desk on one computer at a time. Task Desk restarts now.`,
+    });
+    if (r !== 0) return;
+    copyData(config.DATA_DIR, target);
+  }
+  config.set({ dataDir: target });
+  restart();
+}
+
+function moveDataHome() {
+  const r = dialog.showMessageBoxSync({
+    type: 'question', buttons: ['Move it back', 'Cancel'], defaultId: 0, cancelId: 1,
+    message: 'Move your data back to this computer?',
+    detail: `Copies everything from ${config.DATA_DIR} to ${config.LOCAL_DIR} and stops using OneDrive on this computer. The OneDrive copy is left alone. Task Desk restarts now.`,
+  });
+  if (r !== 0) return;
+  copyData(config.DATA_DIR, config.LOCAL_DIR);
+  config.set({ dataDir: null });
+  restart();
+}
+
+const LOCK = path.join(config.DATA_DIR, 'in-use.json');
+let lockTimer = null;
+function beat() {
+  try { fs.writeFileSync(LOCK, JSON.stringify({ computer: os.hostname(), at: Date.now() })); } catch {}
+}
+// Returns false if Nick chose to quit because the desk is open on another computer.
+function takeLock() {
+  if (!config.synced()) return true;
+  try {
+    const l = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
+    if (l.computer !== os.hostname() && Date.now() - l.at < 3 * 60 * 1000) {
+      const r = dialog.showMessageBoxSync({
+        type: 'warning', buttons: ['Open anyway', 'Quit'], defaultId: 1, cancelId: 1,
+        message: `Task Desk looks open on ${l.computer}`,
+        detail: 'Your data is shared through OneDrive. Using it on two computers at the same time can leave OneDrive with two versions of the same file. Close it on the other computer first, or open anyway.',
+      });
+      if (r !== 0) return false;
+    }
+  } catch {}
+  beat();
+  lockTimer = setInterval(beat, 60 * 1000);
+  return true;
+}
+function releaseLock() {
+  clearInterval(lockTimer);
+  if (!config.synced()) return;
+  try { if (JSON.parse(fs.readFileSync(LOCK, 'utf8')).computer === os.hostname()) fs.unlinkSync(LOCK); } catch {}
 }
 
 function createTray() {
@@ -362,15 +543,27 @@ async function chatTool(id, tool, args) {
 // ---------- IPC ----------
 
 const winOf = (e) => BrowserWindow.fromWebContents(e.sender);
-const resolvePath = (p) => (p ? (path.isAbsolute(p) ? path.normalize(p) : path.join(config.root(), p)) : null);
+// Relative paths in a plan are relative to its project's folder (the factory root for the Workshop).
+function baseFor(e) {
+  const w = winOf(e);
+  const id = [...taskWins].find(([, x]) => x === w)?.[0];
+  const t = id && findTask(id);
+  return t && t.project !== 'factory' ? t.projectFolder || t.workDir : config.root();
+}
+const resolvePath = (p, e) => (p ? (path.isAbsolute(p) ? path.normalize(p) : path.join(e ? baseFor(e) : config.root(), p)) : null);
 
 ipcMain.handle('tasks:list', () => payload());
 ipcMain.handle('task:get', (e, id) => {
   const t = findTask(id);
   if (!t) return null;
   const c = planner.cached(t);
-  return { task: decorate(t), plan: c ? c.plan : null, planOk: c ? c.ok : null, st: state.task(id), mode: config.get().mode };
+  return { task: decorate(t), plan: c ? c.plan : null, planOk: c ? c.ok : null, st: state.task(id), mode: config.get().mode, resultsTo: resultsKind(t) };
 });
+// Where this task's Done notes go: 'factory' (FROM_NICK.md), 'file' (the project's file) or 'app'.
+function resultsKind(t) {
+  const p = projects.get(t.project);
+  return p ? p.results : 'factory';
+}
 ipcMain.handle('task:open', (e, id) => openTask(id));
 ipcMain.handle('task:tick', (e, id, key, val) => {
   const st = state.task(id);
@@ -418,9 +611,11 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
   const ticked = c ? c.plan.steps.filter((_, i) => st.ticks['s' + i]).length : 0;
   const results = Object.values(st.pastes).filter((p) => p && p.value && String(p.value).trim());
   if (c) c.plan.steps.forEach((s, i) => { const n = (st.stepNotes || {})['s' + i]; if (n) results.push({ label: `Step ${i + 1} comment (${s.text.slice(0, 60)})`, value: n }); });
+  const entry = { lane: t.lane, text: t.text, status, notes, results, ticked: steps ? `${ticked}/${steps}` : '' };
+  const p = projects.get(t.project);
   let file;
   try {
-    file = appendFromNick(config.root(), { lane: t.lane, text: t.text, status, notes, results, ticked: steps ? `${ticked}/${steps}` : '' });
+    file = p ? appendResults(projects.resultsFile(p), entry, projectHeader(p.name)) : appendFromNick(config.root(), entry);
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -429,7 +624,52 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
   broadcast();
   const w = taskWins.get(id);
   setTimeout(() => { if (w && !w.isDestroyed()) w.close(); if (next) openTask(next.id); }, 650);
-  return { ok: true, file };
+  return { ok: true, file, resultsTo: resultsKind(t) };
+});
+
+// ---------- projects ----------
+ipcMain.handle('view:set', (e, view) => setView(view));
+ipcMain.handle('project:edit', (e, id) => openProjectEditor(id || null));
+ipcMain.handle('project:get', (e, id) => {
+  const p = projects.get(id);
+  return p ? { ...p, resultsPath: projects.resultsFile(p), missing: projects.missing(p) } : null;
+});
+ipcMain.handle('project:save', (e, draft) => {
+  const r = projects.save(draft);
+  if (!r.ok) return r;
+  if (r.created) config.set({ view: r.project.id });
+  refresh();
+  startPolling();
+  return { ...r, resultsPath: projects.resultsFile(r.project) };
+});
+ipcMain.handle('project:remove', (e, id) => {
+  const p = projects.get(id);
+  if (!p) return false;
+  const r = dialog.showMessageBoxSync(winOf(e), {
+    type: 'question', buttons: ['Remove project', 'Cancel'], defaultId: 1, cancelId: 1,
+    message: `Remove "${p.name}" from Task Desk?`,
+    detail: 'Its tasks leave the box. Nothing in the project folder is touched, and your notes and results stay in the app data folder in case you add it back.',
+  });
+  if (r !== 0) return false;
+  for (const [id2, w] of [...taskWins]) if (state.projectOf(id2) === id) w.close();
+  projects.remove(id);
+  refresh();
+  startPolling();
+  return true;
+});
+ipcMain.handle('project:preview', (e, draft) => projects.preview(draft));
+ipcMain.handle('project:suggest', (e, folder) => projects.suggest(folder));
+ipcMain.handle('project:pick', async (e, kind, from) => {
+  const r = await dialog.showOpenDialog(winOf(e), kind === 'folder'
+    ? { title: 'Choose the project folder', defaultPath: from || 'C:\\MrC', properties: ['openDirectory'] }
+    : { title: 'Choose the checklist file', defaultPath: from || undefined, properties: ['openFile'], filters: [{ name: 'Checklists', extensions: ['md', 'txt'] }, { name: 'All files', extensions: ['*'] }] });
+  return r.canceled ? null : r.filePaths[0];
+});
+ipcMain.handle('project:open', (e, p) => { if (p && fs.existsSync(p)) shell.openPath(p); else return { ok: false, error: 'Nothing there yet: it appears after your first Done.' }; });
+ipcMain.handle('task:add', (e, pid, text) => {
+  const id = projects.addTask(pid, text);
+  if (id) refresh();
+  return id;
 });
 
 ipcMain.handle('act:url', (e, url) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); });
@@ -439,31 +679,31 @@ ipcMain.handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
   shell.openExternal(u);
 });
 ipcMain.handle('act:file', async (e, p) => {
-  const f = resolvePath(p);
+  const f = resolvePath(p, e);
   if (!f || !fs.existsSync(f)) return { ok: false, error: 'File not found: ' + f };
   const err = await shell.openPath(f);
   return { ok: !err, error: err };
 });
 ipcMain.handle('act:folder', async (e, p) => {
-  let f = resolvePath(p);
+  let f = resolvePath(p, e);
   if (f && fs.existsSync(f) && fs.statSync(f).isFile()) { shell.showItemInFolder(f); return { ok: true }; }
   while (f && !fs.existsSync(f) && path.dirname(f) !== f) f = path.dirname(f);
   if (!f) return { ok: false };
   await shell.openPath(f);
   return { ok: true, path: f };
 });
-ipcMain.handle('act:exists', (e, p) => { const f = resolvePath(p); return !!f && fs.existsSync(f); });
+ipcMain.handle('act:exists', (e, p) => { const f = resolvePath(p, e); return !!f && fs.existsSync(f); });
 ipcMain.handle('act:emails', (e, p) => {
-  const f = resolvePath(p);
+  const f = resolvePath(p, e);
   try {
     const r = parseEmails(fs.readFileSync(f, 'utf8'));
-    return { ...r, file: f, attachPath: r.attach ? resolvePath(r.attach) : null };
+    return { ...r, file: f, attachPath: r.attach ? resolvePath(r.attach, e) : null };
   } catch (err) {
     return { emails: [], error: err.message };
   }
 });
 ipcMain.handle('act:env', (e, id, envPath, name, value) => {
-  const f = resolvePath(envPath);
+  const f = resolvePath(envPath, e);
   const inFactory = f.toLowerCase().startsWith(path.resolve(config.get().livePath).toLowerCase());
   const r = dialog.showMessageBoxSync(winOf(e), {
     type: 'warning', buttons: ['Write the key', 'Cancel'], defaultId: 1, cancelId: 1,
@@ -507,10 +747,18 @@ ipcMain.handle('tray:badge', (e, dataUrl) => {
 
 app.on('second-instance', () => { if (box) { box.show(); box.focus(); } });
 app.on('window-all-closed', () => {});
-app.on('before-quit', () => { app.isQuitting = true; chat.stopAll(); state.flush(); });
+app.on('before-quit', () => { app.isQuitting = true; chat.stopAll(); state.flush(); releaseLock(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.whenReady().then(async () => {
+  if (config.dataMissing) {
+    dialog.showMessageBoxSync({
+      type: 'warning', buttons: ['OK'],
+      message: 'Can\'t find your OneDrive data folder',
+      detail: `${config.wantedDataDir}\n\nTask Desk is using this computer's own data for now. Check that OneDrive is running and signed in, then restart Task Desk.`,
+    });
+  }
+  if (!takeLock()) { app.isQuitting = true; app.quit(); return; }
   await bridge.start(chatTool).catch((e) => console.warn('chat tools unavailable:', e.message));
   if (!fs.existsSync(ICON_PNG)) { fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true }); fs.writeFileSync(ICON_PNG, icon.png(256)); }
   if (!fs.existsSync(ICON_ICO)) fs.writeFileSync(ICON_ICO, icon.ico());

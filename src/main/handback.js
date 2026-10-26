@@ -1,13 +1,30 @@
 // The only factory file this app ever writes: ops/FROM_NICK.md (append-only).
+// Other projects get the same kind of entry in the results file they chose.
 // Plus the optional .env write for signup keys, which always asks Nick first.
 const fs = require('fs');
 const path = require('path');
+const config = require('./config');
 
 const HEADER = '# From Nick\n\n_Appended by Nick\'s Task Desk when Nick finishes or skips a task. Newest at the bottom. The factory reads this on every daily tick._\n\n';
+const projectHeader = (name) => `# From Nick\n\n_Appended by Nick's Task Desk when Nick finishes or skips a task in "${name}". Newest at the bottom._\n\n`;
 
-function appendFromNick(root, { lane, text, status, notes, results, ticked }) {
-  const file = path.join(root, 'ops', 'FROM_NICK.md');
-  if (!fs.existsSync(file)) fs.writeFileSync(file, HEADER);
+// Safety net: inside the Workshop, only ops/FROM_NICK.md may ever be written.
+function guard(file) {
+  const rel = path.relative(path.resolve(config.get().livePath), path.resolve(file));
+  const inFactory = !rel.startsWith('..') && !path.isAbsolute(rel);
+  if (inFactory && rel.toLowerCase() !== path.join('ops', 'from_nick.md')) {
+    throw new Error('The Workshop folder is read-only (only ops\\FROM_NICK.md may be added to).');
+  }
+}
+
+function appendFromNick(root, entry) {
+  return appendResults(path.join(root, 'ops', 'FROM_NICK.md'), entry, HEADER);
+}
+
+function appendResults(file, { lane, text, status, notes, results, ticked }, header = HEADER) {
+  guard(file);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (!fs.existsSync(file)) fs.writeFileSync(file, header);
   const now = new Date();
   const stamp = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
   let entry = `## ${stamp} · ${lane} · ${status.toUpperCase()}\n\n`;
@@ -41,4 +58,4 @@ function writeEnv(envPath, name, value) {
   fs.writeFileSync(envPath, body);
 }
 
-module.exports = { appendFromNick, writeEnv };
+module.exports = { appendFromNick, appendResults, projectHeader, guard, writeEnv };

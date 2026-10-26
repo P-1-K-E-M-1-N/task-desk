@@ -93,17 +93,33 @@ function readTasks(root) {
   }
 
   const worktrees = laneWorktrees(root);
+  return toTasks(raw, (r) => {
+    const laneDir = r.lane === 'factory' ? root : path.join(lanesDir, r.lane);
+    const tree = worktrees.find((w) => r.lane !== 'factory' && path.basename(w).includes(r.lane));
+    return { laneDir, workDir: tree || root };
+  }).map((t) => ({ ...t, project: 'factory' }));
+}
+
+// Any Markdown checklist: "- [ ]" lines are tasks, "## headings" group them.
+// The file is only read.
+function readChecklist(file, onlyMine) {
+  let raw = [];
+  try { raw = parseNeedsNick(fs.readFileSync(file, 'utf8')); } catch {}
+  if (onlyMine) raw = raw.filter((r) => /\bnick\b/i.test(r.text));
+  return raw.map((r) => ({ ...r, lane: r.lane === 'factory' ? 'general' : r.lane }));
+}
+
+// Raw items ({lane, text, id?}) -> task objects. dirs(r) gives the folders to plan and chat in.
+function toTasks(raw, dirs, prefix = '') {
   const seen = new Set();
   const tasks = [];
   for (const r of raw) {
     const title = titleOf(r.text);
-    const id = sha(r.lane + '|' + norm(title)).slice(0, 12);
+    const id = r.id || prefix + sha(r.lane + '|' + norm(title)).slice(0, 12);
     if (seen.has(id)) continue;
     seen.add(id);
     const fromTitle = guessType(title);
     const type = fromTitle !== 'review' ? fromTitle : guessType(r.text);
-    const laneDir = r.lane === 'factory' ? root : path.join(lanesDir, r.lane);
-    const tree = worktrees.find((w) => r.lane !== 'factory' && path.basename(w).includes(r.lane));
     const date = (r.text.match(/\((\d{4}-\d{2}-\d{2})\)/) || [])[1] || null;
     tasks.push({
       id,
@@ -117,8 +133,7 @@ function readTasks(root) {
       important: /\*\*/.test(r.text) && !LOW.test(r.text),
       low: LOW.test(r.text),
       date,
-      laneDir,
-      workDir: tree || root,
+      ...dirs(r),
       fromLaneMd: !!r.fromLaneMd,
     });
   }
@@ -141,4 +156,4 @@ function parseEmails(md) {
   return { attach, emails: out };
 }
 
-module.exports = { readTasks, parseNeedsNick, parseEmails, sha, norm };
+module.exports = { readTasks, readChecklist, toTasks, parseNeedsNick, parseEmails, sha, norm };

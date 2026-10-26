@@ -4,19 +4,20 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
+const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');
 const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
 const NEEDS = path.join(ROOT, 'test-fixtures', 'ops', 'NEEDS_NICK.md');
-const SETTINGS = path.join(ROOT, 'data', 'settings.json');
+const SETTINGS = path.join(DATA, 'settings.json');
 let mainLog = '';
 const results = [];
 const ok = (name, cond, extra = '') => { results.push([cond ? 'PASS' : 'FAIL', name, extra]); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, name + '.png') });
 
 async function launch() {
-  const app = await _electron.launch({ executablePath: require('electron'), args: [ROOT], cwd: ROOT });
+  const app = await _electron.launch(launchOpts());
   app.process().stdout.on('data', (d) => (mainLog += d));
   await app.evaluate(({ shell, clipboard }) => {
     global.__opened = [];
@@ -60,15 +61,13 @@ async function waitTerm(win, re, ms = 90000) {
 
 (async () => {
   try { fs.unlinkSync(FROM_NICK); } catch {}
-  try { fs.unlinkSync(path.join(ROOT, 'data', 'state.test.json')); } catch {} // test-mode memory only; start clean
+  try { fs.unlinkSync(path.join(DATA, 'state.test.json')); } catch {} // test-mode memory only; start clean
   // Always test against the copies, then put the previous mode back.
-  const settingsBefore = fs.readFileSync(SETTINGS, 'utf8');
-  fs.writeFileSync(SETTINGS, JSON.stringify({ ...JSON.parse(settingsBefore), mode: 'test' }, null, 2));
-  process.on('exit', () => fs.writeFileSync(SETTINGS, settingsBefore));
+  useTestSettings();
   const needsBefore = fs.readFileSync(NEEDS, 'utf8');
   process.on('exit', () => fs.writeFileSync(NEEDS, needsBefore));
   let { app, box } = await launch();
-  ok('global hotkey Ctrl+Alt+T registered', await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered('Control+Alt+T')));
+  ok('global hotkey registered', await app.evaluate(({ globalShortcut }, k) => globalShortcut.isRegistered(k), HOTKEY));
 
   // ---- Screen 1 ----
   const n = await box.locator('.card').count();
@@ -136,7 +135,7 @@ async function waitTerm(win, re, ms = 90000) {
   ok('chat starts claude in the terminal', chatOut.trim().length > 20, chatOut.replace(/\s+/g, ' ').slice(0, 100));
   await waitTerm(win, /Done notes|summary|step|plan/i, 120000);
   await shot(win, '04-task-chat');
-  const sid1 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'state.test.json'), 'utf8'));
+  const sid1 = JSON.parse(fs.readFileSync(path.join(DATA, 'state.test.json'), 'utf8'));
   const tid = Object.entries(sid1.tasks).find(([, t]) => /Open Recipes/.test(t.lastTitle || ''))[0];
   const firstSid = sid1.tasks[tid].chatSessionId;
   ok('chat session id saved for task', !!firstSid, firstSid);
@@ -157,7 +156,7 @@ async function waitTerm(win, re, ms = 90000) {
   ok('reopen resumes the same chat', /resuming this task/i.test(statText), statText);
   await waitTerm(win, /About step 2|step 2|Open Recipes/i, 60000);
   await shot(win, '05-task-resumed');
-  const st2 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'state.test.json'), 'utf8'));
+  const st2 = JSON.parse(fs.readFileSync(path.join(DATA, 'state.test.json'), 'utf8'));
   ok('resumed session id unchanged', st2.tasks[tid].chatSessionId === firstSid);
 
   // Clear + Fresh chat
@@ -166,7 +165,7 @@ async function waitTerm(win, re, ms = 90000) {
   ok('Clear button sends /clear', true);
   await win.locator('#cfresh').click();
   await win.waitForTimeout(4000);
-  const st3 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'state.test.json'), 'utf8'));
+  const st3 = JSON.parse(fs.readFileSync(path.join(DATA, 'state.test.json'), 'utf8'));
   ok('Fresh chat gets a new session id', st3.tasks[tid].chatSessionId && st3.tasks[tid].chatSessionId !== firstSid, st3.tasks[tid].chatSessionId);
   ok('Fresh chat status label', /fresh/i.test(await win.locator('#cstatText').innerText()));
 

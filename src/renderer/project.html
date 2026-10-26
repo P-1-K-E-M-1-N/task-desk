@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' file: data:">
+<title>Project</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Same frame as the task window: the body is the border material, the page sits inside it. */
+  body { display: flex; flex-direction: column; background: var(--frame); background-color: var(--bg-2); padding: var(--frame-w); }
+  .titlebar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 14px; flex: none; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+  .titlebar .tile { width: 24px; height: 24px; border-radius: 7px; --tc: var(--clay); }
+  .titlebar .tile svg.i { width: 13px; height: 13px; }
+  .titlebar .name { font-weight: 600; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .titlebar .sp { flex: 1; }
+  .titlebar .saved { margin-right: 6px; }
+  :root:not([data-material=paper]):not([data-material=neon]) .titlebar { background: transparent; border-bottom: 0; }
+  :root:not([data-material=paper]) .titlebar .name, :root:not([data-material=paper]) .titlebar .iconbtn { color: var(--bar-ink); }
+  :root:not([data-material=paper]):not([data-material=neon]) .titlebar .saved:not([data-s=saving]) { color: var(--bar-ink); opacity: .85; }
+  .page {
+    flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--bg); position: relative;
+    border-radius: var(--app-r); overflow: hidden; box-shadow: var(--frame-glow); outline: var(--stitch); outline-offset: 4px;
+  }
+  .page::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 200px; pointer-events: none; background: radial-gradient(90% 100% at 0% 0%, color-mix(in srgb, var(--clay) 9%, transparent), transparent 70%); }
+  .scroll { flex: 1; overflow-y: auto; padding: 24px 30px 20px; position: relative; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 26px; letter-spacing: -.018em; margin: 0 0 6px; font-variation-settings: 'opsz' 72; }
+  .lead { margin: 0 0 18px; color: var(--ink-2); font-size: 13.3px; line-height: 1.55; max-width: 60ch; }
+  .field { margin: 0 0 18px; }
+  .label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px; }
+  .hint { font-size: 11.8px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  input.box, textarea.box {
+    width: 100%; min-width: 0; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); font-size: 13px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea.box { min-height: 74px; resize: vertical; line-height: 1.5; }
+  input.box:focus, textarea.box:focus { border-color: var(--clay); box-shadow: 0 0 0 3px color-mix(in srgb, var(--clay) 18%, transparent); }
+  .bad input.box { border-color: #d0533f; }
+  .choice {
+    display: grid; grid-template-columns: 20px 1fr; gap: 4px 10px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+    cursor: pointer; margin-bottom: 7px; transition: border-color .15s, background .15s;
+  }
+  .choice:hover { border-color: var(--line-2); }
+  .choice.on { border-color: var(--clay); background: color-mix(in srgb, var(--clay-soft) 40%, var(--surface)); }
+  .choice input[type=radio] { margin: 2px 0 0; accent-color: var(--clay); }
+  .choice b { font-size: 13px; font-weight: 620; }
+  .choice .hint { grid-column: 2; margin-top: 0; }
+  .choice .more { grid-column: 2; margin-top: 6px; }
+  .choice:not(.on) .more { display: none; }
+  .check { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+  .check input { margin: 2px 0 0; accent-color: var(--clay); }
+  .found { display: flex; gap: 7px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+  .found svg.i { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--ok); }
+  .found.warn svg.i { color: var(--clay); }
+  .colors { display: flex; gap: 8px; }
+  .colors button { width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+  .colors button.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+  .err { color: #c2412d; font-size: 12px; font-weight: 600; margin-top: 6px; }
+  .dark .err { color: #f0907c; }
+  .foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px 14px; border-top: 1px solid var(--line); background: var(--bg-2); flex: none; }
+  .foot .sp { flex: 1; }
+  .foot .msg { font-size: 12px; color: var(--ink-3); }
+  .celebrate { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(6px); z-index: 60; animation: rise .2s; }
+  .celebrate div { text-align: center; font-family: var(--serif); font-size: 24px; }
+  .celebrate .tile { margin: 0 auto 12px; width: 52px; height: 52px; border-radius: 16px; --tc: var(--ok); }
+  .celebrate .tile svg.i { width: 26px; height: 26px; stroke-width: 2.4; }
+  code { font-family: var(--mono); font-size: 11.5px; padding: 1px 4px; border-radius: 4px; background: var(--surface-2); }
+  .link { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--clay); cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="titlebar drag">
+    <div class="tile" id="ttile"></div>
+    <span class="name" id="tname">Add a project</span>
+    <div class="sp"></div>
+    <span class="saved" id="savestate" hidden></span>
+    <button class="iconbtn close" id="wclose" title="Close"></button>
+  </div>
+  <div class="page">
+    <div class="scroll">
+      <h1 id="title">Add a project</h1>
+      <p class="lead">A project is a folder you work in. Task Desk reads its to-do list (it never changes it) and gives every task a plan and a chat, just like the Workshop.</p>
+
+      <div class="field" id="f-name">
+        <label class="label" for="name">Name</label>
+        <input class="box" id="name" maxlength="40" placeholder="e.g. Rental houses">
+      </div>
+
+      <div class="field" id="f-folder">
+        <span class="label">Folder</span>
+        <div class="row"><input class="box" id="folder" placeholder="C:\MrC\my-project"><button class="btn" id="pickFolder">Choose…</button></div>
+        <div class="hint">Where the project's files are. The chat starts here. Leave it empty if the project is just a list.</div>
+      </div>
+
+      <div class="field" id="f-tasksFile">
+        <span class="label">Where its tasks come from</span>
+        <label class="choice" data-name="source" data-value="file">
+          <input type="radio" name="source" value="file"><b>A checklist file</b>
+          <span class="hint">Every line like <code>- [ ] Call the county about the permit</code> becomes a task. <code>## Headings</code> become groups. Ticked lines are skipped.</span>
+          <div class="more">
+            <div class="row"><input class="box" id="tasksFile" placeholder="TODO.md"><button class="btn" id="pickFile">Choose…</button></div>
+            <label class="check" style="margin-top:9px"><input type="checkbox" id="onlyMine"><span>Only show lines that mention me (Nick)</span></label>
+            <div class="found" id="found" hidden></div>
+          </div>
+        </label>
+        <label class="choice" data-name="source" data-value="list">
+          <input type="radio" name="source" value="list"><b>Only tasks I add here</b>
+          <span class="hint">Type tasks straight into the box. You can add your own tasks to a checklist project too.</span>
+        </label>
+      </div>
+
+      <div class="field" id="f-results">
+        <span class="label">When I press Done, my notes go to</span>
+        <label class="choice" data-name="results" data-value="app">
+          <input type="radio" name="results" value="app"><b>Task Desk only</b>
+          <span class="hint">Kept in the app. Open them any time from the ⋯ menu.</span>
+        </label>
+        <label class="choice" data-name="results" data-value="file">
+          <input type="radio" name="results" value="file"><b>A file in the project folder</b>
+          <span class="hint">Added to the end of the file, so the project's agents can read what you did. Nothing else in the folder is touched.</span>
+          <div class="more" id="f-resultsFile"><input class="box" id="resultsFile" placeholder="FROM_NICK.md"></div>
+        </label>
+      </div>
+
+      <div class="field">
+        <span class="label">The chat</span>
+        <label class="check"><input type="checkbox" id="allowEdits"><span>Let the chat change files in this folder</span></label>
+        <div class="hint">Off: Claude helps and advises but leaves the folder alone unless you ask. On: it can edit files when a step needs it (Claude Code still asks you first, as usual).</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="notes">Anything Claude should know when planning? <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
+        <textarea class="box" id="notes" placeholder="e.g. I manage 3 rental houses. Tenants are emailed from my Gmail. Repairs go through Mike (mike@example.com)."></textarea>
+      </div>
+
+      <div class="field">
+        <span class="label">Color</span>
+        <div class="colors" id="colors"></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" id="remove" hidden>Remove project</button>
+      <button class="link" id="openResults" hidden>Open results</button>
+      <div class="sp"></div>
+      <span class="msg" id="msg"></span>
+      <button class="btn" id="cancel">Cancel</button>
+      <button class="btn primary" id="add">Add project</button>
+    </div>
+  </div>
+  <script src="ui.js"></script>
+  <script src="project.js"></script>
+</body>
+</html>

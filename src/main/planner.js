@@ -36,16 +36,18 @@ const queue = [];
 const running = new Set();
 const MAX_PARALLEL = 2;
 
-const dir = () => {
-  const d = path.join(config.PLANS_DIR, config.get().mode);
+// Workshop plans go in plans/<mode>/, other projects' plans in plans/projects/.
+const isProject = (task) => !!task.project && task.project !== 'factory';
+const dir = (task) => {
+  const d = path.join(config.PLANS_DIR, isProject(task) ? 'projects' : config.get().mode);
   fs.mkdirSync(d, { recursive: true });
   return d;
 };
-const file = (id) => path.join(dir(), id + '.json');
+const file = (task) => path.join(dir(task), task.id + '.json');
 
 function cached(task) {
   try {
-    const c = JSON.parse(fs.readFileSync(file(task.id), 'utf8'));
+    const c = JSON.parse(fs.readFileSync(file(task), 'utf8'));
     return c.textHash === task.textHash ? c : null;
   } catch {
     return null;
@@ -64,7 +66,7 @@ function ensure(tasks) {
 }
 
 function regenerate(task) {
-  try { fs.unlinkSync(file(task.id)); } catch {}
+  try { fs.unlinkSync(file(task)); } catch {}
   if (!running.has(task.id) && !queue.some((t) => t.id === task.id)) queue.unshift(task);
   pump();
 }
@@ -97,10 +99,13 @@ function listFiles(laneDir) {
   return out.slice(0, 80);
 }
 
+const INTRO = 'You are planning one task for Nick, a solo builder who directs AI agents and does not write code. Read any files the task mentions (read-only; never change anything). Then return the plan as JSON matching the schema.';
+
 function prompt(task) {
+  if (isProject(task)) return projectPrompt(task);
   let laneMd = '';
   try { laneMd = fs.readFileSync(path.join(task.laneDir, 'LANE.md'), 'utf8').slice(0, 15000); } catch {}
-  return `You are planning one task for Nick, a solo builder who directs AI agents and does not write code. Read any files the task mentions (read-only; never change anything). Then return the plan as JSON matching the schema.
+  return `${INTRO}
 
 TASK (from ops/NEEDS_NICK.md, lane: ${task.lane}):
 ${task.rawText}
@@ -115,7 +120,31 @@ ${listFiles(task.laneDir).join('\n')}
 LANE.md:
 ${laneMd || '(none)'}
 
-RULES FOR THE PLAN
+${rules('Never plan to edit factory files: results go back through the Done notes.')}`;
+}
+
+function projectPrompt(task) {
+  const folder = task.projectFolder;
+  let readme = '';
+  for (const f of ['CLAUDE.md', 'README.md']) {
+    try { readme = fs.readFileSync(path.join(folder, f), 'utf8').slice(0, 8000); if (readme) { readme = `${f}:\n${readme}`; break; } } catch {}
+  }
+  const from = task.lane === 'my-list' ? 'typed into Task Desk' : `from ${task.sourceFile}${task.lane !== 'general' ? `, section: ${task.lane}` : ''}`;
+  return `${INTRO}
+
+TASK (project "${task.projectName}", ${from}):
+${task.rawText}
+
+PROJECT FOLDER: ${folder || '(none: this project is just a list)'}
+${folder ? `(Relative paths in the task are relative to this folder.)\n\nFILES IN THE PROJECT FOLDER:\n${listFiles(folder).join('\n')}` : ''}
+${task.planNotes ? `\nNICK'S NOTES FOR PLANNING THIS PROJECT:\n${task.planNotes}\n` : ''}
+${readme || ''}
+
+${rules(task.allowEdits ? 'The chat beside the plan may change files in the project folder when a step needs it.' : 'Never plan to change project files without Nick asking: results go back through the Done notes.')}`;
+}
+
+function rules(last) {
+  return `RULES FOR THE PLAN
 - summary: 2-3 plain sentences: what this is and what "done" looks like. Talk to Nick as "you".
 - type: email (sending messages), keywords (keyword research), decision (pick an option), signup (create an account or get an API key), review (read or check something), question (ask someone a question).
 - est_minutes: honest estimate for Nick.
@@ -126,12 +155,12 @@ RULES FOR THE PLAN
   copy_text {text}: a message, subject line or list Nick will paste somewhere (e.g. a web form).
   open_url {url}
   keyword_planner {queries: [..]}: the exact keyword queries, copied in full from the source file.
-  paste_box {label}: Nick pastes results or a reply. The app keeps it and hands it back to the factory. Never add a save path.
+  paste_box {label}: Nick pastes results or a reply. The app keeps it and hands it back with the Done notes. Never add a save path.
   decision {options: [..], recommended}: options as short labels; recommended must equal one option.
   env_key {signup_url, env_path, var_name}: only when the task explicitly names the .env file and variable.
   open_file {path}: absolute path to a draft, sample or LANE.md.
 - files: absolute paths worth opening.
-- Nick sends, submits, signs up and pays for things himself. Never plan for an agent to do that, and never plan to edit factory files: results go back through the Done notes.`;
+- Nick sends, submits, signs up and pays for things himself. Never plan for an agent to do that. ${last}`;
 }
 
 function runClaude(task) {
@@ -201,7 +230,7 @@ async function make(task) {
     if (!plan) error = r.error || 'invalid plan JSON';
   }
   const rec = { id: task.id, textHash: task.textHash, generatedAt: new Date().toISOString(), ok: !!plan, plan: plan || fallback(task, error) };
-  fs.writeFileSync(file(task.id), JSON.stringify(rec, null, 2));
+  fs.writeFileSync(file(task), JSON.stringify(rec, null, 2));
   events.emit('ready', task.id);
 }
 

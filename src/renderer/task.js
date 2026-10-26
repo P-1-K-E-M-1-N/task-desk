@@ -27,19 +27,27 @@ $('#cmore').innerHTML = icon('more');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const rich = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const base = (p) => String(p).split(/[\\/]/).filter(Boolean).pop();
+const isFactory = () => !T || T.project === 'factory';
+let RESULTS_TO = 'factory';
 
 // ---------- data ----------
 async function load() {
   const r = await desk.getTask(ID);
   if (!r) {
-    $('#scroll').innerHTML = '<div class="warn">This task is no longer in NEEDS_NICK.md (the factory may have resolved it). You can close this window.</div>';
+    $('#scroll').innerHTML = '<div class="warn">This task is no longer on its list (it may have been finished or removed). You can close this window.</div>';
     return;
   }
-  T = r.task; P = r.plan; ST = r.st;
+  T = r.task; P = r.plan; ST = r.st; RESULTS_TO = r.resultsTo;
   document.title = T.title;
   $('#ttile').className = `tile t-${T.type}`;
   $('#ttile').innerHTML = icon(T.type);
-  $('#tname').textContent = `${laneName(T.lane)}  ·  ${T.title}`;
+  $('#tname').textContent = `${isFactory() ? laneName(T.lane) : T.projectName}  ·  ${T.title}`;
+  if (!isFactory()) {
+    $('#notesHead').textContent = 'Notes and results';
+    $('#notes').placeholder = RESULTS_TO === 'file'
+      ? 'What you did, replies you got, anything the project should know… (goes to its results file when you press Done)'
+      : 'What you did, replies you got, anything worth keeping… (kept in Task Desk when you press Done)';
+  }
   if (document.activeElement !== $('#notes')) { $('#notes').value = ST.notes || ''; if (ST.notes) notesSaved.markSaved(); }
   renderPlan(r.planOk);
   if (!chatStarted && (P || T.planStatus === 'ready')) startChat('auto');
@@ -51,7 +59,8 @@ function renderPlan(planOk) {
   s.replaceChildren();
   const eyebrow = h('div', { class: 'eyebrow' },
     h('span', { class: 'pill', html: `${icon(T.type)}${TYPE_LABEL[T.type] || T.type}`, style: `color:var(--t-${T.type})` }),
-    h('span', { class: 'pill lane', html: `<span class="dot" style="background:${laneColor(T.lane)}"></span>${esc(laneName(T.lane))}` }),
+    isFactory() ? null : h('span', { class: 'pill', html: `<span class="dot" style="background:${T.projectColor}"></span>${esc(T.projectName)}` }),
+    isFactory() || T.lane !== 'general' ? h('span', { class: 'pill lane', html: `<span class="dot" style="background:${laneColor(T.lane)}"></span>${esc(laneName(T.lane))}` }) : null,
     h('span', { class: 'pill', html: `${icon('clock')}~${fmtMin(T.minutes)}` }),
     T.date ? h('span', { class: 'pill' }, T.date) : null,
   );
@@ -60,7 +69,7 @@ function renderPlan(planOk) {
   if (!P) {
     s.append(
       h('p', { class: 'summary', html: rich(T.text) }),
-      h('div', { class: 'drafting-note', html: `${icon('sparkle')}Claude is reading the lane and drafting your plan. About 30 seconds.` }),
+      h('div', { class: 'drafting-note', html: `${icon('sparkle')}Claude is reading the ${isFactory() ? 'lane' : 'project'} and drafting your plan. About 30 seconds.` }),
       h('div', { class: 'skel' }, [0, 1, 2, 3].map(() => h('div', { class: 'shimmer' }))),
       h('div', { class: 'sect' }, h('button', { class: 'link', html: `${icon('chat')}Start the chat now without a plan`, onclick: () => startChat('auto') })),
     );
@@ -79,7 +88,8 @@ function renderPlan(planOk) {
   P.steps.forEach((step, i) => list.append(stepEl(step, i)));
   s.append(list);
 
-  const files = [...new Set([...(P.files || []), T.lane !== 'factory' ? `${T.laneDir}\\LANE.md` : null].filter(Boolean))];
+  const extra = isFactory() ? (T.lane !== 'factory' ? `${T.laneDir}\\LANE.md` : null) : T.sourceFile;
+  const files = [...new Set([...(P.files || []), extra].filter(Boolean))];
   if (files.length) {
     s.append(h('div', { class: 'sect' }, 'Files'));
     s.append(h('div', { class: 'files' }, files.map((f) => actBtn(base(f), /\.\w+$/.test(f) ? 'file' : 'folder', () => (/\.\w+$/.test(f) ? desk.openFile(f) : desk.openFolder(f)), { done: 'Opened' }))));
@@ -209,7 +219,7 @@ function actions(step, i) {
           await desk.paste(ID, key, ST.pastes[key].label, o);
           opts.querySelectorAll('.opt').forEach((x) => x.classList.remove('chosen'));
           b.classList.add('chosen');
-          toast('Choice saved. It goes to the factory when you press Done.');
+          toast(`Choice saved. It goes ${isFactory() ? 'to the factory' : 'with your notes'} when you press Done.`);
         };
         opts.append(b);
       }
@@ -297,7 +307,8 @@ $('#notesSaved').replaceWith(notesSaved);
 async function finish(status, next) {
   const r = await desk.finish(ID, status, $('#notes').value, next);
   if (!r.ok) { toast(r.error || 'Couldn\'t save'); return; }
-  const msg = status === 'done' ? 'Nice. Sent to the factory.' : 'Skipped. The factory will know.';
+  const where = { factory: 'Sent to the factory.', file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
+  const msg = status === 'done' ? `Nice. ${where}` : r.resultsTo === 'factory' ? 'Skipped. The factory will know.' : 'Skipped.';
   document.body.append(h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${msg}` })));
 }
 $('#bdone').onclick = () => finish('done', false);
@@ -416,7 +427,7 @@ $('#cclear').onclick = () => {
 $('#cfresh').onclick = () => startChat('fresh');
 $('#cmore').onclick = (e) => popMenu(e.currentTarget, [
   { label: 'Fresh chat (clean slate)', icon: 'plus', run: () => startChat('fresh') },
-  { label: 'Restart from factory session', icon: 'refresh', run: () => startChat('fork') },
+  { label: isFactory() ? 'Restart from factory session' : 'Restart from project\'s latest session', icon: 'refresh', run: () => startChat('fork') },
   { label: 'Re-send the task brief', icon: 'send', run: () => sendToChat(`Reminder of what we're doing. Task: ${T.text}${P ? ' Plan: ' + P.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : ''}`) },
   { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
 ]);

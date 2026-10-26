@@ -1,6 +1,6 @@
 # Nick's Task Desk
 
-A small floating box on your screen that lists everything the Workshop needs from you. Click a task and you get a window with a step-by-step plan on the left and a real Claude Code chat on the right.
+A small floating box on your screen that lists everything your projects need from you: the Workshop, plus any other project you add. Click a task and you get a window with a step-by-step plan on the left and a real Claude Code chat on the right.
 
 ## How to use it
 
@@ -9,6 +9,55 @@ A small floating box on your screen that lists everything the Workshop needs fro
 3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
 4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
 5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes land in the factory's `ops/FROM_NICK.md`.
+
+## One desk for all your projects
+
+The name at the top left of the box (next to the check-mark icon) is the **project switcher**. Click it to pick:
+- **All projects:** every project's open tasks in one list, sorted the same way (urgent first, then quickest first). Each card says which project it's from, and the chips filter by project.
+- **One project:** only its tasks, with chips for its sections.
+- **Add a project…** and **Edit this project…**
+
+The same list is in the ⋯ menu and the tray icon's right-click menu. The tray number counts every project.
+
+**Adding a project.** Click **Add a project…** and fill in a short form:
+1. **Name**, and the **folder** the project lives in. When you choose the folder, Task Desk suggests a name and looks for a to-do file (TODO.md, TASKS.md, NEEDS_NICK.md and similar).
+2. **Where its tasks come from:**
+   - **A checklist file:** every `- [ ] something` line in that file becomes a task, and `## Headings` become groups. Ticked `- [x]` lines are skipped. The form shows how many tasks it found right away. Tick **Only show lines that mention me** for a shared file.
+   - **Only tasks I add here.**
+   - Either way, a box for typing tasks appears at the top of the project ("Add a task to…"). Press Enter and Claude drafts a plan for it. Those tasks show under "My list".
+3. **Where your notes go when you press Done:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (FROM_NICK.md by default) so that project's agents can read what you did.
+4. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
+5. **Notes for Claude** (optional): anything the planner should know, like "Repairs go through Mike".
+6. A **color**, used for the project's dot.
+
+**Editing a project** saves as you type, like every other box. **Remove project** takes it out of the box. It never touches the folder, and your notes stay in the app data in case you add it back.
+
+**Safety rules for projects:**
+- Task Desk only reads a project's checklist file. It never edits it.
+- The only file it writes in a project folder is the results file you chose. The results file has to be inside that folder.
+- The Workshop stays read-only, apart from its own FROM_NICK.md. A project pointing at a factory folder can only keep its notes in Task Desk.
+- If a project's folder isn't on this computer, the box says so and offers **Fix the folder**.
+
+Every project task gets everything the Workshop has: a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next.
+
+## Use it on more than one computer (OneDrive)
+
+Everything is saved on this computer by default. To have the same desk on another PC:
+1. On this computer, choose **Keep my data in OneDrive…** in the ⋯ menu. Task Desk copies your projects, ticks, notes, plans and look settings to `OneDrive\Task Desk` and restarts.
+2. On the other computer, install Task Desk (see "Setting up another computer" below) and choose **Keep my data in OneDrive…** there too. It sees the data that's already there and offers **Use the data in OneDrive**.
+
+Some things stay separate on each computer:
+- **Per computer:** the box's position, Start with Windows, and chat history (each computer's Claude Code keeps its own).
+- **Never in OneDrive:** API keys.
+- **One computer at a time:** OneDrive can't merge two copies of the same file. If the desk is already open on another computer, Task Desk warns you before it opens.
+- **Moving back:** **Move my data back to this computer…** in the ⋯ menu copies everything home and stops using OneDrive on this PC.
+
+**Setting up another computer:**
+1. Install Node.js and Claude Code, and sign in to Claude Code.
+2. Copy the `task-desk` folder over, without its `data` and `node_modules` folders, or clone the private GitHub repo. Then run `npm install` inside it.
+3. Start it with `npm start`. It makes its own desktop and Startup shortcuts.
+
+Projects whose folders are in OneDrive work on both computers. A folder that only exists on one computer shows the "folder isn't on this computer" note on the other.
 
 ## Everything you type saves itself
 
@@ -69,9 +118,10 @@ Claude does this as soon as a step is finished or you tell it you did one ("I se
 
 ## Test mode vs live
 
-The ⋯ menu (or right-click the tray icon) has **Test mode (copies)** and **Live Workshop**.
+The ⋯ menu (or right-click the tray icon) has **Workshop: test copies** and **Workshop: live**.
 - Test mode reads copies in `test-fixtures\`, so you can click anything safely, including Done.
 - Each mode keeps its own memory: `data\state.test.json` for test, `data\state.json` for live.
+- The switch only affects the Workshop. Your other projects always read their own folders.
 - The app is set to **live** now.
 
 ## Starting with Windows
@@ -85,15 +135,18 @@ On first run the app put a shortcut on your desktop and one in your Startup fold
 | What | Where |
 |---|---|
 | The app | `C:\MrC\task-desk` |
-| Your ticks, notes, snoozes, chat links (live) | `data\state.json` |
-| Cached plans | `data\plans\live\`, `data\plans\test\` |
-| Settings (mode, paths, hotkey, look) | `data\settings.json` |
+| Workshop ticks, notes, snoozes, chat links (live) | `data\state.json` |
+| Other projects' ticks, notes, added tasks, kept results | `data\projects\<id>\` |
+| Cached plans | `data\plans\live\`, `data\plans\test\`, `data\plans\projects\` |
+| Settings (projects, mode, paths, hotkey, look) | `data\settings.json` |
+| This computer only (box position, auto-start, where the data is) | `data\machine.json` |
 | Test copies of the factory files | `test-fixtures\` |
 
-`data\` is not committed to git.
+If you moved your data to OneDrive, everything except `machine.json` lives in `OneDrive\Task Desk` instead. **Open app data folder** in the ⋯ menu always opens the right place. `data\` is not committed to git.
 
 ## For agents working on this repo
 
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`.
-- The main process is in `src/main/`: `tasks.js` (parser), `planner.js`, `chat.js` (node-pty + claude), `state.js`, `handback.js`, `main.js`. The screens are in `src/renderer/`.
+- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
+- Tests run in their own temporary data folder and browser profile (`test/env.js`), so they never touch the real settings or ticks and can run while the real desk is open.
+- The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`).
 - Rules: the Workshop folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.

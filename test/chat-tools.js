@@ -4,22 +4,21 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
+const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
-const SETTINGS = path.join(ROOT, 'data', 'settings.json');
-const STATE = path.join(ROOT, 'data', 'state.test.json');
+const SETTINGS = path.join(DATA, 'settings.json');
+const STATE = path.join(DATA, 'state.test.json');
 const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
 const results = [];
 const ok = (name, cond, extra = '') => { results.push(cond); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
 
 (async () => {
-  const before = fs.readFileSync(SETTINGS, 'utf8');
-  fs.writeFileSync(SETTINGS, JSON.stringify({ ...JSON.parse(before), mode: 'test', collapsed: false }, null, 2));
-  process.on('exit', () => fs.writeFileSync(SETTINGS, before));
+  useTestSettings();
   try { fs.unlinkSync(STATE); } catch {}
   try { fs.unlinkSync(FROM_NICK); } catch {}
 
-  const app = await _electron.launch({ executablePath: require('electron'), args: [ROOT], cwd: ROOT });
+  const app = await _electron.launch(launchOpts());
   await app.evaluate(({ shell }) => { shell.openExternal = async () => {}; shell.openPath = async () => ''; });
   const box = await app.firstWindow();
   await box.waitForSelector('.card', { timeout: 20000 });

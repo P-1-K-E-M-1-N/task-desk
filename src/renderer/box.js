@@ -1,8 +1,62 @@
 const $ = (s) => document.querySelector(s);
 let data = null;
-let lane = localStorage.getItem('lane') || 'all';
+let lane = 'all'; // the chip filter: a lane inside one project, or a project in "All projects"
 let updatedAt = Date.now();
 let lastKey = '';
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+
+// ---------- project switcher ----------
+$('#pchev').innerHTML = icon('chevDown');
+$('#switch').onclick = (e) => { e.stopPropagation(); if (data && data.collapsed) desk.collapse(false); projectMenu($('#switch')); };
+const many = () => data && data.projects.length > 1;
+const viewName = () => {
+  if (!data) return 'Task Desk';
+  if (data.view === 'all') return many() ? 'All projects' : 'Workshop';
+  return (data.projects.find((p) => p.id === data.view) || {}).name || 'Task Desk';
+};
+const userProject = () => data && data.view !== 'all' && data.view !== 'factory' ? data.projects.find((p) => p.id === data.view) : null;
+
+function projectMenu(anchor) {
+  const m = h('div', { class: 'popmenu projects' });
+  const row = (on, dot, name, count, run, extra = '') => h('button', {
+    class: on ? 'on' : '',
+    onclick: () => { m.remove(); run(); },
+    html: `${dot}<span class="nm"></span>${extra}<span class="cnt">${count}</span>`,
+  });
+  const set = (v) => { desk.setView(v); lane = 'all'; };
+  const all = row(data.view === 'all', icon('check'), 'All projects', data.totalOpen, () => set('all'));
+  all.querySelector('.nm').textContent = 'All projects';
+  const items = data.projects.map((p) => {
+    const b = row(data.view === p.id, `<span class="dot" style="background:${p.color}"></span>`, p.name, p.open, () => set(p.id),
+      p.missing ? '<span class="warnico" title="Folder not found on this computer">!</span>' : '');
+    b.querySelector('.nm').textContent = p.name;
+    return b;
+  });
+  const up = userProject();
+  m.append(
+    h('div', { class: 'head' }, 'Projects'), all, ...items, h('hr'),
+    h('button', { onclick: () => { m.remove(); desk.editProject(null); }, html: `${icon('plus')}<span class="nm">Add a project…</span>` }),
+    up ? h('button', { onclick: () => { m.remove(); desk.editProject(up.id); }, html: `${icon('more')}<span class="nm">Edit this project…</span>` }) : null,
+  );
+  placePopup(anchor, m);
+}
+
+// ---------- quick add ----------
+$('#qadd').innerHTML = icon('plus');
+$('#qtext').addEventListener('input', () => store.set('qdraft:' + data.view, $('#qtext').value));
+$('#quickadd').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('#qtext').value.trim();
+  if (!text || !userProject()) return;
+  const id = await desk.addTask(data.view, text);
+  if (!id) { toast('Couldn\'t add that'); return; }
+  $('#qtext').value = '';
+  store.set('qdraft:' + data.view, '');
+  toast('Added. Claude is drafting a plan for it.');
+};
 
 $('#menu').innerHTML = icon('more');
 $('#hide').innerHTML = icon('x');
@@ -26,6 +80,7 @@ function ring(done, total) {
 function render() {
   if (!data) return;
   const { tasks, counts } = data;
+  if (data.view !== render.view) { lane = 'all'; render.view = data.view; }
   document.body.classList.toggle('bar-mode', !!data.collapsed);
   $('#collapse').innerHTML = icon(data.collapsed ? 'chevDown' : 'chevUp');
   $('#mode').hidden = data.mode !== 'test';
@@ -37,19 +92,44 @@ function render() {
   $('#prog').style.width = total ? `${(counts.done / total) * 100}%` : '0';
   $('#progtxt').textContent = counts.done ? `${counts.done} done` : 'none done yet';
 
-  const lanes = {};
-  for (const t of tasks) lanes[t.lane] = (lanes[t.lane] || 0) + 1;
-  if (lane !== 'all' && !lanes[lane]) lane = 'all';
+  // Header: which project, a warning if its folder is missing, and quick add for your own projects.
+  $('#pname').textContent = viewName();
+  const up = userProject();
+  $('#warn').hidden = !(up && up.missing);
+  if (up && up.missing) {
+    $('#warn').innerHTML = 'This project\'s folder isn\'t on this computer. <button>Fix the folder</button>';
+    $('#warn').querySelector('button').onclick = () => desk.editProject(up.id);
+  }
+  $('#quickadd').hidden = !up;
+  if (up && $('#qtext').dataset.view !== data.view) {
+    $('#qtext').dataset.view = data.view;
+    $('#qtext').placeholder = `Add a task to ${up.name}…`;
+    $('#qtext').value = store.get('qdraft:' + data.view) || '';
+  }
+
+  // Chips: projects in "All projects" (once there's more than one), otherwise the project's lanes.
+  const byProject = data.view === 'all' && many();
+  const keyOf = (t) => (byProject ? t.project : t.lane);
+  const groups = {};
+  for (const t of tasks) groups[keyOf(t)] = (groups[keyOf(t)] || 0) + 1;
+  if (lane !== 'all' && !groups[lane]) lane = 'all';
   const chips = $('#chips');
+  const order = byProject
+    ? data.projects.map((p) => p.id).filter((id) => groups[id])
+    : Object.keys(groups).sort((a, b) => (a === 'factory') - (b === 'factory') || a.localeCompare(b));
   chips.replaceChildren(
     chipEl('all', 'All', tasks.length),
-    ...Object.keys(lanes).sort((a, b) => (a === 'factory') - (b === 'factory') || a.localeCompare(b)).map((l) => chipEl(l, laneName(l), lanes[l])),
+    ...order.map((k) => {
+      const p = byProject && data.projects.find((x) => x.id === k);
+      return chipEl(k, p ? p.name : laneName(k), groups[k], p ? p.color : laneColor(k), !!p);
+    }),
   );
 
-  const shown = tasks.filter((t) => lane === 'all' || t.lane === lane);
+  const shown = tasks.filter((t) => lane === 'all' || keyOf(t) === lane);
   const list = $('#list');
   if (!shown.length) {
-    list.replaceChildren(h('div', { class: 'empty', html: `<div class="tile">${icon('check')}</div><b>All clear</b>Nothing needs you right now.` }));
+    const hint = up ? (up.kind === 'file' ? 'Nothing open in its checklist. Type a task above to add one.' : 'Type a task above to add one.') : 'Nothing needs you right now.';
+    list.replaceChildren(h('div', { class: 'empty', html: `<div class="tile">${icon('check')}</div><b>All clear</b>${hint}` }));
   } else {
     // Only play the entry animation when the set of tasks changes, not on every refresh.
     const key = shown.map((t) => t.id).join();
@@ -57,16 +137,19 @@ function render() {
     lastKey = key;
     list.replaceChildren(...shown.map((t, i) => card(t, i)));
   }
-  drawBadge(counts.open);
+  drawBadge(data.totalOpen);
 }
 
-function chipEl(key, label, n) {
-  const dot = key === 'all' ? '' : `<span class="dot" style="background:${laneColor(key)}"></span>`;
-  return h('button', {
+function chipEl(key, label, n, color, plain) {
+  const dot = key === 'all' ? '' : `<span class="dot" style="background:${color}"></span>`;
+  const b = h('button', {
     class: 'chip' + (lane === key ? ' on' : ''),
-    html: `${dot}${label} <em>${n}</em>`,
-    onclick: () => { lane = key; localStorage.setItem('lane', key); render(); },
+    html: `${dot}<span class="cl"></span> <em>${n}</em>`,
+    onclick: () => { lane = key; render(); },
   });
+  b.querySelector('.cl').textContent = label;
+  if (plain) b.style.textTransform = 'none';
+  return b;
 }
 
 function card(t, i) {
@@ -75,6 +158,9 @@ function card(t, i) {
   else if (t.planStatus === 'drafting' || t.planStatus === 'queued') right = `<span class="drafting" title="Claude is drafting the plan">${icon('sparkle')}</span>`;
   else if (t.ticked && t.steps) right = ring(t.ticked, t.steps);
   const quick = t.minutes && t.minutes <= 10 ? `<span class="quick" title="Quick win">${icon('bolt')}</span>` : '';
+  // In "All projects" the card names its project; inside a project it names the lane.
+  const showProject = data.view === 'all' && many();
+  const tag = showProject ? { color: t.projectColor, name: t.projectName } : { color: laneColor(t.lane), name: laneName(t.lane) };
   const el = h('button', {
     class: `card${t.important ? ' urgent' : ''}${t.low ? ' low' : ''}`,
     style: `animation-delay:${Math.min(i, 10) * 25}ms`,
@@ -85,13 +171,14 @@ function card(t, i) {
       <div class="body">
         <div class="ttl"></div>
         <div class="meta">
-          <span class="lane"><span class="dot" style="background:${laneColor(t.lane)}"></span><span class="nm">${laneName(t.lane)}</span></span>
+          <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${tag.color}"></span><span class="nm"></span></span>
           <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}
         </div>
       </div>
       <div class="right">${right}</div>`,
   });
   el.querySelector('.ttl').textContent = t.title;
+  el.querySelector('.lane .nm').textContent = tag.name;
   return el;
 }
 
