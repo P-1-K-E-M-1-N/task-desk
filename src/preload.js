@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('desk', {
   lookNow: () => ipcRenderer.sendSync('look:get'),
   setLook: call('look:set'),
   pickFramePicture: call('look:picture'),
+  ownLook: call('look:own'),
+  newProjectsOwnLook: call('look:newOwn'),
   lockBox: call('box:lock'),
   resizeBox: call('box:resize'),
   onLook: on('look'),

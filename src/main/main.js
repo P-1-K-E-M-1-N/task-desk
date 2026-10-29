@@ -171,9 +171,25 @@ function windowBg() {
 }
 
 // Light/dark follows the setting; "system" follows Windows.
-// The look as the windows see it: a picture frame also gets the picture's file address.
-function lookOut() {
-  const look = { ...config.get().look };
+// Which project a window belongs to, for project looks: the box follows the
+// project it's showing; task and project windows follow their task's project.
+function scopeOf(w) {
+  if (!w) return null;
+  if (w === box) return currentView();
+  for (const [id, tw] of taskWins) if (tw === w) { const t = findTask(id); return t ? t.project : null; }
+  for (const [id, pw] of projectWins) if (pw === w) return id === 'new' ? null : id;
+  return null;
+}
+const ownLookOf = (scope) => { const p = scope && projects.get(scope); return p && p.ownLook ? p : null; };
+
+// The look as a window sees it: the desk's look, with the project's own look on
+// top when it has one. A picture frame also gets the picture's file address.
+function lookOut(scope) {
+  const p = scope && projects.get(scope);
+  const own = ownLookOf(scope);
+  const look = { ...config.get().look, ...(own ? own.look : {}) };
+  look.newOwn = !!config.get().newProjectsOwnLook;
+  if (p) Object.assign(look, { scopeId: p.id, scopeName: p.name, scopeOwn: !!own });
   if (look.picture) {
     const f = path.join(config.DATA_DIR, 'look', look.picture);
     look.pictureUrl = fs.existsSync(f) ? pathToFileURL(f).href : '';
@@ -183,8 +199,8 @@ function lookOut() {
 
 // Nick picks a picture or GIF for the frame. A copy goes in the data folder
 // (so it moves with OneDrive too); the old copy is removed.
-async function pickFramePicture() {
-  const r = await dialog.showOpenDialog(box, {
+async function pickFramePicture(scope) {
+  const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() || box, {
     title: 'Choose a picture or GIF for the frame', properties: ['openFile'],
     filters: [{ name: 'Pictures and GIFs', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp'] }],
   });
@@ -195,11 +211,15 @@ async function pickFramePicture() {
   fs.mkdirSync(dir, { recursive: true });
   const name = `frame-${Date.now()}${path.extname(src).toLowerCase()}`;
   fs.copyFileSync(src, path.join(dir, name));
-  const old = config.get().look.picture;
-  if (old && old !== name) { try { fs.unlinkSync(path.join(dir, old)); } catch {} }
-  config.set({ look: { ...config.get().look, material: 'picture', picture: name } });
+  const own = ownLookOf(scope);
+  const old = own ? (own.look || {}).picture : config.get().look.picture;
+  if (own) projects.setLook(scope, { material: 'picture', picture: name });
+  else config.set({ look: { ...config.get().look, material: 'picture', picture: name } });
+  // Remove the old copy unless the desk or another project still uses it.
+  const used = [config.get().look.picture, ...projects.list().map((p) => p.look && p.look.picture)];
+  if (old && old !== name && !used.includes(old)) { try { fs.unlinkSync(path.join(dir, old)); } catch {} }
   applyLook();
-  return { ok: true, look: lookOut() };
+  return { ok: true, look: lookOut(scope) };
 }
 
 function applyLook() {
@@ -207,9 +227,10 @@ function applyLook() {
   nativeTheme.themeSource = look.appearance;
   for (const w of BrowserWindow.getAllWindows()) {
     if (w.isDestroyed()) continue;
-    w.webContents.setZoomFactor(ZOOM[look.size] || 1);
+    const mine = lookOut(scopeOf(w));
+    w.webContents.setZoomFactor(ZOOM[mine.size] || 1);
     if (w !== box) w.setBackgroundColor(windowBg());
-    w.webContents.send('look', lookOut());
+    w.webContents.send('look', mine);
   }
 }
 
@@ -314,6 +335,7 @@ function openProjectEditor(id) {
 function setView(view) {
   config.set({ view });
   broadcast();
+  applyLook(); // a project with its own look restyles the box
 }
 
 // ---------- tray & shortcuts ----------
@@ -632,13 +654,27 @@ ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
     e.returnValue = true;
   } catch { e.returnValue = false; }
 });
-ipcMain.on('look:get', (e) => { e.returnValue = lookOut(); });
+const senderScope = (e) => scopeOf(BrowserWindow.fromWebContents(e.sender));
+ipcMain.on('look:get', (e) => { e.returnValue = lookOut(senderScope(e)); });
+// Changes go to the project's own look when the window shows such a project, else to the desk's.
 ipcMain.handle('look:set', (e, patch) => {
-  config.set({ look: { ...config.get().look, ...patch } });
+  const scope = senderScope(e);
+  if (ownLookOf(scope)) projects.setLook(scope, patch);
+  else config.set({ look: { ...config.get().look, ...patch } });
   applyLook();
-  return lookOut();
+  return lookOut(scope);
 });
-ipcMain.handle('look:picture', () => pickFramePicture());
+// Give the showing project its own look (starting from the desk's, in the project's color), or drop it.
+ipcMain.handle('look:own', (e, on) => {
+  const scope = senderScope(e);
+  const p = scope && projects.get(scope);
+  if (!p) return lookOut(scope);
+  projects.setOwnLook(scope, !!on);
+  applyLook();
+  return lookOut(scope);
+});
+ipcMain.handle('look:newOwn', (e, on) => { config.set({ newProjectsOwnLook: !!on }); applyLook(); return lookOut(senderScope(e)); });
+ipcMain.handle('look:picture', (e) => pickFramePicture(senderScope(e)));
 // The box's size lock, and the corner grip that stretches it while unlocked.
 ipcMain.handle('box:lock', (e, locked) => { setBoxLocked(!!locked); return !!locked; });
 // The renderer only says start / move / end; the size comes from where the mouse
@@ -704,6 +740,7 @@ ipcMain.handle('project:save', (e, draft) => {
   if (r.created) config.set({ view: r.project.id });
   refresh();
   startPolling();
+  applyLook();
   return { ...r, resultsPath: projects.resultsFile(r.project) };
 });
 ipcMain.handle('project:remove', (e, id) => {

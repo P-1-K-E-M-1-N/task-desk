@@ -120,9 +120,9 @@ function placePopup(anchor, m) {
 // ---------- look: theme, frame material, light/dark, text size ----------
 const THEMES = [['clay', 'Clay'], ['sage', 'Sage'], ['ocean', 'Ocean'], ['plum', 'Plum'], ['honey', 'Honey'], ['graphite', 'Graphite']];
 const MATERIALS = [['paper', 'Paper'], ['glass', 'Glass'], ['linen', 'Linen'], ['wood', 'Wood'], ['leather', 'Leather'], ['metal', 'Metal'], ['neon', 'Neon'],
-  ['aurora', 'Aurora'], ['lava', 'Lava'], ['stars', 'Stars'], ['rainbow', 'Rainbow'], ['bubbler', 'Bubbler'], ['picture', 'My picture']];
+  ['aurora', 'Aurora'], ['lava', 'Magma'], ['stars', 'Stars'], ['rainbow', 'Rainbow'], ['bubbler', 'Bubbler'], ['lavalamp', 'Lava lamp'], ['picture', 'My picture']];
 // Frames that move (a picture can be a GIF).
-const MOVING = ['aurora', 'lava', 'stars', 'rainbow', 'bubbler', 'picture'];
+const MOVING = ['aurora', 'lava', 'stars', 'rainbow', 'bubbler', 'lavalamp', 'picture'];
 let LOOK = desk.lookNow();
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 const stillQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -136,22 +136,88 @@ function applyLook(look = LOOK) {
   if (look.motion === 'off') root.dataset.still = ''; else delete root.dataset.still;
   if (look.pictureUrl) root.style.setProperty('--frame-pic', `url("${look.pictureUrl}")`);
   else root.style.removeProperty('--frame-pic');
-  // The bubbler is drawn live (liveframe.js); it holds still with "Keep still" or Windows' animations off.
+  // The bubbler and lava lamp are drawn live (liveframe.js); they hold still with "Keep still" or Windows' animations off.
   root.classList.toggle('dark', look.appearance === 'dark' || (look.appearance === 'system' && darkQuery.matches));
-  window.liveFrame.set(look.material === 'bubbler', root.classList.contains('dark'), look.motion !== 'off' && !stillQuery.matches);
+  window.liveFrame.set(look.material, root.classList.contains('dark'), look.motion !== 'off' && !stillQuery.matches);
+  applyColors(look);
   document.dispatchEvent(new Event('lookchange'));
 }
+
+// Your own colors on top of the theme: the accent (buttons, highlights), the
+// task cards and the background. Cards and background are blended into the
+// theme's own color by the strength you pick, so text stays readable. They're
+// set on <body>, blending with the theme colors kept in --surface-0 etc.
+const ROUND = { sharp: [4, 3], normal: [14, 9], round: [20, 13], extra: [26, 17] };
+function inkFor(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.42 ? '#1b1b1f' : '#ffffff';
+}
+function applyColors(look) {
+  const b = document.body && document.body.style;
+  if (!b) return;
+  const put = (k, v) => (v ? b.setProperty(k, v) : b.removeProperty(k));
+  const ok = (c) => /^#[0-9a-f]{6}$/i.test(c || '');
+  const a = ok(look.accent) && look.accent;
+  put('--clay', a);
+  put('--clay-2', a && `color-mix(in srgb, ${a} 80%, white)`);
+  put('--clay-soft', a && `color-mix(in srgb, ${a} 22%, var(--bg-0))`);
+  put('--clay-ink', a && inkFor(a));
+  const c = ok(look.card) && look.card, ck = clampN(look.cardMix, 35);
+  put('--surface', c && `color-mix(in srgb, ${c} ${ck}%, var(--surface-0))`);
+  put('--surface-2', c && `color-mix(in srgb, ${c} ${Math.round(ck * 0.75)}%, var(--surface2-0))`);
+  const g = ok(look.bg) && look.bg, gk = clampN(look.bgMix, 25);
+  put('--bg', g && `color-mix(in srgb, ${g} ${gk}%, var(--bg-0))`);
+  put('--bg-2', g && `color-mix(in srgb, ${g} ${Math.round(gk * 1.15)}%, var(--bg2-0))`);
+  const r = ROUND[look.round];
+  put('--r', r && r[0] + 'px');
+  put('--r-sm', r && r[1] + 'px');
+}
+const clampN = (v, d) => Math.max(5, Math.min(100, Number.isFinite(+v) && v !== '' && v != null ? +v : d));
 applyLook();
 darkQuery.addEventListener('change', () => applyLook());
 stillQuery.addEventListener('change', () => applyLook());
 desk.onLook((look) => applyLook(look));
 
+const PALETTE = ['#ff5fa8', '#ff7a59', '#ffc94d', '#5fcf86', '#3fb8c9', '#4d8dff', '#8f74ff', '#c26bd8'];
+
 function lookPanel(anchor) {
   const set = (patch) => { applyLook({ ...LOOK, ...patch }); desk.setLook(patch); draw(); };
+  // Sliders and the color picker: show it at once, save a moment later, don't redraw (keeps the drag).
+  let soonT = null, soon = {};
+  const setSoon = (patch) => {
+    applyLook({ ...LOOK, ...patch });
+    Object.assign(soon, patch);
+    clearTimeout(soonT);
+    soonT = setTimeout(() => { desk.setLook(soon); soon = {}; }, 180);
+  };
+  const stop = (e) => e.stopPropagation();
+  const colorRow = (label, key, mixKey, def) => {
+    const cur = LOOK[key] || '';
+    return h('div', { class: 'colorrow' },
+      h('span', { class: 'clabel' }, label),
+      h('div', { class: 'crow' },
+        h('button', { class: 'cnone' + (cur ? '' : ' on'), title: 'Theme color', onclick: (e) => { stop(e); set({ [key]: '' }); } }, 'Theme'),
+        ...PALETTE.map((c) => h('button', { class: 'cdot' + (cur.toLowerCase() === c ? ' on' : ''), style: `background:${c}`, title: c, onclick: (e) => { stop(e); set({ [key]: c }); } })),
+        h('label', { class: 'cpick' + (cur && !PALETTE.includes(cur.toLowerCase()) ? ' on' : ''), title: 'Pick any color', style: cur ? `--pick:${cur}` : '', onclick: stop },
+          h('input', { type: 'color', value: cur || '#ff5fa8', oninput: (e) => setSoon({ [key]: e.target.value }), onchange: () => draw() }))),
+      mixKey && cur ? h('div', { class: 'crow mix' },
+        h('span', { class: 'clabel' }, 'Strength'),
+        h('input', { type: 'range', min: 5, max: 100, step: 1, value: clampN(LOOK[mixKey], def), onclick: stop, oninput: (e) => setSoon({ [mixKey]: +e.target.value }) })) : null);
+  };
+  const scopeBar = () => {
+    if (!LOOK.scopeId) return null;
+    const own = LOOK.scopeOwn;
+    const flip = async (e) => { stop(e); applyLook(await desk.ownLook(!own)); draw(); };
+    return h('div', { class: 'scope' + (own ? ' own' : '') },
+      h('span', {}, own ? `Styling ${LOOK.scopeName} only.` : `${LOOK.scopeName} uses the desk's look.`),
+      h('button', { onclick: flip }, own ? 'Use the desk\'s look' : 'Give it its own look'));
+  };
   const tile = (on, kids, run) => h('button', { class: on ? 'on' : '', onclick: (e) => { e.stopPropagation(); run(); } }, kids);
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, label]) => tile(LOOK[key] === v, label, () => set({ [key]: v }))));
   const m = h('div', { class: 'popmenu lookpanel' });
-  const draw = () => m.replaceChildren(
+  const draw = () => m.replaceChildren(...[
+    scopeBar(),
     h('h4', {}, 'Theme'),
     h('div', { class: 'grid' }, THEMES.map(([v, label]) => tile(LOOK.theme === v, [h('span', { class: 'swatch', 'data-theme': v }), label], () => set({ theme: v })))),
     h('h4', {}, 'Frame'),
@@ -162,12 +228,21 @@ function lookPanel(anchor) {
       h('span', {}, 'Any picture, or a GIF to make it move.')) : null,
     h('h4', {}, 'Motion'),
     seg('motion', [['on', 'Moving frames'], ['off', 'Keep still']]),
+    h('h4', {}, 'Your colors'),
+    colorRow('Accent', 'accent'),
+    colorRow('Task cards', 'card', 'cardMix', 35),
+    colorRow('Background', 'bg', 'bgMix', 25),
+    h('h4', {}, 'Corners'),
+    seg('round', [['sharp', 'Sharp'], ['normal', 'Normal'], ['round', 'Round'], ['extra', 'Extra round']]),
     h('h4', {}, 'Light or dark'),
     seg('appearance', [['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']]),
     h('h4', {}, 'Text size'),
     seg('size', [['s', 'Small'], ['m', 'Normal'], ['l', 'Large'], ['xl', 'Larger']]),
-    h('div', { class: 'foot' }, 'Changes apply to every window and are saved.'),
-  );
+    h('label', { class: 'newown', onclick: stop },
+      h('input', { type: 'checkbox', checked: !!LOOK.newOwn, onchange: async (e) => { applyLook(await desk.newProjectsOwnLook(e.target.checked)); } }),
+      h('span', {}, 'New projects start with their own look')),
+    h('div', { class: 'foot' }, LOOK.scopeOwn ? `Changes apply to ${LOOK.scopeName} and are saved.` : 'Changes apply to every window and are saved.'),
+  ].filter(Boolean));
   // A copy of the chosen file goes in the app's data folder.
   const pickPicture = async () => {
     const r = await desk.pickFramePicture();
