@@ -14,7 +14,7 @@ const APP_ROOT = path.resolve(__dirname, '..', '..');
 const LOCAL_DIR = process.env.TASKDESK_LOCAL_DIR || path.join(APP_ROOT, 'data');
 const MACHINE_FILE = path.join(LOCAL_DIR, 'machine.json');
 // Settings that belong to this computer, not to the shared data.
-const MACHINE_KEYS = ['dataDir', 'boxBounds', 'collapsed', 'shortcutsDone', 'autostart'];
+const MACHINE_KEYS = ['dataDir', 'boxBounds', 'boxLocked', 'collapsed', 'shortcutsDone', 'autostart'];
 
 const DEFAULTS = {
   mode: 'test',
@@ -26,7 +26,7 @@ const DEFAULTS = {
   boxBounds: null,
   collapsed: false,
   // How the windows look: color theme, frame material, light/dark, text size.
-  look: { theme: 'clay', material: 'paper', appearance: 'system', size: 'm' },
+  look: { theme: 'clay', material: 'paper', appearance: 'system', size: 'm', motion: 'on', picture: '' },
   // Projects besides the Idea Factory (see projects.js), and which one the box shows.
   projects: [],
   view: 'all',

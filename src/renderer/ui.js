@@ -24,6 +24,9 @@ const ICONS = {
   refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
   eraser: '<path d="m8.5 19.5-4-4a1.5 1.5 0 0 1 0-2.1l8.9-8.9a1.5 1.5 0 0 1 2.1 0l4 4a1.5 1.5 0 0 1 0 2.1L12 18.1M8.5 19.5h11M9.5 8.5l6 6"/>',
   plus: '<path d="M12 5.5v13M5.5 12h13"/>',
+  lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+  unlock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 6.8-1.2"/>',
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/>',
   bolt: '<path d="M13 3.5 5.5 13.5h6l-1 7 7.5-10h-6z"/>',
   star: '<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
   moon: '<path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10z"/>',
@@ -116,20 +119,31 @@ function placePopup(anchor, m) {
 
 // ---------- look: theme, frame material, light/dark, text size ----------
 const THEMES = [['clay', 'Clay'], ['sage', 'Sage'], ['ocean', 'Ocean'], ['plum', 'Plum'], ['honey', 'Honey'], ['graphite', 'Graphite']];
-const MATERIALS = [['paper', 'Paper'], ['glass', 'Glass'], ['linen', 'Linen'], ['wood', 'Wood'], ['leather', 'Leather'], ['metal', 'Metal'], ['neon', 'Neon']];
+const MATERIALS = [['paper', 'Paper'], ['glass', 'Glass'], ['linen', 'Linen'], ['wood', 'Wood'], ['leather', 'Leather'], ['metal', 'Metal'], ['neon', 'Neon'],
+  ['aurora', 'Aurora'], ['lava', 'Lava'], ['stars', 'Stars'], ['rainbow', 'Rainbow'], ['bubbler', 'Bubbler'], ['picture', 'My picture']];
+// Frames that move (a picture can be a GIF).
+const MOVING = ['aurora', 'lava', 'stars', 'rainbow', 'bubbler', 'picture'];
 let LOOK = desk.lookNow();
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+const stillQuery = matchMedia('(prefers-reduced-motion: reduce)');
 
 function applyLook(look = LOOK) {
   LOOK = look;
   const root = document.documentElement;
   root.dataset.theme = look.theme;
   root.dataset.material = look.material;
+  if (MOVING.includes(look.material)) root.dataset.motion = ''; else delete root.dataset.motion;
+  if (look.motion === 'off') root.dataset.still = ''; else delete root.dataset.still;
+  if (look.pictureUrl) root.style.setProperty('--frame-pic', `url("${look.pictureUrl}")`);
+  else root.style.removeProperty('--frame-pic');
+  // The bubbler is drawn live (liveframe.js); it holds still with "Keep still" or Windows' animations off.
   root.classList.toggle('dark', look.appearance === 'dark' || (look.appearance === 'system' && darkQuery.matches));
+  window.liveFrame.set(look.material === 'bubbler', root.classList.contains('dark'), look.motion !== 'off' && !stillQuery.matches);
   document.dispatchEvent(new Event('lookchange'));
 }
 applyLook();
 darkQuery.addEventListener('change', () => applyLook());
+stillQuery.addEventListener('change', () => applyLook());
 desk.onLook((look) => applyLook(look));
 
 function lookPanel(anchor) {
@@ -141,13 +155,27 @@ function lookPanel(anchor) {
     h('h4', {}, 'Theme'),
     h('div', { class: 'grid' }, THEMES.map(([v, label]) => tile(LOOK.theme === v, [h('span', { class: 'swatch', 'data-theme': v }), label], () => set({ theme: v })))),
     h('h4', {}, 'Frame'),
-    h('div', { class: 'grid' }, MATERIALS.map(([v, label]) => tile(LOOK.material === v, [h('span', { class: 'mat', 'data-material': v }), label], () => set({ material: v })))),
+    h('div', { class: 'grid' }, MATERIALS.map(([v, label]) => tile(LOOK.material === v, [h('span', { class: 'mat', 'data-material': v }), label],
+      () => (v === 'picture' && !LOOK.pictureUrl ? pickPicture() : set({ material: v }))))),
+    LOOK.material === 'picture' ? h('div', { class: 'pic' },
+      h('button', { onclick: (e) => { e.stopPropagation(); pickPicture(); }, html: `${icon('image')}<span>${LOOK.pictureUrl ? 'Change picture…' : 'Choose a picture…'}</span>` }),
+      h('span', {}, 'Any picture, or a GIF to make it move.')) : null,
+    h('h4', {}, 'Motion'),
+    seg('motion', [['on', 'Moving frames'], ['off', 'Keep still']]),
     h('h4', {}, 'Light or dark'),
     seg('appearance', [['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']]),
     h('h4', {}, 'Text size'),
     seg('size', [['s', 'Small'], ['m', 'Normal'], ['l', 'Large'], ['xl', 'Larger']]),
     h('div', { class: 'foot' }, 'Changes apply to every window and are saved.'),
   );
+  // A copy of the chosen file goes in the app's data folder.
+  const pickPicture = async () => {
+    const r = await desk.pickFramePicture();
+    if (!r) return;
+    if (!r.ok) { toast(r.error); return; }
+    applyLook(r.look);
+    draw();
+  };
   draw();
   placePopup(anchor, m);
 }

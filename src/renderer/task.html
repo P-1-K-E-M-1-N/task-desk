@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
 <style>
   /* The body is the window frame (its material comes from the Frame setting); the content sits inside it. */
-  body { display: flex; flex-direction: column; background: var(--frame); background-color: var(--bg-2); padding: var(--frame-w); }
+  body { display: flex; flex-direction: column; background: var(--frame); background-color: var(--bg-2); padding: var(--frame-w); animation: var(--frame-anim); }
   .titlebar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 14px; flex: none; border-bottom: 1px solid var(--line); background: var(--bg-2); }
   .titlebar .tile { width: 24px; height: 24px; border-radius: 7px; }
   .titlebar .tile svg.i { width: 13px; height: 13px; }
@@ -192,6 +192,7 @@
   </div>
   <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="liveframe.js"></script>
   <script src="ui.js"></script>
   <script src="task.js"></script>
 </body>

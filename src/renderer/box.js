@@ -82,6 +82,9 @@ function render() {
   const { tasks, counts } = data;
   if (data.view !== render.view) { lane = 'all'; render.view = data.view; }
   document.body.classList.toggle('bar-mode', !!data.collapsed);
+  document.body.classList.toggle('unlocked', !data.locked);
+  $('#lockbtn').innerHTML = icon(data.locked ? 'lock' : 'unlock');
+  $('#lockbtn').title = data.locked ? 'Size is locked. Click to unlock and stretch the box.' : 'Size is unlocked. Drag the corner to stretch the box, or click to lock it.';
   $('#collapse').innerHTML = icon(data.collapsed ? 'chevDown' : 'chevUp');
   $('#mode').hidden = data.mode !== 'test';
   $('#hello').textContent = greeting();
@@ -215,6 +218,47 @@ function tickUpdated() {
   $('#updated').textContent = s < 10 ? 'Updated just now' : s < 60 ? `Updated ${s}s ago` : `Updated ${Math.round(s / 60)} min ago`;
 }
 setInterval(tickUpdated, 5000);
+
+// ---------- size lock ----------
+// Resting the mouse in the bottom-right corner for 3 seconds shows the lock.
+// Unlocked, a grip appears next to it: drag it to make the box wider or taller.
+{
+  const corner = $('#corner');
+  let arm = null, hideT = null;
+  corner.addEventListener('mouseenter', () => {
+    clearTimeout(hideT);
+    if (corner.classList.contains('show')) return;
+    corner.classList.add('arming');
+    arm = setTimeout(() => { corner.classList.remove('arming'); corner.classList.add('show'); }, 3000);
+  });
+  corner.addEventListener('mouseleave', () => {
+    clearTimeout(arm);
+    corner.classList.remove('arming');
+    hideT = setTimeout(() => corner.classList.remove('show'), 1500);
+  });
+  $('#lockbtn').onclick = async () => {
+    const locked = await desk.lockBox(!data.locked);
+    toast(locked ? 'Size locked.' : 'Unlocked: drag the corner grip to stretch the box.');
+  };
+  const grip = $('#grip');
+  let raf = 0;
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    desk.resizeBox('start');
+    const move = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; desk.resizeBox('move'); }); };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('lostpointercapture', up);
+      cancelAnimationFrame(raf); raf = 0;
+      desk.resizeBox('end');
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('lostpointercapture', up);
+  });
+}
 
 desk.onTasks((p) => { data = p; updatedAt = Date.now(); render(); tickUpdated(); });
 desk.listTasks().then((p) => { data = p; render(); tickUpdated(); });

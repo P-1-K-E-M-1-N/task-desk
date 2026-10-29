@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, shell, clipboar
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
@@ -26,6 +27,8 @@ const ICON_ICO = path.join(config.APP_ROOT, 'assets', 'icon.ico');
 const BOX_W = 340;
 const BOX_H = 520;
 const BAR_H = 56;
+// How wide the box can be stretched once it's unlocked.
+const BOX_MIN_W = 300, BOX_MAX_W = 1000, BOX_MIN_H = 320;
 const ZOOM = { s: 0.9, m: 1, l: 1.1, xl: 1.22 };
 // Window background behind the page (shown while it loads), per theme.
 const THEME_BG = {
@@ -93,6 +96,7 @@ function payload() {
     mode: s.mode,
     root: config.root(),
     collapsed: s.collapsed,
+    locked: s.boxLocked !== false,
     synced: config.synced(),
   };
 }
@@ -167,6 +171,37 @@ function windowBg() {
 }
 
 // Light/dark follows the setting; "system" follows Windows.
+// The look as the windows see it: a picture frame also gets the picture's file address.
+function lookOut() {
+  const look = { ...config.get().look };
+  if (look.picture) {
+    const f = path.join(config.DATA_DIR, 'look', look.picture);
+    look.pictureUrl = fs.existsSync(f) ? pathToFileURL(f).href : '';
+  }
+  return look;
+}
+
+// Nick picks a picture or GIF for the frame. A copy goes in the data folder
+// (so it moves with OneDrive too); the old copy is removed.
+async function pickFramePicture() {
+  const r = await dialog.showOpenDialog(box, {
+    title: 'Choose a picture or GIF for the frame', properties: ['openFile'],
+    filters: [{ name: 'Pictures and GIFs', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp'] }],
+  });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const src = r.filePaths[0];
+  if (fs.statSync(src).size > 40 * 1024 * 1024) return { ok: false, error: 'That file is over 40 MB. Pick a smaller one.' };
+  const dir = path.join(config.DATA_DIR, 'look');
+  fs.mkdirSync(dir, { recursive: true });
+  const name = `frame-${Date.now()}${path.extname(src).toLowerCase()}`;
+  fs.copyFileSync(src, path.join(dir, name));
+  const old = config.get().look.picture;
+  if (old && old !== name) { try { fs.unlinkSync(path.join(dir, old)); } catch {} }
+  config.set({ look: { ...config.get().look, material: 'picture', picture: name } });
+  applyLook();
+  return { ok: true, look: lookOut() };
+}
+
 function applyLook() {
   const look = config.get().look;
   nativeTheme.themeSource = look.appearance;
@@ -174,7 +209,7 @@ function applyLook() {
     if (w.isDestroyed()) continue;
     w.webContents.setZoomFactor(ZOOM[look.size] || 1);
     if (w !== box) w.setBackgroundColor(windowBg());
-    w.webContents.send('look', look);
+    w.webContents.send('look', lookOut());
   }
 }
 
@@ -182,10 +217,12 @@ function createBox() {
   const s = config.get();
   const wa = screen.getPrimaryDisplay().workArea;
   const b = s.boxBounds || { x: wa.x + wa.width - BOX_W - 24, y: wa.y + 64, width: BOX_W, height: BOX_H };
+  const width = Math.max(BOX_MIN_W, Math.min(BOX_MAX_W, b.width || BOX_W));
   box = new BrowserWindow({
-    x: b.x, y: b.y, width: BOX_W, height: s.collapsed ? BAR_H : b.height,
-    minWidth: 300, minHeight: BAR_H, maxWidth: 520,
-    frame: false, transparent: true, resizable: true, alwaysOnTop: true, skipTaskbar: true,
+    x: b.x, y: b.y, width, height: s.collapsed ? BAR_H : b.height,
+    minWidth: BOX_MIN_W, minHeight: BAR_H, maxWidth: BOX_MAX_W,
+    // Locked (the default) keeps the size fixed; the lock in the bottom-right corner frees it.
+    frame: false, transparent: true, resizable: s.boxLocked === false && !s.collapsed, alwaysOnTop: true, skipTaskbar: true,
     show: false, icon: ICON_PNG, backgroundColor: '#00000000', hasShadow: true,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
@@ -202,6 +239,13 @@ function createBox() {
   };
   box.on('moved', saveBounds);
   box.on('resized', saveBounds);
+  box.saveBounds = saveBounds;
+}
+
+function setBoxLocked(locked) {
+  config.set({ boxLocked: locked });
+  if (box && !box.isDestroyed()) box.setResizable(!locked && !config.get().collapsed);
+  broadcast();
 }
 
 function toggleBox() {
@@ -214,6 +258,7 @@ function setCollapsed(c) {
   const b = box.getBounds();
   const expandedH = (config.get().boxBounds && config.get().boxBounds.height) || BOX_H;
   config.set({ collapsed: c });
+  box.setResizable(!c && config.get().boxLocked === false);
   box.setBounds({ ...b, height: c ? BAR_H : expandedH }, true);
   broadcast();
 }
@@ -380,7 +425,7 @@ function menu() {
 // never in the data folder. A small in-use.json warns when the desk is already
 // open on another computer, because OneDrive can't merge two copies of a file.
 
-const SHARED = ['settings.json', 'state.json', 'state.test.json', 'plans', 'projects'];
+const SHARED = ['settings.json', 'state.json', 'state.test.json', 'plans', 'projects', 'look'];
 
 function copyData(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -587,11 +632,30 @@ ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
     e.returnValue = true;
   } catch { e.returnValue = false; }
 });
-ipcMain.on('look:get', (e) => { e.returnValue = config.get().look; });
+ipcMain.on('look:get', (e) => { e.returnValue = lookOut(); });
 ipcMain.handle('look:set', (e, patch) => {
   config.set({ look: { ...config.get().look, ...patch } });
   applyLook();
-  return config.get().look;
+  return lookOut();
+});
+ipcMain.handle('look:picture', () => pickFramePicture());
+// The box's size lock, and the corner grip that stretches it while unlocked.
+ipcMain.handle('box:lock', (e, locked) => { setBoxLocked(!!locked); return !!locked; });
+// The renderer only says start / move / end; the size comes from where the mouse
+// is on screen, so it stays right at any text size or screen scaling.
+let grab = null;
+ipcMain.handle('box:resize', (e, phase) => {
+  if (!box || box.isDestroyed() || config.get().boxLocked !== false || config.get().collapsed) return null;
+  const cur = screen.getCursorScreenPoint();
+  if (phase === 'start') { grab = { cur, b: box.getBounds() }; return null; }
+  if (!grab) return null;
+  const { b } = grab;
+  const wa = screen.getDisplayMatching(b).workArea;
+  const width = Math.round(Math.max(BOX_MIN_W, Math.min(BOX_MAX_W, wa.x + wa.width - b.x, b.width + cur.x - grab.cur.x)));
+  const height = Math.round(Math.max(BOX_MIN_H, Math.min(wa.y + wa.height - b.y, b.height + cur.y - grab.cur.y)));
+  box.setBounds({ x: b.x, y: b.y, width, height });
+  if (phase === 'end') { grab = null; box.saveBounds(); }
+  return { width, height };
 });
 ipcMain.handle('task:replan', (e, id) => { const t = findTask(id); if (t) planner.regenerate(t); });
 ipcMain.handle('task:snooze', (e, id, when) => {
