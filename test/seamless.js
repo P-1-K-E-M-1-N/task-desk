@@ -15,7 +15,10 @@ const machine = () => JSON.parse(fs.readFileSync(path.join(DATA, 'machine.json')
 
 async function launch() {
   const app = await _electron.launch(launchOpts({ TASKDESK_FAKE_CLAUDE: FAKE }));
-  const box = await app.firstWindow();
+  // The box, not a task window the desk reopened after a restart.
+  await app.firstWindow();
+  let box = null;
+  for (let i = 0; i < 80 && !box; i++) { box = app.windows().find((w) => w.url().endsWith('box.html')); if (!box) await new Promise((r) => setTimeout(r, 250)); }
   await box.waitForSelector('.card', { timeout: 20000 });
   return { app, box };
 }
