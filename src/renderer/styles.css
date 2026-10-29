@@ -145,7 +145,8 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 .popmenu {
-  position: absolute; z-index: 40; min-width: 170px; padding: 5px; border-radius: 12px; background: var(--surface);
+  /* Menus keep the theme's own surface, even when the task cards have your color. */
+  position: absolute; z-index: 40; min-width: 170px; padding: 5px; border-radius: 12px; background: var(--surface-0);
   border: 1px solid var(--line-2); box-shadow: var(--shadow-lg); animation: rise .14s ease-out;
 }
 .popmenu button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; text-align: left; font-size: 12.5px; }
@@ -299,6 +300,19 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   from { background-position: 0 0, 0 0, 0 0, 0 0; }
   to { background-position: 0 240px, 0 480px, 0 -240px, 0 0; }
 }
+/* Lava lamp: drawn live too. The preview tile gets a CSS sketch. */
+[data-material=lavalamp] {
+  --frame-w: 18px; --frame: transparent; --frame-anim: none;
+  --bar: var(--bg-2); --bar-ink: #ffe3ef; --app-r: 10px;
+  --frame-glow: 0 0 0 1px rgba(60,10,50,.5), 0 0 26px -6px rgba(255,90,140,.6);
+}
+.mat[data-material=lavalamp] {
+  --frame: radial-gradient(ellipse 6px 9px at 8px 70px, #ff6a8a 70%, transparent 74%) 0 0 / 44px 120px,
+           radial-gradient(ellipse 5px 7px at 36px 30px, #ff9a4a 70%, transparent 74%) 0 0 / 44px 120px,
+           linear-gradient(180deg, #260a3a, #78195c);
+  --frame-anim: frameLava 14s ease-in-out infinite alternate;
+}
+@keyframes frameLava { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 0 -120px, 0 120px, 0 0; } }
 /* Nick's own picture or GIF (a GIF keeps moving). */
 [data-material=picture] {
   --frame-w: 12px;
@@ -319,7 +333,30 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .field-head { display: flex; align-items: baseline; gap: 8px; width: 100%; }
 .field-head .field-label { flex: 1; width: auto; margin-bottom: 0; }
 
+/* The theme's own colors, kept so your colors can blend into them (see applyColors in ui.js). */
+:root { --surface-0: var(--surface); --surface2-0: var(--surface-2); --bg-0: var(--bg); --bg2-0: var(--bg-2); }
+
 /* ---------- look panel ---------- */
+.lookpanel .scope { display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 11.5px; color: var(--ink-2); }
+.lookpanel .scope.own { background: var(--clay-soft); color: var(--ink); }
+.lookpanel .scope span { flex: 1; }
+.lookpanel .scope button { height: 24px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--surface); font-size: 11px; font-weight: 650; color: var(--ink); white-space: nowrap; }
+.lookpanel .colorrow { margin-bottom: 9px; }
+.lookpanel .colorrow > .clabel { display: block; width: auto; margin-bottom: 4px; }
+.lookpanel .crow { display: flex; align-items: center; gap: 4px; }
+.lookpanel .crow.mix { margin-top: 4px; }
+.lookpanel .clabel { width: 66px; flex: none; font-size: 11px; font-weight: 600; color: var(--ink-2); }
+.lookpanel .cnone { height: 20px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); font-size: 10px; font-weight: 650; color: var(--ink-3); }
+.lookpanel .cnone.on { border-color: var(--ink); color: var(--ink); }
+.lookpanel .cdot { width: 17px; height: 17px; padding: 0; border-radius: 50%; border: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); flex: none; }
+.lookpanel .cdot.on, .lookpanel .cpick.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--ink); }
+.lookpanel .cpick { position: relative; width: 17px; height: 17px; border-radius: 50%; flex: none; cursor: pointer; overflow: hidden;
+  background: var(--pick, conic-gradient(#ff5f8f, #ffc94d, #5fcf86, #4d8dff, #c26bd8, #ff5f8f)); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.lookpanel .cpick input { position: absolute; inset: -6px; width: 30px; height: 30px; opacity: 0; cursor: pointer; }
+.lookpanel .crow input[type=range] { flex: 1; accent-color: var(--clay); }
+.lookpanel .crow.mix .clabel { width: 52px; font-weight: 550; color: var(--ink-3); }
+.lookpanel .newown { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11.5px; color: var(--ink-2); cursor: pointer; }
+.lookpanel .newown input { accent-color: var(--clay); margin: 0; }
 .popmenu.lookpanel { width: 300px; padding: 12px 12px 10px; max-height: calc(100vh - 16px); overflow-y: auto; }
 .lookpanel h4 { margin: 0 0 7px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .lookpanel h4:not(:first-child) { margin-top: 13px; }

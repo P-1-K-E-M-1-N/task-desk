@@ -88,7 +88,11 @@ function clean(d) {
     allowEdits: !!d.allowEdits,
     notes: String(d.notes || '').slice(0, 4000),
     color: COLORS.includes(d.color) ? d.color : COLORS[list().length % COLORS.length],
+    // Its own look (colors, frame…) instead of the desk's. Only the changed settings are kept.
+    ownLook: !!d.ownLook,
+    look: (d.id && get(d.id) && get(d.id).look) || null,
   };
+  if (p.ownLook && !p.look) p.look = { accent: p.color };
   if (!p.name) return { ok: false, error: 'Give the project a name.', field: 'name' };
   if (p.folder && !(fs.existsSync(p.folder) && fs.statSync(p.folder).isDirectory())) return { ok: false, error: 'That folder doesn\'t exist on this computer.', field: 'folder' };
   if (p.source === 'file') {
@@ -117,6 +121,25 @@ function save(draft) {
   const next = i >= 0 ? all.map((x, j) => (j === i ? r.project : x)) : [...all, r.project];
   config.set({ projects: next });
   return { ...r, created: i < 0 };
+}
+
+// A change made in the look panel while this project is showing.
+function setLook(id, patch) {
+  const all = list();
+  const p = all.find((x) => x.id === id);
+  if (!p) return null;
+  p.look = { ...(p.look || {}), ...patch };
+  config.set({ projects: all });
+  return p.look;
+}
+
+function setOwnLook(id, on) {
+  const all = list();
+  const p = all.find((x) => x.id === id);
+  if (!p) return;
+  p.ownLook = on;
+  if (on && !p.look) p.look = { accent: p.color };
+  config.set({ projects: all });
 }
 
 function remove(id) {
@@ -155,4 +178,4 @@ function summary() {
 
 const colorOf = (id) => (id === 'factory' ? FACTORY_COLOR : (get(id) || {}).color || FACTORY_COLOR);
 
-module.exports = { COLORS, list, get, read, addTask, save, remove, preview, suggest, summary, colorOf, tasksFile, resultsFile, missing, isFactoryPath };
+module.exports = { COLORS, list, get, read, addTask, save, setLook, setOwnLook, remove, preview, suggest, summary, colorOf, tasksFile, resultsFile, missing, isFactoryPath };

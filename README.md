@@ -19,7 +19,7 @@ The name at the top left of the box (next to the check-mark icon) is the **proje
 
 The same list is in the ⋯ menu and the tray icon's right-click menu. The tray number counts every project.
 
-**Adding a project.** Click **Add a project…**. The form has seven numbered boxes, and these steps use the same numbers. Only 1 is required.
+**Adding a project.** Click **Add a project…**. The form has eight numbered boxes, and these steps use the same numbers. Only 1 is required.
 1. **Name:** what the project is called in the switcher.
 2. **Folder:** where the project lives. Press **Choose…**. Task Desk then fills in 1 and 3 for you when it can (it looks for TODO.md, TASKS.md, NEEDS_NICK.md and similar).
 3. **Where its tasks come from:**
@@ -30,8 +30,9 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
 5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
 6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
 7. **Color:** used for the project's dot.
+8. **Look** (optional): give the project its own theme, frame and colors. See "A look for each project" below.
 
-**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color), with the exact text to type or the exact option to pick.
+**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color, 8 Look), with the exact text to type or the exact option to pick.
 
 **Editing a project** saves as you type, like every other box. **Remove project** takes it out of the box. It never touches the folder, and your notes stay in the app data in case you add it back.
 
@@ -75,11 +76,34 @@ There's no Save button to remember. Every box (your notes, every paste box, the 
 
 Click the **palette** button (top of the task box, or the top bar of any task window), or choose **Customize look…** in the ⋯ menu.
 - **Theme:** Clay, Sage, Ocean, Plum, Honey or Graphite. This sets the colors and the accent used for buttons.
-- **Frame:** what the window's border is made of. Paper (plain), Glass, Linen, Wood, Leather (with stitching), Brushed metal or Neon.
+- **Frame:** what the window's border is made of. Paper (plain), Glass, Linen, Wood, Leather (with stitching), Brushed metal or Neon, plus the moving frames below.
 - **Light or dark:** Auto (follows Windows), Light or Dark.
 - **Text size:** Small, Normal, Large or Larger.
 
+- **Moving frames:** Aurora, Magma, Stars and Rainbow drift slowly.
+  - **Bubbler:** drawn live like a liquid motion bubbler. Colored drops form at the top corners, fall through clear oil (bigger drops fall faster and sometimes merge) and land in a pool with a ripple, while little air bubbles wobble up.
+  - **Lava lamp:** wax blobs warm up in the glow at the bottom, rise, cool off at the top and sink again.
+  - **My picture:** any picture, or a GIF to make it move. Task Desk keeps a copy in its data folder.
+  - **Motion → Keep still** freezes every moving frame. They also hold still when Windows' animation effects are off.
+- **Your colors:** pick an **Accent** (buttons and highlights), a color for the **Task cards** (pink task boxes, for example), and a **Background** tint. Each has preset colors and a picker for any color, and Task cards and Background have a **Strength** slider. **Theme** puts the theme's own color back.
+- **Corners:** Sharp, Normal, Round or Extra round.
+
 Changes show up instantly in every open window and are remembered after a restart. The chat panel's colors follow the theme too.
+
+**A look for each project.** While a project is showing in the box, the look panel says so at the top.
+- **Give it its own look:** that project gets its own theme, frame and colors, starting in the project's color. The box switches to it whenever you show that project, and so do that project's task windows.
+- **Use the desk's look:** takes the project back to the shared look.
+- **New projects start with their own look** (bottom of the look panel) turns this on for every project you add from then on. The Add a project form also has a box 8 for it.
+
+## Stretch the box
+
+The box keeps its size until you unlock it.
+1. Rest the mouse in the box's **bottom-right corner** for 3 seconds. A small lock fades in.
+2. Click the lock to **unlock**. A grip appears beside it.
+3. Drag the grip to make the box wider (up to 1000 pixels) or taller. You can also drag the box's edges.
+4. Click the lock again to **lock** the size.
+
+The size is remembered on this computer. It isn't synced through OneDrive, because screens differ.
 
 ## What it does, in plain language
 
@@ -141,8 +165,9 @@ On first run the app put a shortcut on your desktop and one in your Startup fold
 | Idea Factory ticks, notes, snoozes, chat links (live) | `data\state.json` |
 | Other projects' ticks, notes, added tasks, kept results | `data\projects\<id>\` |
 | Cached plans | `data\plans\live\`, `data\plans\test\`, `data\plans\projects\` |
+| Frame pictures you chose | `data\look\` |
 | Settings (projects, mode, paths, hotkey, look) | `data\settings.json` |
-| This computer only (box position, auto-start, where the data is) | `data\machine.json` |
+| This computer only (box position and size, size lock, auto-start, where the data is) | `data\machine.json` |
 | Test copies of the factory files | `test-fixtures\` |
 
 If you moved your data to OneDrive, everything except `machine.json` lives in `OneDrive\Task Desk` instead. **Open app data folder** in the ⋯ menu always opens the right place. `data\` is not committed to git.
@@ -151,5 +176,5 @@ If you moved your data to OneDrive, everything except `machine.json` lives in `O
 
 - `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
 - Tests run in their own temporary data folder and browser profile (`test/env.js`), so they never touch the real settings or ticks and can run while the real desk is open.
-- The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`).
+- The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`). The Bubbler and Lava lamp frames are drawn on a canvas by `src/renderer/liveframe.js`; the look panel and your colors are in `ui.js`.
 - Rules: the Idea Factory folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.

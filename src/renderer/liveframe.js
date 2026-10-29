@@ -1,15 +1,19 @@
-// Frames that are drawn live on a canvas instead of with CSS. There is one so
-// far: the liquid motion bubbler. Colored drops form at the top corners, let
-// go, fall through clear oil (bigger drops fall faster, so they sometimes catch
-// up and merge), and land in a pool along the bottom with a ripple. Small air
-// bubbles wobble their way up. The canvas sits behind the window's frame, which
-// is see-through for this material; the window's content covers the middle.
+// Frames that are drawn live on a canvas instead of with CSS:
+//  - the liquid motion bubbler: colored drops form at the top corners, let go,
+//    fall through clear oil (bigger drops fall faster, so they sometimes catch
+//    up and merge), and land in a pool along the bottom with a ripple. Small
+//    air bubbles wobble their way up.
+//  - the lava lamp: soft blobs of wax warm up in the glow at the bottom, rise,
+//    cool off at the top and sink again, stretching and merging as they pass.
+// The canvas sits behind the window's frame, which is see-through for these
+// materials; the window's content covers the middle.
 (() => {
   const api = { frames: 0, drops: 0, set };
   window.liveFrame = api;
 
   const LIQUID = ['#1590ff', '#10bfae']; // left side, right side
-  let on = false, dark = false, moving = true;
+  let kind = null, dark = false, moving = true;
+  let E = null;          // the engine for the current kind (bubbler or lava)
   let cv = null, ctx = null, host = null, ro = null, raf = 0, lastT = 0;
   let G = null;          // geometry: x, y, w, h, t (frame thickness), rad
   let bg = null;         // cached oil + glass background
@@ -20,11 +24,15 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   function set(want, isDark, isMoving) {
-    const changed = want !== on || isDark !== dark || isMoving !== moving;
-    on = want; dark = isDark; moving = isMoving;
-    if (!on) return stop();
+    want = ENGINES[want] ? want : null;
+    const newKind = want !== kind;
+    const changed = newKind || isDark !== dark || isMoving !== moving;
+    kind = want; dark = isDark; moving = isMoving;
+    if (!kind) return stop();
+    E = ENGINES[kind];
     if (!cv) start();
-    else if (changed) { cache(); if (!raf) loop(); }
+    else if (newKind) { sim = null; layout(); }
+    else if (changed) { E.cache(); if (!raf) loop(); }
   }
 
   function start() {
@@ -46,7 +54,8 @@
     if (ro) ro.disconnect();
     removeEventListener('resize', layout);
     if (cv) cv.remove();
-    cv = ctx = host = ro = G = bg = gloss = sim = null;
+    cv = ctx = host = ro = G = bg = gloss = sim = E = null;
+    lavaBuf = null;
     api.drops = 0;
   }
 
@@ -64,8 +73,8 @@
     cv.width = Math.max(1, Math.round(G.w * dpr));
     cv.height = Math.max(1, Math.round(G.h * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!sim || !old || Math.abs(old.w - G.w) > 1 || Math.abs(old.h - G.h) > 1 || old.t !== G.t) newSim();
-    cache();
+    if (!sim || !old || Math.abs(old.w - G.w) > 1 || Math.abs(old.h - G.h) > 1 || old.t !== G.t) E.newSim();
+    E.cache();
     cancelAnimationFrame(raf); raf = 0;
     loop();
   }
@@ -356,6 +365,151 @@
     api.frames++;
   }
 
+  // ---------- lava lamp ----------
+  // The wax is drawn as a "metaball" field: every blob adds r^2 / distance^2,
+  // and wherever the sum passes 1 is wax. That's what makes blobs stretch,
+  // touch and melt into each other. It's worked out on a half-size grid, only
+  // inside the frame ring, then scaled up smoothly.
+  const LAVA = {
+    cool: [196, 20, 92], hot: [255, 178, 72],                      // wax
+    top: [38, 10, 58], bottom: [120, 26, 92], glow: [255, 120, 60], // liquid and lamp
+  };
+  let lavaBuf = null;    // { c, x, img, u32, w, h }
+
+  function lavaCache() {
+    const { w, h, t } = G;
+    let x;
+    [bg, x] = offscreen();
+    const g = x.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, `rgb(${LAVA.top})`);
+    g.addColorStop(1, `rgb(${LAVA.bottom})`);
+    x.fillStyle = g;
+    x.fillRect(0, 0, w, h);
+    [gloss, x] = offscreen();
+    x.fillStyle = 'rgba(255,255,255,.22)';
+    x.fillRect(t * 0.26, G.rad * 0.6, Math.max(1, t * 0.08), h - G.rad * 1.2);
+    x.fillRect(w - t * 0.36, G.rad * 0.6, Math.max(1, t * 0.05), h - G.rad * 1.2);
+    x.fillStyle = 'rgba(255,255,255,.12)';
+    x.fillRect(G.rad * 0.6, t * 0.2, w - G.rad * 1.2, Math.max(1, t * 0.06));
+    // The lamp's glow from below.
+    const glow = x.createLinearGradient(0, h, 0, h * 0.55);
+    glow.addColorStop(0, 'rgba(255,150,70,.35)');
+    glow.addColorStop(1, 'rgba(255,150,70,0)');
+    x.fillStyle = glow;
+    x.fillRect(0, h * 0.55, w, h * 0.45);
+    const S = 0.5;
+    const bw = Math.max(1, Math.ceil(w * S)), bh = Math.max(1, Math.ceil(h * S));
+    const c = document.createElement('canvas');
+    c.width = bw; c.height = bh;
+    const cx = c.getContext('2d');
+    const img = cx.createImageData(bw, bh);
+    lavaBuf = { c, x: cx, img, u32: new Uint32Array(img.data.buffer), w: bw, h: bh, S };
+  }
+
+  function lavaSim() {
+    const { w, h, t } = G;
+    const blobs = [];
+    const add = (side, y) => blobs.push({
+      side, x: side ? w - t * 0.5 : t * 0.5, y, r: rand(0.42, 0.72) * t, v: 0, T: Math.random(), ph: rand(0, 6), sq: rand(1.1, 1.6),
+    });
+    const per = Math.max(3, Math.round(h / 95));
+    for (let side = 0; side < 2; side++) for (let i = 0; i < per; i++) add(side, rand(t, h - t));
+    // Wax resting along the bottom and clinging along the top.
+    const pool = [];
+    for (let x = 0; x < w + t; x += t * 1.05) pool.push({ x, y: h + t * 0.25, r: rand(0.8, 1.05) * t, ph: rand(0, 6), bottom: true });
+    for (let x = t * rand(3, 6); x < w - t * 3; x += t * rand(7, 13)) pool.push({ x, y: -t * 0.15, r: rand(0.45, 0.62) * t, ph: rand(0, 6), bottom: false });
+    sim = { blobs, pool, time: 0 };
+    for (let i = 0; i < 240; i++) lavaStep(1 / 20);
+  }
+
+  function lavaStep(dt) {
+    const { w, h, t } = G;
+    const S = sim;
+    S.time += dt;
+    for (const b of S.blobs) {
+      // Warm in the glow at the bottom, cool near the top; warm wax rises.
+      const depth = b.y / h;
+      if (depth > 0.82) b.T += dt * 0.16;
+      else b.T -= dt * (0.04 + 0.05 * (1 - depth));
+      b.T = clamp(b.T, 0, 1);
+      b.v += -(b.T - 0.5) * 22 * dt;
+      b.v *= Math.exp(-dt * 0.9);
+      b.v = clamp(b.v, -26, 26);
+      b.y += b.v * dt;
+      if (b.y < t * 0.4) { b.y = t * 0.4; b.v = Math.abs(b.v) * 0.2; b.T = Math.min(b.T, 0.35); }
+      if (b.y > h - t * 0.3) { b.y = h - t * 0.3; b.v = -Math.abs(b.v) * 0.2; }
+      b.ph += dt * 0.7;
+      b.x = (b.side ? w - t * 0.5 : t * 0.5) + Math.sin(b.ph) * t * 0.08;
+      // Rising or sinking fast, a blob stretches into a taller shape.
+      b.sq = 1.15 + Math.min(0.9, Math.abs(b.v) / 22);
+    }
+    for (const p of S.pool) p.ph += dt * 0.35;
+    api.drops = S.blobs.length;
+  }
+
+  function lavaDraw() {
+    const { w, h, t } = G;
+    const B = lavaBuf, S = sim;
+    const k = B.S;
+    const u32 = B.u32;
+    const T0 = Math.ceil(t * k) + 1;
+    const blobs = S.blobs.map((b) => ({ x: b.x * k, y: b.y * k, r2: (b.r * k) ** 2, sy: 1 / b.sq, T: b.T }));
+    const pool = S.pool.map((p) => ({ x: p.x * k, y: (p.y + Math.sin(p.ph) * t * 0.12) * k, r2: ((p.r * (1 + 0.12 * Math.sin(p.ph * 1.7))) * k) ** 2, sy: 1, T: p.bottom ? 0.9 : 0.2 }));
+    const all = blobs.concat(pool);
+    const top = LAVA.top, bot = LAVA.bottom, cool = LAVA.cool, hot = LAVA.hot, glow = LAVA.glow;
+    const H = B.h, W = B.w;
+    const px = (x, y) => {
+      let f = 0, fT = 0;
+      for (let i = 0; i < all.length; i++) {
+        const b = all[i];
+        const dy = (y - b.y) * b.sy;
+        const dx = x - b.x;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > b.r2 * 16) continue;
+        const c = b.r2 / (d2 + 0.6);
+        f += c; fT += c * b.T;
+      }
+      const ly = y / H;
+      let r = top[0] + (bot[0] - top[0]) * ly, g = top[1] + (bot[1] - top[1]) * ly, bl = top[2] + (bot[2] - top[2]) * ly;
+      if (f >= 1) {
+        const T = fT / f;
+        const core = Math.min(1, (f - 1) / 1.6);
+        const lit = 0.72 + 0.34 * core;          // thicker wax glows brighter
+        const rim = f < 1.18 ? 0.82 + (f - 1) : 1; // a slightly darker edge
+        r = (cool[0] + (hot[0] - cool[0]) * T) * lit * rim;
+        g = (cool[1] + (hot[1] - cool[1]) * T) * lit * rim;
+        bl = (cool[2] + (hot[2] - cool[2]) * T) * lit * rim;
+      } else if (f > 0.25) {
+        const a = (f - 0.25) / 0.75 * 0.42;        // warm light around the wax
+        r += (glow[0] - r) * a; g += (glow[1] - g) * a; bl += (glow[2] - bl) * a;
+      }
+      u32[y * W + x] = 0xff000000 | (Math.min(255, bl) << 16) | (Math.min(255, g) << 8) | Math.min(255, r);
+    };
+    for (let y = 0; y < H; y++) {
+      if (y < T0 || y >= H - T0) { for (let x = 0; x < W; x++) px(x, y); continue; }
+      for (let x = 0; x < T0; x++) px(x, y);
+      for (let x = W - T0; x < W; x++) px(x, y);
+    }
+    B.x.putImageData(B.img, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.rect(t, t, w - 2 * t, h - 2 * t);
+    ctx.clip('evenodd');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(B.c, 0, 0, W, H, 0, 0, W / k, H / k);
+    ctx.drawImage(gloss, 0, 0, w, h);
+    ctx.restore();
+    api.frames++;
+  }
+
+  const ENGINES = {
+    bubbler: { cache, newSim, step, draw },
+    lavalamp: { cache: lavaCache, newSim: lavaSim, step: lavaStep, draw: lavaDraw },
+  };
+
   function loop(now) {
     raf = 0;
     if (!cv || !G) return;
@@ -363,8 +517,8 @@
     const t = now || performance.now();
     const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 1 / 60;
     lastT = t;
-    if (moving) step(dt);
-    draw();
+    if (moving) E.step(dt);
+    E.draw();
     if (moving) raf = requestAnimationFrame(loop);
     else lastT = 0;
   }

@@ -124,6 +124,30 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await box.locator('#switch').click();
   await box.locator('.popmenu.projects button', { hasText: 'Rental Houses' }).click();
   await box.locator('#switch').click();
+  // ---- a project with its own look ----
+  const deskLook = await box.evaluate(() => document.documentElement.dataset.material);
+  await box.locator('#look').click();
+  ok('look panel says which project is showing', /uses the desk's look/.test(await box.locator('.lookpanel .scope').innerText()));
+  await box.locator('.lookpanel .scope button').click();
+  await box.waitForTimeout(300);
+  ok('project gets its own look in its color', /Styling .* only/.test(await box.locator('.lookpanel .scope').innerText())
+    && (await box.evaluate(() => getComputedStyle(document.body).getPropertyValue('--clay').trim())) !== '');
+  await box.locator('.lookpanel .grid button', { hasText: 'Stars' }).click();
+  await box.waitForTimeout(300);
+  ok('frame change goes to the project only', (await box.evaluate(() => document.documentElement.dataset.material)) === 'stars'
+    && (JSON.parse(fs.readFileSync(path.join(DATA, 'settings.json'), 'utf8')).look.material) === deskLook);
+  await box.mouse.click(5, 5);
+  await box.locator('#switch').click();
+  await box.locator('.popmenu.projects button', { hasText: 'All projects' }).click();
+  await box.waitForTimeout(400);
+  ok('other views keep the desk look', (await box.evaluate(() => document.documentElement.dataset.material)) === deskLook);
+  await box.locator('#switch').click();
+  await box.locator('.popmenu.projects button', { hasText: 'Rental Houses' }).click();
+  await box.waitForTimeout(400);
+  ok('switching back brings the project look', (await box.evaluate(() => document.documentElement.dataset.material)) === 'stars');
+  await box.screenshot({ path: path.join(__dirname, 'shots', 'project-own-look.png') });
+  await box.locator('#switch').click();
+
   const [ed2] = await Promise.all([app.waitForEvent('window'), box.locator('.popmenu.projects button', { hasText: 'Edit this project' }).click()]);
   await ed2.waitForSelector('#remove:not([hidden])');
   ok('editor opens with the project filled in', (await ed2.locator('#name').inputValue()) === 'Rental Houses' && (await ed2.locator('#notes').inputValue()).includes('Mike prefers'));

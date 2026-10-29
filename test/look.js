@@ -66,7 +66,7 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   // ---- look panel ----
   await win.locator('#wlook').click();
   ok('look panel opens', await win.locator('.lookpanel').isVisible());
-  ok('6 themes and 13 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 13);
+  ok('6 themes and 14 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 14);
   await win.locator('.lookpanel .grid button', { hasText: 'Ocean' }).click();
   ok('panel stays open while choosing', await win.locator('.lookpanel').isVisible());
   await win.waitForTimeout(300);
@@ -117,6 +117,33 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await win.evaluate(() => desk.setLook({ material: 'wood' }));
   await win.waitForTimeout(300);
   ok('bubbler canvas goes away for other frames', await box.locator('canvas.liveframe').count() === 0);
+  await win.evaluate(() => desk.setLook({ material: 'lavalamp', appearance: 'dark' }));
+  await win.waitForTimeout(1200);
+  const l1 = await frames(box);
+  await box.waitForTimeout(500);
+  ok('lava lamp is drawn live', (await frames(box)) > l1 && await box.locator('canvas.liveframe').count() === 1);
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-lavalamp-dark.png') });
+  await win.screenshot({ path: path.join(SHOTS, 'look-lavalamp-dark.png') });
+
+  // Your own colors: pink task cards, an accent, a background tint, round corners.
+  await win.evaluate(() => desk.setLook({ material: 'wood', appearance: 'light', card: '#ff5fa8', cardMix: 45, accent: '#8f74ff', bg: '#ffc94d', bgMix: 20, round: 'extra' }));
+  await win.waitForTimeout(400);
+  const cardBg = await box.evaluate(() => getComputedStyle(document.querySelector('.card')).backgroundColor);
+  ok('task cards turn pink', /color\(srgb|rgb/.test(cardBg) && cardBg !== 'rgb(255, 255, 255)', cardBg);
+  ok('accent color is used for buttons', (await win.evaluate(() => getComputedStyle(document.body).getPropertyValue('--clay').trim())) === '#8f74ff');
+  ok('corners get rounder', (await box.evaluate(() => getComputedStyle(document.querySelector('.card')).borderTopLeftRadius)) === '26px');
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-pink-cards.png') });
+  await win.screenshot({ path: path.join(SHOTS, 'look-pink-cards.png') });
+  const saved = JSON.parse(fs.readFileSync(SETTINGS, 'utf8')).look;
+  ok('your colors are saved', saved.card === '#ff5fa8' && saved.accent === '#8f74ff' && saved.round === 'extra');
+  await box.locator('#look').click();
+  ok('look panel has your colors', await box.locator('.lookpanel .colorrow').count() === 3 && await box.locator('.lookpanel input[type=range]').count() === 2);
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-panel-colors.png') });
+  await box.locator('.lookpanel .colorrow').nth(1).locator('.cnone').click();
+  await box.waitForTimeout(300);
+  ok('"Theme" puts the cards back', (await box.evaluate(() => document.body.style.getPropertyValue('--surface'))) === '');
+  await box.mouse.click(5, 5);
+  await win.evaluate(() => desk.setLook({ accent: '', bg: '', round: '' }));
 
   // A picture frame (the picker copies the file into data/look/; here we put one there).
   fs.mkdirSync(path.join(DATA, 'look'), { recursive: true });

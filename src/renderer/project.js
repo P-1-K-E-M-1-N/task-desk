@@ -37,6 +37,7 @@ const draft = () => ({
   results: radio('results'),
   resultsFile: $('#resultsFile').value.trim(),
   allowEdits: $('#allowEdits').checked,
+  ownLook: $('#ownLook').checked,
   notes: $('#notes').value,
   color,
 });
@@ -143,7 +144,7 @@ async function init() {
   drawColors();
   setRadio('source', 'file');
   setRadio('results', 'app');
-  if (!ID) { $('#name').focus(); return; }
+  if (!ID) { $('#ownLook').checked = !!LOOK.newOwn; $('#name').focus(); return; }
   const p = await desk.getProject(ID);
   if (!p) { $('.scroll').innerHTML = '<p class="lead">This project was removed. You can close this window.</p>'; return; }
   document.title = `Edit ${p.name}`;
@@ -155,6 +156,7 @@ async function init() {
   $('#onlyMine').checked = !!p.onlyMine;
   $('#resultsFile').value = p.resultsFile || 'FROM_NICK.md';
   $('#allowEdits').checked = !!p.allowEdits;
+  $('#ownLook').checked = !!p.ownLook;
   $('#notes').value = p.notes || '';
   color = p.color || COLORS[0];
   resultsPath = p.resultsPath;
