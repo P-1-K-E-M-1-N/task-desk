@@ -210,6 +210,15 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await box.locator('#look').click();
   ok('box has its own look button', await box.locator('.lookpanel').isVisible());
   await box.screenshot({ path: path.join(SHOTS, 'look-box-panel.png') });
+  // Easy ways out of the look panel: the X, Done, and Esc.
+  await box.locator('.lookpanel .lpclose').click();
+  ok('the X closes the look panel', !(await box.locator('.lookpanel').count()));
+  await box.locator('#look').click();
+  await box.locator('.lookpanel .lpdone').click();
+  ok('Done closes the look panel', !(await box.locator('.lookpanel').count()));
+  await box.locator('#look').click();
+  await box.keyboard.press('Escape');
+  ok('Esc closes the look panel', !(await box.locator('.lookpanel').count()));
   await app.close();
 
   console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);

@@ -237,9 +237,12 @@ setInterval(tickUpdated, 5000);
     hideT = setTimeout(() => corner.classList.remove('show'), Math.max(1500, keepUntil - Date.now()));
   });
   // Over remote desktop the hover may not register, so three quick right-clicks
-  // in the corner show the lock too, and keep it up for 8 seconds.
+  // near either bottom corner show the lock too, and keep it up for 8 seconds.
+  // The corner zone reaches the window's very edge (past the frame).
+  const nearCorner = (e) => e.clientY > innerHeight - 90 && (e.clientX > innerWidth - 120 || e.clientX < 120);
   let rights = [], keepUntil = 0;
-  corner.addEventListener('contextmenu', (e) => {
+  document.addEventListener('contextmenu', (e) => {
+    if (!nearCorner(e) || document.body.classList.contains('bar-mode')) return;
     e.preventDefault();
     const now = Date.now();
     rights = rights.filter((t) => now - t < 1500).concat(now);

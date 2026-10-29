@@ -50,7 +50,8 @@ async function load() {
   }
   if (document.activeElement !== $('#notes')) { $('#notes').value = ST.notes || ''; if (ST.notes) notesSaved.markSaved(); }
   renderPlan(r.planOk);
-  if (!chatStarted && (P || T.planStatus === 'ready')) startChat('auto');
+  // 'attach' reconnects to a chat that is still running (the window was refreshed by an update).
+  if (!chatStarted && (P || T.planStatus === 'ready' || T.chatLive)) startChat('attach');
 }
 
 function renderPlan(planOk) {

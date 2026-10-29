@@ -55,6 +55,11 @@ const helper = () => {
   ok('installs it', r.ok && read(MINE, 'app.txt').trim() === 'version 2');
   ok('your data is untouched', read(path.join(MINE, 'data'), 'settings.json') === '{"mine":true}');
   ok('up to date afterwards', (await updater.status(MINE, { fetch: false })).behind === 0);
+  write(AUTHOR, 'notes.md', 'just notes\n');
+  push('Notes only');
+  s = await updater.status(MINE);
+  ok('status says how an update goes in', s.kind === 'none', s.kind);
+  updater.pullNow(MINE);
 
   // ---- a copy with its own changes is left alone ----
   write(AUTHOR, 'app.txt', 'version 3\n');
@@ -90,6 +95,12 @@ const helper = () => {
   fs.mkdirSync(plain);
   s = await updater.status(plain);
   ok('a copy without git says why it can\'t update', !s.ok && /git/.test(s.reason));
+
+  // ---- how each update goes in ----
+  ok('notes or tests only: nothing to do', updater.kindOf(['README.md', 'test/look.js']) === 'none');
+  ok('screens only: windows refresh, chats keep running', updater.kindOf(['src/renderer/box.html', 'src/preload.js', 'README.md']) === 'refresh');
+  ok('the engine changed: restart and reopen', updater.kindOf(['src/main/main.js', 'src/renderer/box.js']) === 'restart');
+  ok('packages changed: the helper installs them', updater.kindOf(['package.json', 'src/renderer/box.js']) === 'deps');
 
   // ---- the 7 AM schedule ----
   const at = (h, m = 0) => { const d = new Date(2026, 9, 28, h, m); return d; };

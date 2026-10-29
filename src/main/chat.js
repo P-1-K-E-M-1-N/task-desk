@@ -14,7 +14,8 @@ const state = require('./state');
 const { sessionFile, newestSession, claudeExe, cleanEnv } = require('./sessions');
 const bridge = require('./bridge');
 
-const live = new Map(); // taskId -> { proc, sessionId }
+const live = new Map(); // taskId -> { proc, sessionId, label, buf, lastOut, cb }
+const KEEP = 400 * 1024; // recent chat output kept per task, so a refreshed window can redraw it
 
 function ownSessionIds() {
   const ids = state.allTasks().map((t) => t.chatSessionId).filter(Boolean);
@@ -84,32 +85,47 @@ function attempts(task, plan, mode) {
   return list;
 }
 
+// Tests swap in a pretend claude: TASKDESK_FAKE_CLAUDE="<node.exe>|<script.js>".
+function command(args) {
+  const fake = process.env.TASKDESK_FAKE_CLAUDE;
+  if (fake) { const [exe, script] = fake.split('|'); return [exe, [script, ...args]]; }
+  return [claudeExe(), args];
+}
+
 function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExit, onInfo }) {
   stop(task.id);
   const tries = attempts(task, plan, mode);
+  // The window's handlers; attach() swaps them when a window is refreshed.
+  const cb = { onData, onExit, onInfo };
   const run = (i) => {
     const a = tries[i];
-    onInfo && onInfo({ label: a.label, sessionId: a.sid });
+    cb.onInfo && cb.onInfo({ label: a.label, sessionId: a.sid });
     const startedAt = Date.now();
-    const proc = pty.spawn(claudeExe(), withTools(task, a.args), {
+    const [exe, args] = command(withTools(task, a.args));
+    const proc = pty.spawn(exe, args, {
       name: 'xterm-256color', cols, rows, cwd: task.workDir,
       env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor' }),
     });
-    const entry = { proc, sessionId: a.sid, stopped: false };
+    const entry = { proc, sessionId: a.sid, label: a.label, stopped: false, buf: '', lastOut: Date.now(), cb };
     live.set(task.id, entry);
     remember(a.sid);
     state.update(task.id, { chatSessionId: a.sid });
-    proc.onData((d) => onData && onData(d));
+    proc.onData((d) => {
+      entry.lastOut = Date.now();
+      entry.buf += d;
+      if (entry.buf.length > KEEP * 1.5) entry.buf = entry.buf.slice(-KEEP);
+      cb.onData && cb.onData(d);
+    });
     proc.onExit(({ exitCode }) => {
       if (entry.stopped) return;
       // A launch that dies within a few seconds means that start method failed: try the next one.
       if (exitCode !== 0 && Date.now() - startedAt < 8000 && i + 1 < tries.length) {
-        onData && onData(`\r\n\x1b[2m(${a.label.toLowerCase()} didn't work, trying the next option…)\x1b[0m\r\n`);
+        cb.onData && cb.onData(`\r\n\x1b[2m(${a.label.toLowerCase()} didn't work, trying the next option…)\x1b[0m\r\n`);
         run(i + 1);
         return;
       }
       live.delete(task.id);
-      onExit && onExit(exitCode);
+      cb.onExit && cb.onExit(exitCode);
     });
   };
   run(0);
@@ -148,4 +164,16 @@ function stopAll() {
 
 const isLive = (id) => live.has(id);
 
-module.exports = { start, write, send, resize, stop, stopAll, isLive, firstMessage };
+// A refreshed task window picks its running chat back up instead of restarting
+// it: new handlers, plus the recent output so the window can redraw the chat.
+function attach(id, handlers) {
+  const e = live.get(id);
+  if (!e) return null;
+  Object.assign(e.cb, handlers);
+  return { label: e.label, sessionId: e.sessionId, buffer: e.buf, pid: e.proc.pid };
+}
+
+// True when no chat has printed anything for `ms` (Claude isn't in the middle of a reply).
+const quietFor = (ms) => [...live.values()].every((e) => Date.now() - e.lastOut >= ms);
+
+module.exports = { start, attach, write, send, resize, stop, stopAll, isLive, quietFor, firstMessage };

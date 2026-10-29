@@ -12,7 +12,9 @@
     position: absolute; inset: 8px; display: flex; flex-direction: column; overflow: hidden;
     border: var(--frame-w) solid transparent; border-radius: 18px;
     background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--frame);
-    background-origin: border-box; box-shadow: var(--frame-glow), var(--shadow-lg);
+    background-origin: border-box; /* No soft shadow or wide glow here: the see-through window is only 8px bigger than the box,
+       so they would be cut off at its edge and show as a faint grey box. A thin ring fits. */
+    box-shadow: 0 0 0 1px rgba(0,0,0,.16);
     outline: var(--stitch); outline-offset: calc(var(--frame-w) / -2 - 1px);
     animation: var(--frame-anim);
   }
@@ -30,7 +32,8 @@
   header { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; flex: none; }
   .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 650; font-size: 12px; letter-spacing: .01em; color: var(--ink-2); }
   .brand img { width: 18px; height: 18px; border-radius: 5px; }
-  header .sp { flex: 1; }
+  /* The empty space in the header is where you grab the box to move it, so it never shrinks to nothing. */
+  header .sp { flex: 1; min-width: 44px; align-self: stretch; }
   .hero { position: relative; padding: 4px 18px 12px; flex: none; }
   .hello { color: var(--ink-3); font-size: 12px; font-weight: 500; }
   .big { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; }
@@ -102,7 +105,7 @@
   }
   .switch:hover { background: rgba(127,127,127,.14); }
   .switch img { width: 18px; height: 18px; border-radius: 5px; flex: none; }
-  .switch .lbl { overflow: hidden; text-overflow: ellipsis; }
+  .switch .lbl { overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
   .switch svg.i { width: 14px; height: 14px; color: var(--ink-3); }
   :root:not([data-material=paper]) header .switch, :root:not([data-material=paper]) header .switch svg.i { color: var(--bar-ink); }
   .bar-mode .switch .lbl, .bar-mode .switch svg.i { display: none; }
@@ -126,7 +129,7 @@
   .bar-mode .quickadd, .bar-mode .warnline { display: none; }
   .warnline { position: relative; margin: 0 12px 10px; padding: 8px 11px; border-radius: 10px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); background: var(--clay-soft); flex: none; }
   /* size lock + resize grip (bottom-right corner) */
-  .corner { position: absolute; right: 0; bottom: 0; width: 64px; height: 42px; z-index: 5; display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; padding: 0 3px 3px 0; }
+  .corner { -webkit-app-region: no-drag; position: absolute; right: 0; bottom: 0; width: 64px; height: 42px; z-index: 5; display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; padding: 0 3px 3px 0; }
   .lockbtn {
     width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border-radius: 9px; border: 1px solid var(--line-2);
     background: var(--surface); color: var(--ink-2); cursor: pointer; box-shadow: var(--shadow-sm);
@@ -140,7 +143,7 @@
   .grip { display: none; width: 16px; height: 16px; margin-bottom: 1px; cursor: nwse-resize; border-radius: 0 0 9px 0;
     background: linear-gradient(135deg, transparent 0 52%, var(--ink-3) 52% 58%, transparent 58% 68%, var(--ink-3) 68% 74%, transparent 74% 84%, var(--ink-3) 84% 90%, transparent 90%); }
   .unlocked .grip { display: block; }
-  .unlocked .panel { box-shadow: var(--frame-glow), var(--shadow-lg), 0 0 0 2px color-mix(in srgb, var(--clay) 45%, transparent); }
+  .unlocked .panel { box-shadow: 0 0 0 2px color-mix(in srgb, var(--clay) 45%, transparent); }
   .bar-mode .corner { display: none; }
   .warnline button { border: 0; background: none; padding: 0; color: var(--clay); font-weight: 650; cursor: pointer; text-decoration: underline; }
 </style>
@@ -166,7 +169,7 @@
     <nav class="chips" id="chips"></nav>
     <form class="quickadd" id="quickadd" hidden><input id="qtext" maxlength="1000" autocomplete="off"><button class="btn primary" type="submit" id="qadd" title="Add this task"></button></form>
     <main class="list" id="list"></main>
-    <footer><span id="updated">Loading…</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
+    <footer class="drag"><span id="updated">Loading…</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
     <!-- Hold the mouse here for 3 seconds: a lock appears that frees or fixes the box's size. -->
     <div class="corner" id="corner"><button class="lockbtn" id="lockbtn"></button><div class="grip" id="grip" title="Drag to resize"></div></div>
   </div>

@@ -115,6 +115,11 @@ function placePopup(anchor, m) {
   m.style.top = top + 'px';
   m.style.left = Math.max(8, Math.min(r.right - mw, innerWidth - mw - 8)) + 'px';
   setTimeout(() => document.addEventListener('click', function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', off); } }), 0);
+  // Esc closes it too.
+  document.addEventListener('keydown', function esc(e) {
+    if (!m.isConnected) { document.removeEventListener('keydown', esc); return; }
+    if (e.key === 'Escape') { m.remove(); document.removeEventListener('keydown', esc); }
+  });
 }
 
 // ---------- look: theme, frame material, light/dark, text size ----------
@@ -216,7 +221,11 @@ function lookPanel(anchor) {
   const tile = (on, kids, run) => h('button', { class: on ? 'on' : '', onclick: (e) => { e.stopPropagation(); run(); } }, kids);
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, label]) => tile(LOOK[key] === v, label, () => set({ [key]: v }))));
   const m = h('div', { class: 'popmenu lookpanel' });
+  const close = (e) => { if (e) stop(e); m.remove(); };
   const draw = () => m.replaceChildren(...[
+    h('div', { class: 'lphead' },
+      h('b', {}, 'Customize the look'),
+      h('button', { class: 'lpclose', title: 'Close (Esc)', html: icon('x'), onclick: close })),
     scopeBar(),
     h('h4', {}, 'Theme'),
     h('div', { class: 'grid' }, THEMES.map(([v, label]) => tile(LOOK.theme === v, [h('span', { class: 'swatch', 'data-theme': v }), label], () => set({ theme: v })))),
@@ -242,6 +251,7 @@ function lookPanel(anchor) {
       h('input', { type: 'checkbox', checked: !!LOOK.newOwn, onchange: async (e) => { applyLook(await desk.newProjectsOwnLook(e.target.checked)); } }),
       h('span', {}, 'New projects start with their own look')),
     h('div', { class: 'foot' }, LOOK.scopeOwn ? `Changes apply to ${LOOK.scopeName} and are saved.` : 'Changes apply to every window and are saved.'),
+    h('button', { class: 'lpdone', onclick: close }, 'Done'),
   ].filter(Boolean));
   // A copy of the chosen file goes in the app's data folder.
   const pickPicture = async () => {
