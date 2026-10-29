@@ -14,7 +14,11 @@
     background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--frame);
     background-origin: border-box; box-shadow: var(--frame-glow), var(--shadow-lg);
     outline: var(--stitch); outline-offset: calc(var(--frame-w) / -2 - 1px);
+    animation: var(--frame-anim);
   }
+  /* Moving frames: the header gets a plain bar so it doesn't freeze a copy of the frame. */
+  :root[data-motion] header { background: var(--bg-2); --bar-ink: var(--ink-2); }
+  .unlocked footer { padding-right: 70px; }
   :root:not([data-material=paper]) header { background: var(--bar); color: var(--bar-ink); margin: 0 0 8px; }
   :root:not([data-material=paper]) header .brand, :root:not([data-material=paper]) header .iconbtn { color: var(--bar-ink); }
   :root:not([data-material=paper]) header .iconbtn:hover { background: rgba(127,127,127,.18); }
@@ -121,6 +125,23 @@
   .quickadd button { height: 34px; width: 34px; padding: 0; justify-content: center; }
   .bar-mode .quickadd, .bar-mode .warnline { display: none; }
   .warnline { position: relative; margin: 0 12px 10px; padding: 8px 11px; border-radius: 10px; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); background: var(--clay-soft); flex: none; }
+  /* size lock + resize grip (bottom-right corner) */
+  .corner { position: absolute; right: 0; bottom: 0; width: 64px; height: 42px; z-index: 5; display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; padding: 0 3px 3px 0; }
+  .lockbtn {
+    width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border-radius: 9px; border: 1px solid var(--line-2);
+    background: var(--surface); color: var(--ink-2); cursor: pointer; box-shadow: var(--shadow-sm);
+    opacity: 0; transform: scale(.7); pointer-events: none; transition: opacity .2s, transform .2s cubic-bezier(.2,.8,.2,1);
+  }
+  .lockbtn svg.i { width: 15px; height: 15px; }
+  .lockbtn:hover { color: var(--ink); border-color: var(--clay); }
+  .corner.arming .lockbtn { opacity: .35; transform: scale(.92); transition: opacity 3s linear, transform 3s linear; }
+  .corner.show .lockbtn, .unlocked .lockbtn { opacity: 1; transform: none; pointer-events: auto; }
+  .unlocked .lockbtn { color: var(--clay); }
+  .grip { display: none; width: 16px; height: 16px; margin-bottom: 1px; cursor: nwse-resize; border-radius: 0 0 9px 0;
+    background: linear-gradient(135deg, transparent 0 52%, var(--ink-3) 52% 58%, transparent 58% 68%, var(--ink-3) 68% 74%, transparent 74% 84%, var(--ink-3) 84% 90%, transparent 90%); }
+  .unlocked .grip { display: block; }
+  .unlocked .panel { box-shadow: var(--frame-glow), var(--shadow-lg), 0 0 0 2px color-mix(in srgb, var(--clay) 45%, transparent); }
+  .bar-mode .corner { display: none; }
   .warnline button { border: 0; background: none; padding: 0; color: var(--clay); font-weight: 650; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
@@ -146,8 +167,11 @@
     <form class="quickadd" id="quickadd" hidden><input id="qtext" maxlength="1000" autocomplete="off"><button class="btn primary" type="submit" id="qadd" title="Add this task"></button></form>
     <main class="list" id="list"></main>
     <footer><span id="updated">Loading…</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
+    <!-- Hold the mouse here for 3 seconds: a lock appears that frees or fixes the box's size. -->
+    <div class="corner" id="corner"><button class="lockbtn" id="lockbtn"></button><div class="grip" id="grip" title="Drag to resize"></div></div>
   </div>
   <canvas id="badge" width="32" height="32" hidden></canvas>
+  <script src="liveframe.js"></script>
   <script src="ui.js"></script>
   <script src="box.js"></script>
 </body>

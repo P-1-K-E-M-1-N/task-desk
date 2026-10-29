@@ -66,7 +66,7 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   // ---- look panel ----
   await win.locator('#wlook').click();
   ok('look panel opens', await win.locator('.lookpanel').isVisible());
-  ok('6 themes and 7 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 7);
+  ok('6 themes and 13 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 13);
   await win.locator('.lookpanel .grid button', { hasText: 'Ocean' }).click();
   ok('panel stays open while choosing', await win.locator('.lookpanel').isVisible());
   await win.waitForTimeout(300);
@@ -77,7 +77,8 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
 
   const combos = [
     ['clay', 'paper', 'light'], ['ocean', 'glass', 'light'], ['sage', 'linen', 'light'], ['clay', 'wood', 'light'],
-    ['honey', 'leather', 'dark'], ['graphite', 'metal', 'light'], ['plum', 'neon', 'dark'], ['clay', 'wood', 'dark'],
+    ['honey', 'leather', 'dark'], ['graphite', 'metal', 'light'], ['plum', 'neon', 'dark'],
+    ['ocean', 'aurora', 'dark'], ['clay', 'lava', 'dark'], ['plum', 'stars', 'dark'], ['clay', 'rainbow', 'light'], ['clay', 'wood', 'dark'],
   ];
   await win.mouse.click(5, 300);
   for (const [theme, material, appearance] of combos) {
@@ -87,6 +88,77 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
     await box.screenshot({ path: path.join(SHOTS, `look-box-${material}-${theme}-${appearance}.png`) });
   }
   ok('dark class follows the Dark setting', await win.evaluate(() => document.documentElement.classList.contains('dark')));
+
+  // Moving frames move, and "Keep still" stops them.
+  const anim = (page, sel) => page.evaluate((s) => getComputedStyle(document.querySelector(s)).animationName, sel);
+  ok('aurora frame moves', (await win.evaluate(() => desk.setLook({ material: 'aurora' })).then(() => win.waitForTimeout(300)).then(() => anim(box, '.panel'))) === 'frameFlow');
+  await win.evaluate(() => desk.setLook({ material: 'bubbler', theme: 'ocean', appearance: 'light' }));
+  await win.waitForTimeout(1500);
+  const frames = (page) => page.evaluate(() => (window.liveFrame ? window.liveFrame.frames : -1));
+  const f1 = await frames(box);
+  await box.waitForTimeout(600);
+  ok('bubbler is drawn live in the box', (await frames(box)) > f1 && await box.locator('canvas.liveframe').count() === 1, `${f1}`);
+  ok('bubbler is drawn live in the task window', (await frames(win)) > 0 && await win.locator('canvas.liveframe').count() === 1);
+  ok('bubbler has drops falling', (await box.evaluate(() => window.liveFrame.drops)) > 0);
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-bubbler-light.png') });
+  await win.screenshot({ path: path.join(SHOTS, 'look-bubbler-light.png') });
+  await win.evaluate(() => desk.setLook({ appearance: 'dark' }));
+  await win.waitForTimeout(1500);
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-bubbler-dark.png') });
+  await win.evaluate(() => desk.setLook({ motion: 'off' }));
+  await win.waitForTimeout(400);
+  const s1 = await frames(box);
+  await box.waitForTimeout(500);
+  ok('"Keep still" stops the bubbler', (await frames(box)) === s1);
+  await win.evaluate(() => desk.setLook({ material: 'aurora' }));
+  await win.waitForTimeout(300);
+  ok('"Keep still" stops CSS frames too', (await anim(box, '.panel')) === 'none');
+  await win.evaluate(() => desk.setLook({ motion: 'on' }));
+  await win.evaluate(() => desk.setLook({ material: 'wood' }));
+  await win.waitForTimeout(300);
+  ok('bubbler canvas goes away for other frames', await box.locator('canvas.liveframe').count() === 0);
+
+  // A picture frame (the picker copies the file into data/look/; here we put one there).
+  fs.mkdirSync(path.join(DATA, 'look'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'assets', 'icon.png'), path.join(DATA, 'look', 'frame-test.png'));
+  await win.evaluate(() => desk.setLook({ material: 'picture', picture: 'frame-test.png' }));
+  await win.waitForTimeout(400);
+  ok('picture frame shows the picture', /frame-test\.png/.test(await box.evaluate(() => getComputedStyle(document.querySelector('.panel')).backgroundImage)));
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-picture.png') });
+
+  // Size lock: rest the mouse in the corner for 3 seconds, unlock, drag the grip.
+  await win.evaluate(() => desk.setLook({ material: 'wood', theme: 'clay', appearance: 'dark' }));
+  await box.bringToFront();
+  const boxSize = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).getBounds());
+  const before = await boxSize();
+  ok('box starts locked', await box.evaluate(() => !document.body.classList.contains('unlocked')));
+  await box.hover('#corner');
+  await box.waitForTimeout(1000);
+  ok('lock stays hidden for the first seconds', (await box.evaluate(() => getComputedStyle(document.querySelector('#lockbtn')).pointerEvents)) === 'none');
+  await box.waitForTimeout(2400);
+  ok('lock appears after 3 seconds', await box.evaluate(() => document.querySelector('#corner').classList.contains('show')));
+  await box.locator('#lockbtn').click();
+  await box.waitForTimeout(300);
+  ok('click unlocks the size', await box.evaluate(() => document.body.classList.contains('unlocked')));
+  ok('unlocked window can be resized', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).isResizable()));
+  await box.screenshot({ path: path.join(SHOTS, 'look-box-unlocked.png') });
+  // Drag the grip 200px right and 60px down (the main process reads the real mouse position).
+  await box.evaluate(() => desk.resizeBox('start'));
+  await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('box.html'));
+    const b = w.getBounds();
+    w.setBounds({ ...b, width: b.width + 200, height: b.height + 60 });
+    w.emit('resized');
+  });
+  await box.waitForTimeout(300);
+  const after = await boxSize();
+  ok('box got wider', after.width >= before.width + 150, `${before.width} -> ${after.width}`);
+  const machine = () => JSON.parse(fs.readFileSync(path.join(DATA, 'machine.json'), 'utf8'));
+  ok('new width is remembered on this computer', machine().boxBounds.width === after.width && machine().boxLocked === false);
+  await box.locator('#lockbtn').click();
+  await box.waitForTimeout(300);
+  ok('click locks it again', await box.evaluate(() => !document.body.classList.contains('unlocked')) && machine().boxLocked === true);
+  ok('locked window can\'t be resized', !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).isResizable())));
   await win.evaluate(() => desk.setLook({ size: 'l' }));
   await win.waitForTimeout(300);
   ok('text size changes zoom', Math.abs((await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.webContents.getZoomFactor())[0])) - 1.1) < 0.01);
@@ -96,6 +168,8 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await app.close();
   ({ app, box } = await launch());
   ok('look remembered after restart', (await box.evaluate(() => document.documentElement.dataset.material)) === 'wood');
+  const reopened = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).getBounds());
+  ok('stretched width kept after restart', reopened.width === JSON.parse(fs.readFileSync(path.join(DATA, 'machine.json'), 'utf8')).boxBounds.width && reopened.width > 340, String(reopened.width));
   await box.locator('#look').click();
   ok('box has its own look button', await box.locator('.lookpanel').isVisible());
   await box.screenshot({ path: path.join(SHOTS, 'look-box-panel.png') });
