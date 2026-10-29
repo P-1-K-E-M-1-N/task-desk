@@ -29,11 +29,11 @@
   .label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px; }
   .label .num { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border-radius: 50%; background: var(--clay); color: var(--clay-ink); font-size: 10.5px; letter-spacing: 0; vertical-align: 1px; }
   .lead.steps { margin-top: -8px; padding: 10px 13px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
-  .field > .hint, .field > .row, .field > .choice, .field > .check, .field > .colors, .field > input.box, .field > textarea.box { margin-left: 26px; }
-  .field > .row, .field > .choice, .field > input.box, .field > textarea.box { width: calc(100% - 26px); }
+  .field > .hint, .field > .row, .field > .choice, .field > .check, .field > .colors, .field > input.box, .field > textarea.box, .field > select.box { margin-left: 26px; }
+  .field > .row, .field > .choice, .field > input.box, .field > textarea.box, .field > select.box { width: calc(100% - 26px); }
   .hint { font-size: 11.8px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
   .row { display: flex; gap: 8px; align-items: center; }
-  input.box, textarea.box {
+  input.box, textarea.box, select.box {
     width: 100%; min-width: 0; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); font-size: 13px; outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
@@ -84,7 +84,7 @@
     <div class="scroll">
       <h1 id="title">Add a project</h1>
       <p class="lead">A project is a folder you work in. Task Desk reads its to-do list (it never changes it) and gives every task a plan and a chat, just like the Idea Factory.</p>
-      <p class="lead steps">Fill in boxes <b>1</b> to <b>8</b> below. Only <b>1 Name</b> is required; the rest already have sensible choices. Choosing the folder in <b>2</b> fills in <b>1</b> and <b>3</b> for you when it can.</p>
+      <p class="lead steps">Fill in boxes <b>1</b> to <b>9</b> below. Only <b>1 Name</b> is required; the rest already have sensible choices. Choosing the folder in <b>2</b> fills in <b>1</b> and <b>3</b> for you when it can.</p>
 
       <div class="field" id="f-name">
         <label class="label" for="name"><span class="num">1</span>Name</label>
@@ -147,6 +147,17 @@
         <span class="label"><span class="num">8</span>Look <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></span>
         <label class="check"><input type="checkbox" id="ownLook"><span>Give this project its own look</span></label>
         <div class="hint">Its own theme, frame and colors, starting in the project's color. While the project is showing, click the palette button to change them. Off: it looks like the rest of the desk.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="ai"><span class="num">9</span>Which AI <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
+        <select id="ai" class="box">
+          <option value="">Same as the desk</option>
+          <option value="claude">Claude (Claude Code)</option>
+          <option value="codex">OpenAI (Codex)</option>
+          <option value="gemini">Google Gemini (Gemini CLI)</option>
+        </select>
+        <div class="hint">Runs this project's chats and writes its plans. Each one is that company's own app, signed in with your own account (no API keys). The desk's choice is in the ⋯ menu.</div>
       </div>
     </div>
     <div class="foot">

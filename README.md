@@ -5,7 +5,7 @@ A small floating box on your screen that lists everything your projects need fro
 ## How to use it
 
 1. Click **Task Desk on the taskbar** (see "Pin it to the taskbar"), press **Ctrl+Alt+T**, or click the blue spark icon in the tray to show or hide the task box.
-   - **To move the box,** drag its top bar (the empty space between the project name and the buttons), the summary area, or the "Updated…" line at the bottom.
+   - **To move the box,** drag its top bar (the empty space between the project name and the buttons) or the summary area under it.
 2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
 3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
 4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
@@ -32,8 +32,9 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
 6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
 7. **Color:** used for the project's dot.
 8. **Look** (optional): give the project its own theme, frame and colors. See "A look for each project" below.
+9. **Which AI** (optional): Claude, OpenAI or Google Gemini for this project's chats and plans. "Same as the desk" uses the default from the task box. See "Use another AI" below.
 
-**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color, 8 Look), with the exact text to type or the exact option to pick.
+**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color, 8 Look, 9 Which AI), with the exact text to type or the exact option to pick.
 
 **Editing a project** saves as you type, like every other box. **Remove project** takes it out of the box. It never touches the folder, and your notes stay in the app data in case you add it back.
 
@@ -146,6 +147,22 @@ Claude does this as soon as a step is finished or you tell it you did one ("I se
 
 **Emails.** For outreach tasks you get one row per draft, each with **Contact** (opens their contact page), **Copy** (subject and body) and **Gmail** (opens a filled-in Gmail compose window). Tick each row once it's sent. You attach the PDF and press send yourself; the app never sends anything.
 
+## Use another AI (OpenAI, Google)
+
+Task chats and plans run on Claude Code by default. They can also run on **OpenAI's Codex** or **Google's Gemini CLI**. Each one is that company's own terminal app, signed in with your own account (a ChatGPT account or a Google account), so there are still no API keys.
+- **Default for new task windows:** the small **AI pill** at the bottom of the task box (it says "Claude" to begin with). Click it and pick one. The same choice is in the ⋯ menu under **AI for chats and plans**.
+- **For one project:** box 9 in its Add/Edit project form. It beats the default.
+- **Mid-task:** click the AI's name at the top of the chat panel (for example **Claude Code ▾**) and pick another.
+  - **What the new AI gets:** the task, the plan, what's ticked and your notes, plus the end of the conversation so far, so it carries on where the last one stopped.
+  - **Switching back:** each AI keeps its own chat for that task, so switching back picks that chat up again.
+  - **Scope:** the switch is for that one task only.
+- **Not installed yet?** The chat panel says so and shows the two commands to run (install, then sign in). For example, for OpenAI: `npm install -g @openai/codex`, then `codex login`. Task Desk never installs anything or signs in for you.
+- **Differences from Claude:**
+  - **Fresh start:** only Claude starts out with a copy of the factory's latest session. The others start fresh with the task brief.
+  - **Codex** works read-only unless the project allows file changes (box 5). Even then it asks before anything else.
+  - **Gemini** asks before every file change.
+  - **The plan tools** (tick a step, comment, add a note) work with all three.
+
 ## Test mode vs live
 
 The ⋯ menu (or right-click the tray icon) has **Idea Factory: test copies** and **Idea Factory: live**.
@@ -200,7 +217,7 @@ If you moved your data to OneDrive, everything except `machine.json` lives in `O
 
 ## For agents working on this repo
 
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/updater.js` checks the daily updater against a pretend GitHub in a temp folder. `node test/seamless.js` checks that updates refresh windows without stopping chats, wait for a quiet moment, and reopen task windows after a restart (it uses a pretend claude, `test/fake-claude.js`). `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
+- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/updater.js` checks the daily updater against a pretend GitHub in a temp folder. `node test/ai.js` checks the AI choice (Codex/Gemini commands and plan reading, the box's AI pill, switching AI mid-task with a hand-over, and the "not installed" help) with a pretend AI; the provider layer is `src/main/ai.js`. `node test/seamless.js` checks that updates refresh windows without stopping chats, wait for a quiet moment, and reopen task windows after a restart (it uses a pretend claude, `test/fake-claude.js`). `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
 - Tests run in their own temporary data folder and browser profile (`test/env.js`), so they never touch the real settings or ticks and can run while the real desk is open.
 - The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`). The Bubbler and Lava lamp frames are drawn on a canvas by `src/renderer/liveframe.js`; the look panel and your colors are in `ui.js`.
 - Rules: the Idea Factory folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.

@@ -11,6 +11,7 @@ const { readTasks, parseEmails } = require('./tasks');
 const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./handback');
 const projects = require('./projects');
 const updater = require('./updater');
+const ai = require('./ai');
 const icon = require('./icon');
 const bridge = require('./bridge');
 
@@ -63,6 +64,7 @@ function decorate(t) {
     status: st.status,
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
+    aiName: ai.pick(t).app,
     projectName: t.project === 'factory' ? 'Idea Factory' : t.projectName,
     projectColor: projects.colorOf(t.project),
   };
@@ -99,6 +101,7 @@ function payload() {
     root: config.root(),
     collapsed: s.collapsed,
     locked: s.boxLocked !== false,
+    ai: { ...ai.choices(null), project: projects.get(view) && projects.get(view).ai ? projects.get(view).ai : null },
     synced: config.synced(),
   };
 }
@@ -343,6 +346,20 @@ function openProjectEditor(id) {
   projectWins.set(key, w);
 }
 
+// The desk's AI. New chats use it; open chats keep going until restarted.
+function setAI(id) {
+  ai.forget(); // look for the apps again (one may have just been installed)
+  config.set({ ai: id });
+  const p = ai.PROVIDERS[id];
+  if (!ai.locate(p)) {
+    dialog.showMessageBox({
+      type: 'info', buttons: ['OK'], message: `${p.app} isn't installed on this computer yet`,
+      detail: `To use ${p.name}, open PowerShell and run:\n\n   ${p.install}\n   ${p.signin}   (${p.signinNote})\n\nThen open a task. Task Desk never signs in or installs anything for you.`,
+    });
+  }
+  broadcast();
+}
+
 function setView(view) {
   config.set({ view });
   broadcast();
@@ -447,6 +464,17 @@ function menu() {
     { label: 'Reset all chats…', click: resetAllChats },
     { label: 'Show snoozed & done again', click: () => { for (const t of state.allTasks()) if (t.status === 'snoozed') t.status = 'open'; state.save(); broadcast(); } },
     { label: 'Customize look…', click: () => { box.show(); box.webContents.send('look:open'); } },
+    {
+      label: 'AI for chats and plans',
+      submenu: [
+        ...ai.IDS.map((id) => {
+          const p = ai.PROVIDERS[id];
+          return { label: `${p.name} (${p.app})${ai.locate(p) ? '' : ' - not installed'}`, type: 'radio', checked: (s.ai || 'claude') === id, click: () => setAI(id) };
+        }),
+        { type: 'separator' },
+        { label: 'A project can use its own: Edit project, box 9', enabled: false },
+      ],
+    },
     { label: cur ? `Open "${cur.name}" results` : 'Open FROM_NICK.md', click: () => shell.openPath(resultsFor(view)) },
     { label: 'Open app data folder', click: () => shell.openPath(config.DATA_DIR) },
     { type: 'separator' },
@@ -994,6 +1022,17 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
   }
   chat.start(t, c && c.plan, { mode, cols, rows, ...handlers });
   broadcast();
+});
+// Which AI: the pickers in the box footer (desk default) and the task chat panel (this task).
+ipcMain.handle('ai:choices', (e, id) => ai.choices(id ? findTask(id) : null));
+ipcMain.handle('ai:setDefault', (e, id) => { if (ai.PROVIDERS[id]) setAI(id); return ai.choices(null); });
+ipcMain.handle('chat:switchAI', (e, id, to) => {
+  const t = findTask(id);
+  if (!t) return null;
+  ai.forget();
+  const p = chat.switchAI(t, to);
+  broadcast();
+  return { app: p.app, name: p.name, installed: !!ai.locate(p), choices: ai.choices(t) };
 });
 ipcMain.handle('chat:write', (e, id, d) => chat.write(id, d));
 ipcMain.handle('chat:send', (e, id, text) => chat.send(id, text));

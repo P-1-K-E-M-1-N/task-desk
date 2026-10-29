@@ -152,6 +152,11 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .popmenu button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; text-align: left; font-size: 12.5px; }
 .popmenu button:hover { background: var(--surface-2); }
 .popmenu small { margin-left: auto; color: var(--ink-3); }
+.popmenu .pophead { padding: 6px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.popmenu .popnote { padding: 5px 10px 4px; font-size: 11px; line-height: 1.4; color: var(--ink-3); border-top: 1px solid var(--line); margin-top: 4px; }
+.aiswitch { display: inline-flex; align-items: center; gap: 5px; padding: 1px 6px 1px 4px; margin-left: -4px; border: 0; border-radius: 7px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.aiswitch:hover { background: rgba(127,127,127,.14); }
+.aiswitch .chev { font-size: 10px; opacity: .55; }
 
 /* ---------- themes (color palettes) ----------
    Each theme sets the same variables for light and dark, so the two never mix.

@@ -38,6 +38,7 @@ const draft = () => ({
   resultsFile: $('#resultsFile').value.trim(),
   allowEdits: $('#allowEdits').checked,
   ownLook: $('#ownLook').checked,
+  ai: $('#ai').value,
   notes: $('#notes').value,
   color,
 });
@@ -157,6 +158,7 @@ async function init() {
   $('#resultsFile').value = p.resultsFile || 'FROM_NICK.md';
   $('#allowEdits').checked = !!p.allowEdits;
   $('#ownLook').checked = !!p.ownLook;
+  $('#ai').value = p.ai || '';
   $('#notes').value = p.notes || '';
   color = p.color || COLORS[0];
   resultsPath = p.resultsPath;

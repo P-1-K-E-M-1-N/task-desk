@@ -39,6 +39,7 @@ async function load() {
   }
   T = r.task; P = r.plan; ST = r.st; RESULTS_TO = r.resultsTo;
   document.title = T.title;
+  $('#aiName').textContent = T.aiName || 'Claude Code';
   $('#ttile').className = `tile t-${T.type}`;
   $('#ttile').innerHTML = icon(T.type);
   $('#tname').textContent = `${isFactory() ? laneName(T.lane) : T.projectName}  ·  ${T.title}`;
@@ -376,12 +377,40 @@ function setStat(kind, text) {
   $('#cstatText').textContent = text;
 }
 
+// ---------- switch AI for this task ----------
+// Like a model picker: the new AI gets the task brief plus the end of the last
+// conversation, and each AI keeps its own chat here, so switching back resumes it.
+$('#aiSwitch').onclick = async (e) => {
+  e.stopPropagation();
+  const c = await desk.aiChoices(ID);
+  const cur = c.current.id;
+  const base = c.project || c.desk;
+  const baseName = (c.list.find((x) => x.id === base) || {}).name;
+  const items = c.list.map((x) => ({
+    label: `${x.name} (${x.app})`, icon: x.id === cur ? 'check' : 'sparkle', hint: x.installed ? '' : 'not installed',
+    run: () => switchTo(x.id === base ? '' : x.id, x),
+  }));
+  popMenu($('#aiSwitch'), items, {
+    head: 'AI for this task',
+    notes: [`Default: ${baseName}${c.project ? ' (this project\'s choice)' : ' (set in the task box)'}. Switching hands over the plan and the recent conversation.`],
+  });
+};
+async function switchTo(id, x) {
+  if (x.id === (await desk.aiChoices(ID)).current.id) return;
+  const r = await desk.switchAI(ID, id);
+  if (!r) return;
+  T.aiName = r.app;
+  $('#aiName').textContent = r.app;
+  startChat('auto');
+  toast(r.installed ? `Switched to ${r.name}. It got the plan and the recent conversation.` : `${r.app} isn't installed yet: see the chat panel.`);
+}
+
 function startChat(mode) {
   chatStarted = true;
   $('#overlay').hidden = true;
   term.reset();
   refit();
-  setStat('connecting', 'Starting Claude Code…');
+  setStat('connecting', `Starting ${(T && T.aiName) || 'the chat'}…`);
   desk.chatStart(ID, mode, term.cols, term.rows);
   // Don't steal the keyboard from a notes or paste box you're typing in.
   setTimeout(() => { const a = document.activeElement; if (!a || a === term.textarea || !/^(TEXTAREA|INPUT)$/.test(a.tagName)) term.focus(); }, 300);
@@ -404,7 +433,12 @@ desk.onChatInfo((id, info) => {
   $('#cstatText').dataset.label = `Live · ${info.label.toLowerCase()}`;
   setStat('connecting', info.label + '…');
 });
-desk.onChatExit((id) => { if (id === ID) showEnded('The chat ended'); });
+desk.onChatExit((id, code) => {
+  if (id !== ID) return;
+  // The AI app isn't installed: keep the how-to in the chat panel readable.
+  if (code === -2) { setStat('', 'Not installed: see below'); return; }
+  showEnded('The chat ended');
+});
 function showEnded(title) {
   setStat('', title);
   const o = $('#overlay');

@@ -159,7 +159,9 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   const boxSize = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).getBounds());
   const before = await boxSize();
   ok('box starts locked', await box.evaluate(() => !document.body.classList.contains('unlocked')));
-  await box.hover('#corner');
+  // The corner lets clicks through, so these use the mouse position, like a real mouse.
+  const cornerAt = await box.evaluate(() => { const r = document.querySelector('#corner').getBoundingClientRect(); return { x: r.left + 20, y: r.top + 20 }; });
+  await box.mouse.move(cornerAt.x, cornerAt.y);
   await box.waitForTimeout(1000);
   ok('lock stays hidden for the first seconds', (await box.evaluate(() => getComputedStyle(document.querySelector('#lockbtn')).pointerEvents)) === 'none');
   await box.waitForTimeout(2400);
@@ -190,7 +192,8 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await box.mouse.move(150, 150);
   await box.waitForTimeout(1800);
   ok('lock hides again after the mouse leaves', await box.evaluate(() => !document.querySelector('#corner').classList.contains('show')));
-  for (let i = 0; i < 3; i++) await box.locator('#corner').click({ button: 'right', position: { x: 10, y: 20 } });
+  const cornerNow = await box.evaluate(() => { const r = document.querySelector('#corner').getBoundingClientRect(); return { x: r.left + 10, y: r.top + 20 }; }); // the box is wider now
+  for (let i = 0; i < 3; i++) await box.mouse.click(cornerNow.x, cornerNow.y, { button: 'right' });
   await box.waitForTimeout(250);
   ok('three right-clicks show the lock', await box.evaluate(() => document.querySelector('#corner').classList.contains('show')));
   await box.mouse.move(150, 150);

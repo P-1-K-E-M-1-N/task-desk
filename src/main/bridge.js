@@ -29,21 +29,21 @@ function start(handle) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => { port = server.address().port; resolve(port); }));
 }
 
-// Writes the MCP config for one task's chat and returns its path.
+// How to start the tools for one task's chat (any AI app that speaks MCP).
+function spec(taskId) {
+  return {
+    command: process.execPath,
+    args: [SCRIPT],
+    env: { ELECTRON_RUN_AS_NODE: '1', TASKDESK_PORT: String(port), TASKDESK_TOKEN: TOKEN, TASKDESK_TASK: taskId },
+  };
+}
+
+// Writes Claude Code's MCP config for one task's chat and returns its path.
 function configFor(taskId) {
   fs.mkdirSync(MCP_DIR, { recursive: true });
   const file = path.join(MCP_DIR, `${taskId}.json`);
-  fs.writeFileSync(file, JSON.stringify({
-    mcpServers: {
-      taskdesk: {
-        type: 'stdio',
-        command: process.execPath,
-        args: [SCRIPT],
-        env: { ELECTRON_RUN_AS_NODE: '1', TASKDESK_PORT: String(port), TASKDESK_TOKEN: TOKEN, TASKDESK_TASK: taskId },
-      },
-    },
-  }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ mcpServers: { taskdesk: { type: 'stdio', ...spec(taskId) } } }, null, 2));
   return file;
 }
 
-module.exports = { start, configFor, ready: () => port > 0 };
+module.exports = { start, configFor, spec, ready: () => port > 0 };
