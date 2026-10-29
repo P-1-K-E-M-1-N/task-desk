@@ -98,9 +98,12 @@ function actBtn(label, ic, fn, { cls = '', done = 'Done' } = {}) {
   return b;
 }
 
-function popMenu(anchor, items) {
+// head: an optional title line; notes: optional small print under the items.
+function popMenu(anchor, items, { head, notes = [] } = {}) {
   const m = h('div', { class: 'popmenu' },
-    items.map((it) => h('button', { onclick: () => { m.remove(); it.run(); }, html: `${icon(it.icon)}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}` })));
+    head ? h('div', { class: 'pophead' }, head) : null,
+    items.map((it) => h('button', { onclick: () => { m.remove(); it.run(); }, html: `${icon(it.icon)}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}` })),
+    ...notes.filter(Boolean).map((n) => h('div', { class: 'popnote' }, n)));
   placePopup(anchor, m);
 }
 

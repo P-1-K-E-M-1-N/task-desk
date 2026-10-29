@@ -1,12 +1,14 @@
-// Generates a step-by-step plan per task by running Claude Code headless
-// (`claude -p`) with read-only tools. Plans are cached in data/plans/<mode>/
-// and regenerated only when the task's text changes.
+// Generates a step-by-step plan per task by running the task's AI headless
+// with read-only tools: Claude Code (`claude -p`), or Codex / Gemini (see ai.js).
+// Plans are cached in data/plans/<mode>/ and regenerated only when the task's
+// text changes.
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 const config = require('./config');
-const { claudeExe, cleanEnv } = require('./sessions');
+const { cleanEnv } = require('./sessions');
+const ai = require('./ai');
 
 const ACTIONS = ['gmail_draft', 'open_folder', 'copy_text', 'open_url', 'paste_box', 'decision', 'open_file',
   'keyword_planner', 'email_list', 'env_key', 'ask_claude', 'none'];
@@ -163,14 +165,20 @@ function rules(last) {
 - Nick sends, submits, signs up and pays for things himself. Never plan for an agent to do that. ${last}`;
 }
 
-function runClaude(task) {
+// One run of the plan writer. Claude Code returns the plan checked against the
+// schema; Codex and Gemini are asked for the JSON and it's checked in validate().
+function runAI(task) {
+  const p = ai.pick(task);
+  const loc = ai.locate(p);
+  if (!loc) return Promise.resolve({ error: `${p.app} (${p.name}) isn't installed on this computer` });
+  if (p.id !== 'claude') return runOther(p, loc, task);
   return new Promise((resolve) => {
     const args = ['-p', '--output-format', 'json', '--json-schema', JSON.stringify(SCHEMA),
       '--tools', 'Read', 'Glob', 'Grep', '--no-session-persistence'];
     if (config.get().plannerModel) args.push('--model', config.get().plannerModel);
     let out = '';
     let err = '';
-    const p = spawn(claudeExe(), args, { cwd: task.laneDir, windowsHide: true, env: cleanEnv() });
+    const p = spawn(loc.exe, [...loc.pre, ...args], { cwd: task.laneDir, windowsHide: true, env: cleanEnv(loc.env) });
     const kill = setTimeout(() => p.kill(), 5 * 60 * 1000);
     p.stdout.on('data', (d) => (out += d));
     p.stderr.on('data', (d) => (err += d));
@@ -185,6 +193,28 @@ function runClaude(task) {
       }
     });
     p.stdin.end(prompt(task));
+  });
+}
+
+function runOther(p, loc, task) {
+  return new Promise((resolve) => {
+    const outFile = path.join(config.LOCAL_DIR, 'mcp', `plan-${task.id}.txt`);
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    try { fs.unlinkSync(outFile); } catch {}
+    let out = '';
+    let err = '';
+    const proc = spawn(loc.exe, [...loc.pre, ...ai.planArgs(p, outFile)], { cwd: task.laneDir, windowsHide: true, env: cleanEnv(loc.env) });
+    const kill = setTimeout(() => proc.kill(), 5 * 60 * 1000);
+    proc.stdout.on('data', (d) => (out += d));
+    proc.stderr.on('data', (d) => (err += d));
+    proc.on('error', (e) => { clearTimeout(kill); resolve({ error: e.message }); });
+    proc.on('close', () => {
+      clearTimeout(kill);
+      const plan = ai.readPlan(p, out, outFile);
+      try { fs.unlinkSync(outFile); } catch {}
+      resolve(plan ? { plan } : { error: (err || out).slice(0, 500) || 'no output' });
+    });
+    proc.stdin.end(prompt(task) + ai.PLAN_TAIL(SCHEMA));
   });
 }
 
@@ -215,7 +245,7 @@ function fallback(task, error) {
     summary: task.text,
     type: task.type,
     est_minutes: task.minutes,
-    steps: [{ text: 'Ask Claude in the chat panel how to get this done.', action: 'ask_claude', data: {} }],
+    steps: [{ text: 'Ask the chat panel how to get this done.', action: 'ask_claude', data: {} }],
     files: [],
     error,
   };
@@ -225,7 +255,7 @@ async function make(task) {
   let plan = null;
   let error = null;
   for (let attempt = 0; attempt < 2 && !plan; attempt++) {
-    const r = await runClaude(task);
+    const r = await runAI(task);
     plan = validate(r.plan);
     if (!plan) error = r.error || 'invalid plan JSON';
   }

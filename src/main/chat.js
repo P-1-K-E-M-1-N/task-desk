@@ -1,6 +1,7 @@
-// Runs the real `claude` CLI in a pseudo-terminal for each open task window.
+// Runs the task's AI app in a pseudo-terminal for each open task window: the
+// real `claude` CLI by default, or Codex / Gemini (see ai.js).
 //
-// Session rules:
+// Claude Code session rules:
 //  - Reopening a task resumes that task's own session (`--resume <id>`).
 //  - First open forks the working folder's newest session (`--resume <newest>
 //    --fork-session --session-id <new>`), so the chat starts with the factory's
@@ -11,8 +12,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const pty = require('@lydell/node-pty');
 const state = require('./state');
-const { sessionFile, newestSession, claudeExe, cleanEnv } = require('./sessions');
+const { sessionFile, newestSession, cleanEnv } = require('./sessions');
 const bridge = require('./bridge');
+const ai = require('./ai');
 
 const live = new Map(); // taskId -> { proc, sessionId, label, buf, lastOut, cb }
 const KEEP = 400 * 1024; // recent chat output kept per task, so a refreshed window can redraw it
@@ -64,12 +66,17 @@ function withTools(task, args) {
   return ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk', '--append-system-prompt', systemNote(task), ...args];
 }
 
-function attempts(task, plan, mode) {
+// Notes for the next AI when Nick switches a task's AI mid-way (taskId -> text).
+const handoffs = new Map();
+
+// Claude Code: resume this task's chat, or fork the folder's newest session.
+function attempts(task, plan, mode, note) {
   const st = state.task(task.id);
-  const msg = firstMessage(task, plan);
+  const msg = firstMessage(task, plan) + (note ? `\n\n${note}` : '');
   const list = [];
-  if (mode === 'auto' && st.chatSessionId && fs.existsSync(sessionFile(task.workDir, st.chatSessionId))) {
-    list.push({ label: 'Resuming this task\'s chat', sid: st.chatSessionId, args: ['--resume', st.chatSessionId] });
+  const own = ai.sessionFor(st, 'claude');
+  if (mode === 'auto' && own && fs.existsSync(sessionFile(task.workDir, own))) {
+    list.push({ label: 'Resuming this task\'s chat', sid: own, args: ['--resume', own, ...(note ? [note] : [])] });
   }
   if (mode !== 'fresh') {
     const base = newestSession(task.workDir, ownSessionIds());
@@ -85,31 +92,86 @@ function attempts(task, plan, mode) {
   return list;
 }
 
-// Tests swap in a pretend claude: TASKDESK_FAKE_CLAUDE="<node.exe>|<script.js>".
-function command(args) {
-  const fake = process.env.TASKDESK_FAKE_CLAUDE;
-  if (fake) { const [exe, script] = fake.split('|'); return [exe, [script, ...args]]; }
-  return [claudeExe(), args];
+// Codex and Gemini: resume this task's own chat when there is one, else start
+// fresh with the task brief (the Task Desk note goes first, since these apps
+// have no separate system-prompt option).
+function otherAttempts(p, task, plan, mode, note) {
+  const st = state.task(task.id);
+  const edits = isProject(task) ? !!task.allowEdits : false;
+  const own = ai.sessionFor(st, p.id);
+  const list = [];
+  if (mode === 'auto' && own) {
+    list.push({ label: 'Resuming this task\'s chat', sid: own, args: ai.chatArgs(p, { resume: true, sessionId: own === 'latest' ? null : own, brief: note, edits }) });
+  }
+  const brief = `${systemNote(task)}\n\n${firstMessage(task, plan)}${note ? `\n\n${note}` : ''}`;
+  list.push({ label: `Starting a fresh ${p.app} chat`, sid: null, fresh: true, args: ai.chatArgs(p, { brief, edits }) });
+  return list;
+}
+
+// Remember which chat this AI has for this task (each AI keeps its own).
+function saveSession(taskId, aiId, sid) {
+  const st = state.task(taskId);
+  state.update(taskId, { chats: { ...(st.chats || {}), [aiId]: sid }, chatSessionId: sid, chatAi: aiId });
+}
+
+// Switch a task to another AI ('' = back to the project's or desk's choice).
+// The running chat stops; the next one is told how the last one ended.
+function switchAI(task, toId) {
+  const from = ai.pick(task);
+  const e = live.get(task.id);
+  const note = e ? ai.handover(from, e.sessionId, task.workDir, e.buf) : '';
+  stop(task.id);
+  state.update(task.id, { ai: toId || null });
+  const to = ai.pick(task);
+  if (note && to.id !== from.id) handoffs.set(task.id, note); else handoffs.delete(task.id);
+  return to;
 }
 
 function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExit, onInfo }) {
   stop(task.id);
-  const tries = attempts(task, plan, mode);
   // The window's handlers; attach() swaps them when a window is refreshed.
   const cb = { onData, onExit, onInfo };
+  const p = ai.pick(task);
+  const loc = ai.locate(p);
+  if (!loc) {
+    cb.onInfo && cb.onInfo({ label: `${p.app} isn't installed`, sessionId: null, ai: p.id });
+    setTimeout(() => { cb.onData && cb.onData(ai.missingText(p) + '\r\n'); cb.onExit && cb.onExit(-2); }, 50); // -2: not installed
+    return;
+  }
+  const note = handoffs.get(task.id) || '';
+  handoffs.delete(task.id);
+  const claude = p.id === 'claude';
+  const tries = claude ? attempts(task, plan, mode, note) : otherAttempts(p, task, plan, mode, note);
+  const tools = !claude && bridge.ready() ? ai.toolArgs(p, bridge.spec(task.id), task.id) : { args: [], env: {} };
   const run = (i) => {
     const a = tries[i];
-    cb.onInfo && cb.onInfo({ label: a.label, sessionId: a.sid });
+    cb.onInfo && cb.onInfo({ label: a.label, sessionId: a.sid, ai: p.id });
     const startedAt = Date.now();
-    const [exe, args] = command(withTools(task, a.args));
-    const proc = pty.spawn(exe, args, {
+    const args = claude ? withTools(task, a.args) : [...tools.args, ...a.args];
+    const proc = pty.spawn(loc.exe, [...loc.pre, ...args], {
       name: 'xterm-256color', cols, rows, cwd: task.workDir,
-      env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor' }),
+      env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env, ...tools.env }),
     });
     const entry = { proc, sessionId: a.sid, label: a.label, stopped: false, buf: '', lastOut: Date.now(), cb };
     live.set(task.id, entry);
-    remember(a.sid);
-    state.update(task.id, { chatSessionId: a.sid });
+    if (claude) {
+      remember(a.sid);
+      saveSession(task.id, 'claude', a.sid);
+    } else if (a.fresh) {
+      // Gemini resumes the folder's latest chat; Codex names its own sessions: find
+      // this one once it's saved, so Resume reopens it.
+      saveSession(task.id, p.id, p.id === 'gemini' ? 'latest' : null);
+      if (p.id === 'codex') {
+        const look = (n) => setTimeout(() => {
+          if (entry.stopped || live.get(task.id) !== entry) return;
+          const sid = ai.findCodexSession(task.workDir, startedAt);
+          if (sid) { entry.sessionId = sid; saveSession(task.id, 'codex', sid); } else if (n > 0) look(n - 1);
+        }, 3000);
+        look(40);
+      }
+    } else {
+      state.update(task.id, { chatSessionId: a.sid, chatAi: p.id });
+    }
     proc.onData((d) => {
       entry.lastOut = Date.now();
       entry.buf += d;
@@ -176,4 +238,4 @@ function attach(id, handlers) {
 // True when no chat has printed anything for `ms` (Claude isn't in the middle of a reply).
 const quietFor = (ms) => [...live.values()].every((e) => Date.now() - e.lastOut >= ms);
 
-module.exports = { start, attach, write, send, resize, stop, stopAll, isLive, quietFor, firstMessage };
+module.exports = { start, switchAI, attach, write, send, resize, stop, stopAll, isLive, quietFor, firstMessage };

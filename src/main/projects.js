@@ -57,7 +57,7 @@ function read(p) {
   if (f) raw.push(...readChecklist(f, p.onlyMine));
   for (const a of state.store(p.id).added || []) raw.push({ id: a.id, lane: 'my-list', text: a.text });
   const extra = {
-    project: p.id, projectName: p.name, planNotes: p.notes || '', allowEdits: !!p.allowEdits,
+    project: p.id, projectName: p.name, planNotes: p.notes || '', allowEdits: !!p.allowEdits, ai: p.ai || '',
     sourceFile: f, projectFolder: p.folder || '',
   };
   return toTasks(raw, () => ({ laneDir: dir, workDir: dir }), p.id + '_').map((t) => ({ ...t, ...extra }));
@@ -86,6 +86,8 @@ function clean(d) {
     results: d.results === 'file' ? 'file' : 'app',
     resultsFile: String(d.resultsFile || 'FROM_NICK.md').trim() || 'FROM_NICK.md',
     allowEdits: !!d.allowEdits,
+    // Which AI runs its chats and plans ('' = the desk's choice). See ai.js.
+    ai: ['claude', 'codex', 'gemini'].includes(d.ai) ? d.ai : '',
     notes: String(d.notes || '').slice(0, 4000),
     color: COLORS.includes(d.color) ? d.color : COLORS[list().length % COLORS.length],
     // Its own look (colors, frame…) instead of the desk's. Only the changed settings are kept.

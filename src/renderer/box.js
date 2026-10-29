@@ -141,6 +141,7 @@ function render() {
     list.replaceChildren(...shown.map((t, i) => card(t, i)));
   }
   drawBadge(data.totalOpen);
+  drawAIPick();
 }
 
 function chipEl(key, label, n, color, plain) {
@@ -219,23 +220,59 @@ function tickUpdated() {
 }
 setInterval(tickUpdated, 5000);
 
+// ---------- default AI ----------
+// The footer pill shows the AI new task chats start with; click it to change.
+// A task can still switch AI in its own chat panel, and a project can have its own (box 9).
+function drawAIPick() {
+  const a = data && data.ai;
+  if (!a) return;
+  const cur = a.list.find((x) => x.id === a.desk) || a.list[0];
+  $('#aipick').innerHTML = `${icon('sparkle')}<span>${cur.name}</span><span class="chev">▾</span>`;
+  document.body.classList.toggle('narrow', innerWidth < 360);
+}
+$('#aipick').onclick = (e) => {
+  e.stopPropagation();
+  const a = data.ai;
+  const proj = a.project && data.projects.find((p) => p.id === data.view);
+  const items = a.list.map((x) => ({
+    label: `${x.name} (${x.app})`, icon: x.id === a.desk ? 'check' : 'sparkle', hint: x.installed ? '' : 'not installed',
+    run: async () => { data.ai = { ...(await desk.setDefaultAI(x.id)), project: a.project }; drawAIPick(); toast(`New task chats use ${x.name}.`); },
+  }));
+  popMenu($('#aipick'), items, {
+    head: 'Default AI for task chats',
+    notes: [
+      proj && `${proj.name} uses its own: ${(a.list.find((x) => x.id === a.project) || {}).name} (Edit project, box 9).`,
+      'You can also switch AI inside any task.',
+    ],
+  });
+};
+
 // ---------- size lock ----------
 // Resting the mouse in the bottom-right corner for 3 seconds shows the lock.
 // Unlocked, a grip appears next to it: drag it to make the box wider or taller.
 {
   const corner = $('#corner');
   let arm = null, hideT = null;
-  corner.addEventListener('mouseenter', () => {
+  // The corner lets clicks through to the footer (the AI button sits there), so
+  // the hover is worked out from the mouse position instead of the element.
+  let over = false;
+  const enter = () => {
     clearTimeout(hideT);
     if (corner.classList.contains('show')) return;
     corner.classList.add('arming');
     arm = setTimeout(() => { corner.classList.remove('arming'); corner.classList.add('show'); }, 3000);
-  });
-  corner.addEventListener('mouseleave', () => {
+  };
+  const leave = () => {
     clearTimeout(arm);
     corner.classList.remove('arming');
     hideT = setTimeout(() => corner.classList.remove('show'), Math.max(1500, keepUntil - Date.now()));
+  };
+  document.addEventListener('mousemove', (e) => {
+    const r = corner.getBoundingClientRect();
+    const inside = e.clientX >= r.left && e.clientY >= r.top;
+    if (inside !== over) { over = inside; (inside ? enter : leave)(); }
   });
+  document.documentElement.addEventListener('mouseleave', () => { if (over) { over = false; leave(); } });
   // Over remote desktop the hover may not register, so three quick right-clicks
   // near either bottom corner show the lock too, and keep it up for 8 seconds.
   // The corner zone reaches the window's very edge (past the frame).
@@ -252,7 +289,7 @@ setInterval(tickUpdated, 5000);
     keepUntil = now + 8000;
     corner.classList.remove('arming');
     corner.classList.add('show');
-    hideT = setTimeout(() => { if (!corner.matches(':hover')) corner.classList.remove('show'); }, 8000);
+    hideT = setTimeout(() => { if (!over) corner.classList.remove('show'); }, 8000);
   });
   $('#lockbtn').onclick = async () => {
     const locked = await desk.lockBox(!data.locked);
