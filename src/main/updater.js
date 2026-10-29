@@ -2,10 +2,11 @@
 //
 // The app folder is a git clone. Every day at 7 AM (or soon after startup, if
 // the computer was off at 7) it asks GitHub whether there's a newer version.
-// When there is, it installs it as soon as the desk is idle (no task or
-// project windows open) and reopens itself. If a window is open it waits, and
-// "Restart to update" in the ⋯ menu installs it straight away. Quitting the
-// desk also installs a waiting update.
+// When there is, it installs it at a quiet moment (see main.js): updates that
+// only change the screens just refresh the open windows, and the chats keep
+// running; others restart the desk and reopen the task windows you had open,
+// with their chats picking up where they left off. "Restart to update" in the
+// ⋯ menu installs it straight away. Quitting the desk also installs it.
 //
 // It only ever fast-forwards: if this copy has its own changes or commits
 // (someone is working on the code here), it leaves it alone. Your data never
@@ -17,6 +18,22 @@ const { execFile, execFileSync, spawn } = require('child_process');
 const HOUR = 60 * 60 * 1000;
 const RUN_AT = 7; // 7 AM, local time
 const DEPS = ['package.json', 'package-lock.json'];
+// Files the running app never reads (notes, tests): updating them needs nothing.
+const NOTHING = (f) => /\.md$/i.test(f) || /^(test|test-fixtures|docs)\//.test(f) || f === '.gitignore';
+// Screen files: open windows just refresh, and the chats keep running.
+const SCREEN = (f) => f.startsWith('src/renderer/') || f === 'src/preload.js';
+
+// How an update with these changed files goes in:
+//  'none'    nothing to do once the files are there
+//  'refresh' the windows refresh in place (a quick blink), chats keep running
+//  'restart' the desk restarts and reopens your task windows, chats resume
+//  'deps'    like 'restart', plus "npm install" by the helper after the desk closes
+function kindOf(files) {
+  if (files.some((f) => DEPS.includes(f))) return 'deps';
+  if (files.every(NOTHING)) return 'none';
+  if (files.every((f) => NOTHING(f) || SCREEN(f))) return 'refresh';
+  return 'restart';
+}
 
 function git(root, args, timeout = 60000) {
   return new Promise((resolve) => {
@@ -44,6 +61,7 @@ async function status(root, { fetch = true } = {}) {
   return {
     ok: true, upstream: up.out, behind, ahead, dirty, changes,
     deps: files.some((f) => DEPS.includes(f)),
+    kind: behind ? kindOf(files) : 'none',
     canInstall: behind > 0 && ahead === 0 && !dirty,
   };
 }
@@ -93,4 +111,4 @@ function pullNow(root) {
   }
 }
 
-module.exports = { status, lastRunTime, msUntilNextRun, startHelper, pullNow, findNode, HOUR };
+module.exports = { status, kindOf, lastRunTime, msUntilNextRun, startHelper, pullNow, findNode, HOUR };

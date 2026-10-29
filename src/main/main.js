@@ -20,7 +20,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
-app.setAppUserModelId('com.nick.taskdesk');
+const APP_ID = 'com.nick.taskdesk';
+app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const ICON_PNG = path.join(config.APP_ROOT, 'assets', 'icon.png');
@@ -244,11 +245,19 @@ function createBox() {
     x: b.x, y: b.y, width, height: s.collapsed ? BAR_H : b.height,
     minWidth: BOX_MIN_W, minHeight: BAR_H, maxWidth: BOX_MAX_W,
     // Locked (the default) keeps the size fixed; the lock in the bottom-right corner frees it.
-    frame: false, transparent: true, resizable: s.boxLocked === false && !s.collapsed, alwaysOnTop: true, skipTaskbar: true,
+    // It has a taskbar button (pin it to start the desk with one click) unless that's turned off in the ⋯ menu.
+    frame: false, transparent: true, resizable: s.boxLocked === false && !s.collapsed, alwaysOnTop: true, skipTaskbar: s.showInTaskbar === false,
     show: false, icon: ICON_PNG, backgroundColor: '#00000000', hasShadow: true,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
   box.setAlwaysOnTop(true, 'floating');
+  // "Pin to taskbar" on the box's button pins Task Desk itself (not plain Electron).
+  if (process.platform === 'win32') {
+    box.setAppDetails({
+      appId: APP_ID, appIconPath: ICON_ICO, appIconIndex: 0,
+      relaunchCommand: `"${process.execPath}" "${config.APP_ROOT}"`, relaunchDisplayName: "Nick's Task Desk",
+    });
+  }
   box.loadFile(path.join(RENDERER, 'box.html'));
   box.webContents.on('did-finish-load', () => box.webContents.setZoomFactor(ZOOM[s.look.size] || 1));
   box.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) box.show(); });
@@ -272,8 +281,8 @@ function setBoxLocked(locked) {
 
 function toggleBox() {
   if (!box) return;
-  if (box.isVisible() && box.isFocused()) box.hide();
-  else { box.show(); box.focus(); }
+  if (box.isVisible() && box.isFocused() && !box.isMinimized()) box.hide();
+  else { if (box.isMinimized()) box.restore(); box.show(); box.focus(); }
 }
 
 function setCollapsed(c) {
@@ -285,7 +294,7 @@ function setCollapsed(c) {
   broadcast();
 }
 
-function openTask(id) {
+function openTask(id, bounds) {
   const t = findTask(id);
   if (!t) return;
   const existing = taskWins.get(id);
@@ -303,6 +312,7 @@ function openTask(id) {
     title: t.title,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
+  if (bounds) { const { x, y, width, height } = bounds; w.setBounds({ x, y, width, height }); if (bounds.maximized) w.maximize(); }
   w.loadFile(path.join(RENDERER, 'task.html'), { query: { id } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
@@ -349,6 +359,10 @@ function updateTray(count) {
 function startupLink() {
   return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', "Nick's Task Desk.lnk");
 }
+// In the Start menu, so Task Desk can be found by searching and pinned from there.
+function startMenuLink() {
+  return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', "Nick's Task Desk.lnk");
+}
 function desktopLink() {
   return path.join(app.getPath('desktop'), "Nick's Task Desk.lnk");
 }
@@ -359,7 +373,7 @@ function writeLink(file, hidden) {
     cwd: config.APP_ROOT,
     icon: ICON_ICO, iconIndex: 0,
     description: "Nick's Task Desk",
-    appUserModelId: 'com.nick.taskdesk',
+    appUserModelId: APP_ID,
   });
 }
 function setAutostart(on) {
@@ -368,6 +382,8 @@ function setAutostart(on) {
   config.set({ autostart: on });
 }
 function ensureShortcuts() {
+  // The Start menu entry is checked every start (tests leave this computer's shortcuts alone).
+  if (!process.env.TASKDESK_LOCAL_DATA && !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
   if (config.get().shortcutsDone) return;
   try { writeLink(desktopLink(), false); } catch {}
   try { setAutostart(true); } catch {}
@@ -438,6 +454,7 @@ function menu() {
       ? { label: 'Move my data back to this computer…', click: moveDataHome }
       : { label: 'Keep my data in OneDrive…', click: moveDataToCloud },
     { label: 'Start with Windows', type: 'checkbox', checked: fs.existsSync(startupLink()), click: (i) => setAutostart(i.checked) },
+    { label: 'Show in the taskbar', type: 'checkbox', checked: config.get().showInTaskbar !== false, click: (i) => { config.set({ showInTaskbar: i.checked }); box.setSkipTaskbar(!i.checked); } },
     pendingUpdate
       ? { label: 'Restart to update', click: () => installUpdate(true) }
       : { label: 'Check for updates now', click: () => checkForUpdate(true) },
@@ -496,50 +513,96 @@ async function checkForUpdate(manual) {
     const r = await dialog.showMessageBox({
       type: 'info', buttons: ['Install and restart', 'Later'], defaultId: 0, cancelId: 1,
       message: 'A new version of Task Desk is ready',
-      detail: `${s.changes.map((c) => '• ' + c).join('\n')}\n\nIt takes a few seconds. Open task windows close; their chats come back when you reopen them.`,
+      detail: `${s.changes.map((c) => '• ' + c).join('\n')}\n\n${s.kind === 'refresh' || s.kind === 'none'
+        ? 'Your windows refresh for a moment; your chats keep running.'
+        : 'The desk restarts for a few seconds and reopens your task windows. Each chat picks up where it left off, but a reply Claude is writing right now would be cut off.'}`,
     });
     if (r.response === 0) installUpdate(true);
+    else installWhenIdle();
   } else installWhenIdle();
   return s;
 }
 
-// Install once no task or project window is open, so nothing you're doing is cut off.
+// Install at a quiet moment, so nothing you're doing is cut off:
+//  - nobody has typed in a desk window for 2 minutes,
+//  - no "Add/Edit project" form is open (it isn't saved until you press Save),
+//  - and, when the desk has to restart, no chat has printed anything for
+//    2 minutes (Claude isn't in the middle of a reply).
+// A refresh-only update keeps the chats running, so it doesn't wait for them.
+const QUIET_MS = 2 * 60 * 1000;
+let lastInput = 0;
+app.on('browser-window-created', (e, w) => w.webContents.on('before-input-event', () => { lastInput = Date.now(); }));
+function quietNow(kind) {
+  if ([...projectWins.values()].some((w) => w && !w.isDestroyed())) return false;
+  if (Date.now() - lastInput < QUIET_MS) return false;
+  return kind === 'refresh' || kind === 'none' || chat.quietFor(QUIET_MS);
+}
+
 function installWhenIdle() {
   clearTimeout(idleTimer);
   if (!pendingUpdate) return;
-  if (windowsOpen() || (box && box.isFocused())) {
-    if (!pendingUpdate.told) {
-      pendingUpdate.told = true;
-      say('Task Desk update ready', 'It installs once your task windows are closed. Or choose "Restart to update" in the ⋯ menu.');
-    }
-    idleTimer = setTimeout(installWhenIdle, 20 * 60 * 1000);
-    return;
-  }
+  if (!quietNow(pendingUpdate.kind)) { idleTimer = setTimeout(installWhenIdle, 60 * 1000); return; }
   installUpdate(true);
+}
+
+const liveWins = () => [box, ...taskWins.values(), ...projectWins.values()].filter((w) => w && !w.isDestroyed());
+
+// Remember the open task windows, so the desk reopens them after restarting.
+function rememberWindows() {
+  const wins = [...taskWins].filter(([, w]) => w && !w.isDestroyed()).map(([id, w]) => ({
+    id, ...w.getNormalBounds(), maximized: w.isMaximized(), minimized: w.isMinimized(),
+  }));
+  config.set({ reopenAfterUpdate: { at: Date.now(), wins, boxHidden: !!box && !box.isVisible() } });
+}
+function reopenWindows() {
+  const r = config.get().reopenAfterUpdate;
+  if (!r) return;
+  config.set({ reopenAfterUpdate: null });
+  if (Date.now() - (r.at || 0) > 30 * 60 * 1000) return; // a stale note from an update that never restarted
+  if (r.boxHidden && box) box.once('show', () => box.hide());
+  for (const x of r.wins || []) {
+    if (!findTask(x.id)) continue;
+    openTask(x.id, x);
+    const w = taskWins.get(x.id);
+    if (x.minimized && w) w.once('show', () => w.minimize());
+  }
+}
+
+// Refresh every open window in place. Task windows reconnect to their running chats.
+function refreshWindows() {
+  for (const w of liveWins()) w.webContents.reload();
 }
 
 function installUpdate(relaunch) {
   const s = pendingUpdate;
   if (!s || installing) return;
   installing = true;
-  config.set({ updatedNote: s.changes[0] || 'A new version' });
-  if (!s.deps) {
-    // Only the app's own files changed: update them now, then restart.
+  const note = s.changes[0] || 'A new version';
+  if (s.kind !== 'deps') {
+    // Only the app's own files changed: update them now.
     const r = updater.pullNow(config.APP_ROOT);
-    logUpdate(r.ok ? 'installed' : `install failed: ${r.error}`);
-    if (!r.ok) { installing = false; pendingUpdate = null; config.set({ updatedNote: '' }); say('Task Desk couldn\'t update', r.error); return; }
-    if (relaunch) restart();
+    logUpdate(r.ok ? `installed (${s.kind})` : `install failed: ${r.error}`);
+    if (!r.ok) { installing = false; pendingUpdate = null; say('Task Desk couldn\'t update', r.error); return; }
+    if (!relaunch) return; // quitting: the new version is there next time
+    if (s.kind === 'none' || s.kind === 'refresh') {
+      installing = false; pendingUpdate = null;
+      if (s.kind === 'refresh') { refreshWindows(); say('Task Desk was updated', note); }
+      return;
+    }
+    config.set({ updatedNote: note });
+    rememberWindows();
+    restart();
     return;
   }
   // The packages changed too: a helper installs them after the desk has closed.
   if (!updater.startHelper({ root: config.APP_ROOT, relaunch, electron: process.execPath, log: UPDATE_LOG })) {
     installing = false;
-    config.set({ updatedNote: '' });
     say('Task Desk update needs Node.js', 'This update needs "npm install", and Node.js wasn\'t found. Install Node.js, then choose Check for updates now.');
     return;
   }
+  config.set({ updatedNote: note });
   logUpdate('installing with helper');
-  if (relaunch) { app.isQuitting = true; app.quit(); }
+  if (relaunch) { rememberWindows(); app.isQuitting = true; app.quit(); }
 }
 
 function scheduleUpdates() {
@@ -913,12 +976,23 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
   if (!t || !w) return;
   const c = planner.cached(t);
   const send = (ch, ...a) => { if (!w.isDestroyed()) w.webContents.send(ch, ...a); };
-  chat.start(t, c && c.plan, {
-    mode, cols, rows,
+  const handlers = {
     onData: (d) => send('chat:data', id, d),
     onExit: (code) => { send('chat:exit', id, code); broadcast(); },
     onInfo: (info) => send('chat:info', id, info),
-  });
+  };
+  // 'attach': a refreshed window reconnects to its running chat (else starts it as usual).
+  if (mode === 'attach') {
+    const a = chat.attach(id, handlers);
+    if (a) {
+      send('chat:info', id, { label: a.label, sessionId: a.sessionId });
+      if (a.buffer) send('chat:data', id, a.buffer);
+      chat.resize(id, cols, rows);
+      return { attached: true, pid: a.pid };
+    }
+    mode = 'auto';
+  }
+  chat.start(t, c && c.plan, { mode, cols, rows, ...handlers });
   broadcast();
 });
 ipcMain.handle('chat:write', (e, id, d) => chat.write(id, d));
@@ -938,7 +1012,8 @@ ipcMain.handle('tray:badge', (e, dataUrl) => {
 
 // ---------- lifecycle ----------
 
-app.on('second-instance', () => { if (box) { box.show(); box.focus(); } });
+// Starting it again (the taskbar pin, Start menu or desktop icon) brings the box up.
+app.on('second-instance', () => { if (box) { if (box.isMinimized()) box.restore(); box.show(); box.focus(); } });
 app.on('window-all-closed', () => {});
 app.on('before-quit', () => {
   app.isQuitting = true; chat.stopAll(); state.flush(); releaseLock();
@@ -967,6 +1042,9 @@ app.whenReady().then(async () => {
   refresh();
   startPolling();
   scheduleUpdates();
+  reopenWindows();
+  // Tests (their own data folder only) drive the update steps directly.
+  if (process.env.TASKDESK_LOCAL_DATA) global.__update = { refreshWindows, rememberWindows, quietNow, setLastInput: (t) => { lastInput = t; } };
   const note = config.get().updatedNote;
   if (note) { config.set({ updatedNote: '' }); say('Task Desk was updated', note); }
 });

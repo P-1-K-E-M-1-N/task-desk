@@ -360,6 +360,12 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .popmenu.lookpanel { width: 300px; padding: 12px 12px 10px; max-height: calc(100vh - 16px); overflow-y: auto; }
 .lookpanel h4 { margin: 0 0 7px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .lookpanel h4:not(:first-child) { margin-top: 13px; }
+.lookpanel .lphead { position: sticky; top: -12px; z-index: 2; display: flex; align-items: center; gap: 8px; margin: -12px -12px 10px; padding: 9px 8px 9px 14px; background: var(--surface-0); border-bottom: 1px solid var(--line); }
+.lookpanel .lphead b { flex: 1; font-size: 12.5px; font-weight: 700; }
+.popmenu .lpclose { width: 28px; height: 28px; padding: 0; justify-content: center; border-radius: 8px; color: var(--ink-2); }
+.popmenu .lpclose svg.i { width: 15px; height: 15px; }
+.popmenu .lpdone { justify-content: center; margin-top: 8px; height: 32px; border-radius: 9px; background: var(--clay); color: #fff; font-weight: 650; }
+.popmenu .lpdone:hover { background: var(--clay); filter: brightness(1.08); }
 .lookpanel .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .lookpanel .grid button {
   flex-direction: column; justify-content: center; gap: 5px; padding: 7px 2px 6px; border-radius: 10px;
