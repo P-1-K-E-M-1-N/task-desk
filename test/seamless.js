@@ -60,6 +60,14 @@ const pids = (t) => [...t.matchAll(/FAKE CLAUDE pid=(\d+)/g)].map((m) => m[1]);
   ok('and it still answers', /you said: again/.test(await waitTerm(win, /you said: again/)));
   ok('the box refreshed too', await box.locator('.card').count() > 0);
 
+  // ---- the X puts the box away but keeps its taskbar button ----
+  await box.locator('#hide').click();
+  await box.waitForTimeout(500);
+  const boxWin = (fn) => app.evaluate(({ BrowserWindow }, f) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('box.html')); return { min: w.isMinimized(), visible: w.isVisible() }; }, fn);
+  const st = await boxWin();
+  ok('the X minimizes the box to its taskbar button', st.min, JSON.stringify(st));
+  await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('box.html')); w.restore(); w.show(); });
+
   // ---- waiting for a quiet moment ----
   const quiet = (kind) => app.evaluate((_, k) => global.__update.quietNow(k), kind);
   await app.evaluate(() => global.__update.setLastInput(Date.now()));

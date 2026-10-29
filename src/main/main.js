@@ -21,7 +21,10 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
-const APP_ID = 'com.nick.taskdesk';
+// Windows groups taskbar buttons, pins and notifications by this id, and caches
+// an icon for it. The id changed when the icon did (the old one kept showing
+// Electron's icon); ensureShortcuts() moves the shortcuts over.
+const APP_ID = 'com.taskdesk.desk';
 app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
@@ -264,7 +267,7 @@ function createBox() {
   box.loadFile(path.join(RENDERER, 'box.html'));
   box.webContents.on('did-finish-load', () => box.webContents.setZoomFactor(ZOOM[s.look.size] || 1));
   box.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) box.show(); });
-  box.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); box.hide(); } });
+  box.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); tuckAway(); } });
   const saveBounds = () => {
     if (!box || box.isDestroyed()) return;
     const cur = box.getBounds();
@@ -282,9 +285,17 @@ function setBoxLocked(locked) {
   broadcast();
 }
 
+// Putting the box away: with the taskbar button on, it minimizes so the button
+// stays and one click brings it back; otherwise it hides to the tray.
+function tuckAway() {
+  if (!box) return;
+  if (config.get().showInTaskbar !== false) box.minimize();
+  else box.hide();
+}
+
 function toggleBox() {
   if (!box) return;
-  if (box.isVisible() && box.isFocused() && !box.isMinimized()) box.hide();
+  if (box.isVisible() && box.isFocused() && !box.isMinimized()) tuckAway();
   else { if (box.isMinimized()) box.restore(); box.show(); box.focus(); }
 }
 
@@ -399,8 +410,18 @@ function setAutostart(on) {
   config.set({ autostart: on });
 }
 function ensureShortcuts() {
-  // The Start menu entry is checked every start (tests leave this computer's shortcuts alone).
-  if (!process.env.TASKDESK_LOCAL_DATA && !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
+  // Tests leave this computer's shortcuts alone.
+  if (!process.env.TASKDESK_LOCAL_DATA) {
+    // The Start menu entry is checked every start. When the app id or icon changes,
+    // the existing shortcuts are rewritten so pins and the taskbar pick it up.
+    const stale = config.get().linksFor !== APP_ID;
+    if (stale || !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
+    if (stale) {
+      if (fs.existsSync(desktopLink())) try { writeLink(desktopLink(), false); } catch {}
+      if (fs.existsSync(startupLink())) try { writeLink(startupLink(), true); } catch {}
+      config.set({ linksFor: APP_ID });
+    }
+  }
   if (config.get().shortcutsDone) return;
   try { writeLink(desktopLink(), false); } catch {}
   try { setAutostart(true); } catch {}
@@ -1042,7 +1063,7 @@ ipcMain.handle('chat:stop', (e, id) => { chat.stop(id); broadcast(); });
 ipcMain.handle('win:close', (e) => winOf(e) && winOf(e).close());
 ipcMain.handle('win:min', (e) => winOf(e) && winOf(e).minimize());
 ipcMain.handle('win:max', (e) => { const w = winOf(e); if (w) w.isMaximized() ? w.unmaximize() : w.maximize(); });
-ipcMain.handle('win:hide', () => box && box.hide());
+ipcMain.handle('win:hide', () => tuckAway());
 ipcMain.handle('win:collapse', (e, c) => setCollapsed(c));
 ipcMain.handle('app:menu', (e) => menu().popup({ window: winOf(e) }));
 ipcMain.handle('tray:badge', (e, dataUrl) => {
