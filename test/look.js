@@ -186,6 +186,16 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await box.waitForTimeout(300);
   ok('click locks it again', await box.evaluate(() => !document.body.classList.contains('unlocked')) && machine().boxLocked === true);
   ok('locked window can\'t be resized', !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('box.html')).isResizable())));
+  // Over remote desktop: three quick right-clicks in the corner show the lock without hovering.
+  await box.mouse.move(150, 150);
+  await box.waitForTimeout(1800);
+  ok('lock hides again after the mouse leaves', await box.evaluate(() => !document.querySelector('#corner').classList.contains('show')));
+  for (let i = 0; i < 3; i++) await box.locator('#corner').click({ button: 'right', position: { x: 10, y: 20 } });
+  await box.waitForTimeout(250);
+  ok('three right-clicks show the lock', await box.evaluate(() => document.querySelector('#corner').classList.contains('show')));
+  await box.mouse.move(150, 150);
+  await box.waitForTimeout(2000);
+  ok('lock stays up a while after right-clicks', await box.evaluate(() => document.querySelector('#corner').classList.contains('show')));
   await win.evaluate(() => desk.setLook({ size: 'l' }));
   await win.waitForTimeout(300);
   ok('text size changes zoom', Math.abs((await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.webContents.getZoomFactor())[0])) - 1.1) < 0.01);

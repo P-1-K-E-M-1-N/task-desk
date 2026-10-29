@@ -234,7 +234,22 @@ setInterval(tickUpdated, 5000);
   corner.addEventListener('mouseleave', () => {
     clearTimeout(arm);
     corner.classList.remove('arming');
-    hideT = setTimeout(() => corner.classList.remove('show'), 1500);
+    hideT = setTimeout(() => corner.classList.remove('show'), Math.max(1500, keepUntil - Date.now()));
+  });
+  // Over remote desktop the hover may not register, so three quick right-clicks
+  // in the corner show the lock too, and keep it up for 8 seconds.
+  let rights = [], keepUntil = 0;
+  corner.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const now = Date.now();
+    rights = rights.filter((t) => now - t < 1500).concat(now);
+    if (rights.length < 3) return;
+    rights = [];
+    clearTimeout(arm); clearTimeout(hideT);
+    keepUntil = now + 8000;
+    corner.classList.remove('arming');
+    corner.classList.add('show');
+    hideT = setTimeout(() => { if (!corner.matches(':hover')) corner.classList.remove('show'); }, 8000);
   });
   $('#lockbtn').onclick = async () => {
     const locked = await desk.lockBox(!data.locked);

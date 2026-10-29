@@ -98,7 +98,7 @@ Changes show up instantly in every open window and are remembered after a restar
 ## Stretch the box
 
 The box keeps its size until you unlock it.
-1. Rest the mouse in the box's **bottom-right corner** for 3 seconds. A small lock fades in.
+1. Rest the mouse in the box's **bottom-right corner** for 3 seconds, or **right-click there 3 times quickly** (handy over remote desktop, where hovering may not register). A small lock appears.
 2. Click the lock to **unlock**. A grip appears beside it.
 3. Drag the grip to make the box wider (up to 1000 pixels) or taller. You can also drag the box's edges.
 4. Click the lock again to **lock** the size.
