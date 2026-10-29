@@ -10,6 +10,7 @@ const chat = require('./chat');
 const { readTasks, parseEmails } = require('./tasks');
 const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./handback');
 const projects = require('./projects');
+const updater = require('./updater');
 const icon = require('./icon');
 const bridge = require('./bridge');
 
@@ -437,6 +438,10 @@ function menu() {
       ? { label: 'Move my data back to this computer…', click: moveDataHome }
       : { label: 'Keep my data in OneDrive…', click: moveDataToCloud },
     { label: 'Start with Windows', type: 'checkbox', checked: fs.existsSync(startupLink()), click: (i) => setAutostart(i.checked) },
+    pendingUpdate
+      ? { label: 'Restart to update', click: () => installUpdate(true) }
+      : { label: 'Check for updates now', click: () => checkForUpdate(true) },
+    { label: 'Update automatically (daily, 7 AM)', type: 'checkbox', checked: config.get().autoUpdate !== false, click: (i) => { config.set({ autoUpdate: i.checked }); scheduleUpdates(); } },
     { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } },
   ]);
 }
@@ -460,6 +465,93 @@ function copyData(from, to) {
 function oneDriveRoot() {
   const env = process.env.OneDrive || process.env.OneDriveConsumer || process.env.OneDriveCommercial;
   return env && fs.existsSync(env) ? env : null;
+}
+
+// ---------- updates ----------
+// See updater.js. Checks GitHub every day at 7 AM, installs when the desk is idle.
+
+const UPDATE_LOG = path.join(config.LOCAL_DIR, 'update.log');
+let pendingUpdate = null, updateTimer = null, idleTimer = null, installing = false;
+// Tests run their own copy and never update.
+const autoUpdateOn = () => config.get().autoUpdate !== false && !process.env.TASKDESK_LOCAL_DATA && !process.env.TASKDESK_NO_UPDATE;
+const windowsOpen = () => [...taskWins.values(), ...projectWins.values()].filter((w) => w && !w.isDestroyed()).length;
+const logUpdate = (msg) => { try { fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`); } catch {} };
+const say = (title, body) => { try { new Notification({ title, body, icon: ICON_PNG }).show(); } catch {} };
+
+async function checkForUpdate(manual) {
+  const s = await updater.status(config.APP_ROOT);
+  config.set({ lastUpdateCheck: Date.now() });
+  const tell = (message, detail = '') => manual && dialog.showMessageBox({ type: 'info', buttons: ['OK'], message, detail });
+  if (!s.ok) { logUpdate(`check: ${s.reason}`); tell('Couldn\'t check for updates', s.reason); return s; }
+  if (!s.behind) { pendingUpdate = null; tell('Task Desk is up to date'); return s; }
+  if (!s.canInstall) {
+    logUpdate(`check: ${s.behind} new, not installed (own changes: ${s.dirty}, own commits: ${s.ahead})`);
+    tell('There\'s a newer version, but this copy wasn\'t updated',
+      'This copy of Task Desk has its own changes to the app (someone is working on the code here), so updating it automatically could lose them. Save or undo those changes, then check again.');
+    return s;
+  }
+  pendingUpdate = s;
+  logUpdate(`check: ${s.behind} new: ${s.changes.join(' | ')}`);
+  if (manual) {
+    const r = await dialog.showMessageBox({
+      type: 'info', buttons: ['Install and restart', 'Later'], defaultId: 0, cancelId: 1,
+      message: 'A new version of Task Desk is ready',
+      detail: `${s.changes.map((c) => '• ' + c).join('\n')}\n\nIt takes a few seconds. Open task windows close; their chats come back when you reopen them.`,
+    });
+    if (r.response === 0) installUpdate(true);
+  } else installWhenIdle();
+  return s;
+}
+
+// Install once no task or project window is open, so nothing you're doing is cut off.
+function installWhenIdle() {
+  clearTimeout(idleTimer);
+  if (!pendingUpdate) return;
+  if (windowsOpen() || (box && box.isFocused())) {
+    if (!pendingUpdate.told) {
+      pendingUpdate.told = true;
+      say('Task Desk update ready', 'It installs once your task windows are closed. Or choose "Restart to update" in the ⋯ menu.');
+    }
+    idleTimer = setTimeout(installWhenIdle, 20 * 60 * 1000);
+    return;
+  }
+  installUpdate(true);
+}
+
+function installUpdate(relaunch) {
+  const s = pendingUpdate;
+  if (!s || installing) return;
+  installing = true;
+  config.set({ updatedNote: s.changes[0] || 'A new version' });
+  if (!s.deps) {
+    // Only the app's own files changed: update them now, then restart.
+    const r = updater.pullNow(config.APP_ROOT);
+    logUpdate(r.ok ? 'installed' : `install failed: ${r.error}`);
+    if (!r.ok) { installing = false; pendingUpdate = null; config.set({ updatedNote: '' }); say('Task Desk couldn\'t update', r.error); return; }
+    if (relaunch) restart();
+    return;
+  }
+  // The packages changed too: a helper installs them after the desk has closed.
+  if (!updater.startHelper({ root: config.APP_ROOT, relaunch, electron: process.execPath, log: UPDATE_LOG })) {
+    installing = false;
+    config.set({ updatedNote: '' });
+    say('Task Desk update needs Node.js', 'This update needs "npm install", and Node.js wasn\'t found. Install Node.js, then choose Check for updates now.');
+    return;
+  }
+  logUpdate('installing with helper');
+  if (relaunch) { app.isQuitting = true; app.quit(); }
+}
+
+function scheduleUpdates() {
+  clearTimeout(updateTimer);
+  if (!autoUpdateOn()) return;
+  const missed = (config.get().lastUpdateCheck || 0) < updater.lastRunTime();
+  const tick = async () => {
+    await checkForUpdate(false).catch((e) => logUpdate(`check error: ${e.message}`));
+    updateTimer = setTimeout(tick, updater.msUntilNextRun());
+  };
+  // Missed this morning's check (the computer was off at 7)? Check a couple of minutes after starting.
+  updateTimer = setTimeout(tick, missed ? 2 * 60 * 1000 : updater.msUntilNextRun());
 }
 
 function restart() {
@@ -848,7 +940,11 @@ ipcMain.handle('tray:badge', (e, dataUrl) => {
 
 app.on('second-instance', () => { if (box) { box.show(); box.focus(); } });
 app.on('window-all-closed', () => {});
-app.on('before-quit', () => { app.isQuitting = true; chat.stopAll(); state.flush(); releaseLock(); });
+app.on('before-quit', () => {
+  app.isQuitting = true; chat.stopAll(); state.flush(); releaseLock();
+  // A waiting update installs when you quit; it's there next time the desk opens.
+  if (pendingUpdate && !installing) installUpdate(false);
+});
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.whenReady().then(async () => {
@@ -870,4 +966,7 @@ app.whenReady().then(async () => {
   ensureShortcuts();
   refresh();
   startPolling();
+  scheduleUpdates();
+  const note = config.get().updatedNote;
+  if (note) { config.set({ updatedNote: '' }); say('Task Desk was updated', note); }
 });
