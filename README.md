@@ -19,16 +19,19 @@ The name at the top left of the box (next to the check-mark icon) is the **proje
 
 The same list is in the ⋯ menu and the tray icon's right-click menu. The tray number counts every project.
 
-**Adding a project.** Click **Add a project…** and fill in a short form:
-1. **Name**, and the **folder** the project lives in. When you choose the folder, Task Desk suggests a name and looks for a to-do file (TODO.md, TASKS.md, NEEDS_NICK.md and similar).
-2. **Where its tasks come from:**
+**Adding a project.** Click **Add a project…**. The form has seven numbered boxes, and these steps use the same numbers. Only 1 is required.
+1. **Name:** what the project is called in the switcher.
+2. **Folder:** where the project lives. Press **Choose…**. Task Desk then fills in 1 and 3 for you when it can (it looks for TODO.md, TASKS.md, NEEDS_NICK.md and similar).
+3. **Where its tasks come from:**
    - **A checklist file:** every `- [ ] something` line in that file becomes a task, and `## Headings` become groups. Ticked `- [x]` lines are skipped. The form shows how many tasks it found right away. Tick **Only show lines that mention me** for a shared file.
    - **Only tasks I add here.**
    - Either way, a box for typing tasks appears at the top of the project ("Add a task to…"). Press Enter and Claude drafts a plan for it. Those tasks show under "My list".
-3. **Where your notes go when you press Done:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (FROM_NICK.md by default) so that project's agents can read what you did.
-4. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
-5. **Notes for Claude** (optional): anything the planner should know, like "Repairs go through Mike".
-6. A **color**, used for the project's dot.
+4. **When I press Done, my notes go to:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (FROM_NICK.md by default) so that project's agents can read what you did.
+5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
+6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
+7. **Color:** used for the project's dot.
+
+**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color), with the exact text to type or the exact option to pick.
 
 **Editing a project** saves as you type, like every other box. **Remove project** takes it out of the box. It never touches the folder, and your notes stay in the app data in case you add it back.
 

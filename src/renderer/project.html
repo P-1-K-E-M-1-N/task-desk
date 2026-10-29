@@ -27,6 +27,10 @@
   .lead { margin: 0 0 18px; color: var(--ink-2); font-size: 13.3px; line-height: 1.55; max-width: 60ch; }
   .field { margin: 0 0 18px; }
   .label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px; }
+  .label .num { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border-radius: 50%; background: var(--clay); color: var(--clay-ink); font-size: 10.5px; letter-spacing: 0; vertical-align: 1px; }
+  .lead.steps { margin-top: -8px; padding: 10px 13px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+  .field > .hint, .field > .row, .field > .choice, .field > .check, .field > .colors, .field > input.box, .field > textarea.box { margin-left: 26px; }
+  .field > .row, .field > .choice, .field > input.box, .field > textarea.box { width: calc(100% - 26px); }
   .hint { font-size: 11.8px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
   .row { display: flex; gap: 8px; align-items: center; }
   input.box, textarea.box {
@@ -55,7 +59,7 @@
   .colors { display: flex; gap: 8px; }
   .colors button { width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
   .colors button.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
-  .err { color: #c2412d; font-size: 12px; font-weight: 600; margin-top: 6px; }
+  .err { color: #c2412d; font-size: 12px; font-weight: 600; margin: 6px 0 0 26px; }
   .dark .err { color: #f0907c; }
   .foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px 14px; border-top: 1px solid var(--line); background: var(--bg-2); flex: none; }
   .foot .sp { flex: 1; }
@@ -80,20 +84,21 @@
     <div class="scroll">
       <h1 id="title">Add a project</h1>
       <p class="lead">A project is a folder you work in. Task Desk reads its to-do list (it never changes it) and gives every task a plan and a chat, just like the Idea Factory.</p>
+      <p class="lead steps">Fill in boxes <b>1</b> to <b>7</b> below. Only <b>1 Name</b> is required; the rest already have sensible choices. Choosing the folder in <b>2</b> fills in <b>1</b> and <b>3</b> for you when it can.</p>
 
       <div class="field" id="f-name">
-        <label class="label" for="name">Name</label>
+        <label class="label" for="name"><span class="num">1</span>Name</label>
         <input class="box" id="name" maxlength="40" placeholder="e.g. Rental houses">
       </div>
 
       <div class="field" id="f-folder">
-        <span class="label">Folder</span>
+        <span class="label"><span class="num">2</span>Folder</span>
         <div class="row"><input class="box" id="folder" placeholder="C:\MrC\my-project"><button class="btn" id="pickFolder">Choose…</button></div>
         <div class="hint">Where the project's files are. The chat starts here. Leave it empty if the project is just a list.</div>
       </div>
 
       <div class="field" id="f-tasksFile">
-        <span class="label">Where its tasks come from</span>
+        <span class="label"><span class="num">3</span>Where its tasks come from</span>
         <label class="choice" data-name="source" data-value="file">
           <input type="radio" name="source" value="file"><b>A checklist file</b>
           <span class="hint">Every line like <code>- [ ] Call the county about the permit</code> becomes a task. <code>## Headings</code> become groups. Ticked lines are skipped.</span>
@@ -110,7 +115,7 @@
       </div>
 
       <div class="field" id="f-results">
-        <span class="label">When I press Done, my notes go to</span>
+        <span class="label"><span class="num">4</span>When I press Done, my notes go to</span>
         <label class="choice" data-name="results" data-value="app">
           <input type="radio" name="results" value="app"><b>Task Desk only</b>
           <span class="hint">Kept in the app. Open them any time from the ⋯ menu.</span>
@@ -123,18 +128,18 @@
       </div>
 
       <div class="field">
-        <span class="label">The chat</span>
+        <span class="label"><span class="num">5</span>The chat</span>
         <label class="check"><input type="checkbox" id="allowEdits"><span>Let the chat change files in this folder</span></label>
         <div class="hint">Off: Claude helps and advises but leaves the folder alone unless you ask. On: it can edit files when a step needs it (Claude Code still asks you first, as usual).</div>
       </div>
 
       <div class="field">
-        <label class="label" for="notes">Anything Claude should know when planning? <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
+        <label class="label" for="notes"><span class="num">6</span>Anything Claude should know when planning? <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
         <textarea class="box" id="notes" placeholder="e.g. I manage 3 rental houses. Tenants are emailed from my Gmail. Repairs go through Mike (mike@example.com)."></textarea>
       </div>
 
       <div class="field">
-        <span class="label">Color</span>
+        <span class="label"><span class="num">7</span>Color</span>
         <div class="colors" id="colors"></div>
       </div>
     </div>
