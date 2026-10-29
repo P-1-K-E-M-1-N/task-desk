@@ -192,7 +192,9 @@ The task box has its own button on the taskbar while it's showing.
 - **To pin it:** right-click that button and choose **Pin to taskbar**.
 - **Or from the Start menu:** open it, type **Task Desk**, right-click **Nick's Task Desk**, and choose **Pin to taskbar**.
 - **Using the pin:** one click starts Task Desk if it isn't running, or brings the box back if it's hidden.
-- **Hiding the button:** untick **Show in the taskbar** in the ⋯ menu. A pinned icon stays put either way.
+- **The X button** minimizes the box to its taskbar button, so it stays there and one click brings the box back.
+- **Hiding the button:** untick **Show in the taskbar** in the ⋯ menu. The X then hides the box to the tray (the small icons by the clock) instead. A pinned icon stays put either way.
+- **If the icon vanished when you closed the box,** it was the running app's button, not a pin. Pin it from the Start menu as above.
 
 ## Starting with Windows
 
