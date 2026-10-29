@@ -4,7 +4,7 @@ A small floating box on your screen that lists everything your projects need fro
 
 ## How to use it
 
-1. Click **Task Desk on the taskbar** (see "Pin it to the taskbar"), press **Ctrl+Alt+T**, or click the check-mark icon in the tray to show or hide the task box.
+1. Click **Task Desk on the taskbar** (see "Pin it to the taskbar"), press **Ctrl+Alt+T**, or click the blue spark icon in the tray to show or hide the task box.
    - **To move the box,** drag its top bar (the empty space between the project name and the buttons), the summary area, or the "Updated…" line at the bottom.
 2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
 3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
@@ -13,7 +13,7 @@ A small floating box on your screen that lists everything your projects need fro
 
 ## One desk for all your projects
 
-The name at the top left of the box (next to the check-mark icon) is the **project switcher**. Click it to pick:
+The name at the top left of the box (next to the blue spark icon) is the **project switcher**. Click it to pick:
 - **All projects:** every project's open tasks in one list, sorted the same way (urgent first, then quickest first). Each card says which project it's from, and the chips filter by project.
 - **One project:** only its tasks, with chips for its sections.
 - **Add a project…** and **Edit this project…**
