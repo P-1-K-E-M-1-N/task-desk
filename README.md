@@ -1,223 +1,144 @@
-# Nick's Task Desk
+# Task Desk
 
-A small floating box on your screen that lists everything your projects need from you: the Idea Factory, plus any other project you add. Click a task and you get a window with a step-by-step plan on the left and a real Claude Code chat on the right.
+A small always-on-top Windows app that lists what your projects need you to do, and opens each task with a step-by-step plan and an AI chat that already knows the task.
 
-## How to use it
+It's for people who run projects with AI agents and end up with a pile of human-only jobs: send this email, sign up for that, decide between two options, paste a reply back. Task Desk reads those to-do items from your project folders and shows them in a floating box. Click one and a task window opens with two halves. On the left is a plan with buttons for each step (copy text, open a link, draft a Gmail message, paste a result). On the right is a real Claude Code chat running in that project's folder. You can also use OpenAI's Codex or Google's Gemini CLI there instead. The chat can tick steps and add notes as you go. When you press Done, your notes go back into the project, where its agents can pick them up.
 
-1. Click **Task Desk on the taskbar** (see "Pin it to the taskbar"), press **Ctrl+Alt+T**, or click the blue spark icon in the tray to show or hide the task box.
-   - **To move the box,** drag its top bar (the empty space between the project name and the buttons) or the summary area under it.
-2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
-3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
-4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
-5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes land in the factory's `ops/FROM_NICK.md`.
+**Status:** built for one person's workflow and in daily use, so some of it is personal. The app is called "Nick's Task Desk" in the window title and shortcuts. Its prompts address the user as Nick. The optional Idea Factory source expects files named `NEEDS_NICK.md` and `FROM_NICK.md`. Everything else works for anyone.
 
-## One desk for all your projects
+## Requirements
 
-The name at the top left of the box (next to the blue spark icon) is the **project switcher**. Click it to pick:
-- **All projects:** every project's open tasks in one list, sorted the same way (urgent first, then quickest first). Each card says which project it's from, and the chips filter by project.
-- **One project:** only its tasks, with chips for its sections.
-- **Add a project…** and **Edit this project…**
+- **Windows 10 or 11.** It relies on Windows shortcuts, the taskbar and `where`, and it hasn't been tried on macOS or Linux.
+- **Node.js with npm.** It's tested with Node 24.
+- **Git,** if you want the app to update itself.
+- **At least one AI command-line app, installed and signed in.** Claude Code is the default and uses your normal Claude plan login.
+  - **Claude Code:** `npm install -g @anthropic-ai/claude-code`, then run `claude` once to sign in.
+  - **Codex** (optional): `npm install -g @openai/codex`, then `codex login` with a ChatGPT account.
+  - **Gemini CLI** (optional): `npm install -g @google/gemini-cli`, then run `gemini` and choose "Sign in with Google".
 
-The same list is in the ⋯ menu and the tray icon's right-click menu. The tray number counts every project.
+No API keys are needed. Each AI app runs on its own account login.
 
-**Adding a project.** Click **Add a project…**. The form has eight numbered boxes, and these steps use the same numbers. Only 1 is required.
-1. **Name:** what the project is called in the switcher.
-2. **Folder:** where the project lives. Press **Choose…**. Task Desk then fills in 1 and 3 for you when it can (it looks for TODO.md, TASKS.md, NEEDS_NICK.md and similar).
-3. **Where its tasks come from:**
-   - **A checklist file:** every `- [ ] something` line in that file becomes a task, and `## Headings` become groups. Ticked `- [x]` lines are skipped. The form shows how many tasks it found right away. Tick **Only show lines that mention me** for a shared file.
-   - **Only tasks I add here.**
-   - Either way, a box for typing tasks appears at the top of the project ("Add a task to…"). Press Enter and Claude drafts a plan for it. Those tasks show under "My list".
-4. **When I press Done, my notes go to:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (FROM_NICK.md by default) so that project's agents can read what you did.
-5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
-6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
-7. **Color:** used for the project's dot.
-8. **Look** (optional): give the project its own theme, frame and colors. See "A look for each project" below.
-9. **Which AI** (optional): Claude, OpenAI or Google Gemini for this project's chats and plans. "Same as the desk" uses the default from the task box. See "Use another AI" below.
+## Setup
 
-**For agents telling Nick how to add a project:** give your answers by these same numbers (1 Name, 2 Folder, 3 Where its tasks come from, 4 When I press Done, 5 The chat, 6 Anything Claude should know, 7 Color, 8 Look, 9 Which AI), with the exact text to type or the exact option to pick.
+```powershell
+git clone <this repo's URL> task-desk
+cd task-desk
+npm install
+npm start
+```
 
-**Editing a project** saves as you type, like every other box. **Remove project** takes it out of the box. It never touches the folder, and your notes stay in the app data in case you add it back.
+The first start does three things:
+- creates a `data\` folder next to the app,
+- puts a shortcut on the desktop and one in the Startup folder (so it starts with Windows, in the tray),
+- adds a Start menu entry.
 
-**Safety rules for projects:**
-- Task Desk only reads a project's checklist file. It never edits it.
-- The only file it writes in a project folder is the results file you chose. The results file has to be inside that folder.
-- The Idea Factory stays read-only, apart from its own FROM_NICK.md. A project pointing at a factory folder can only keep its notes in Task Desk.
-- If a project's folder isn't on this computer, the box says so and offers **Fix the folder**.
+To pin it to the taskbar, right-click its taskbar button and choose **Pin to taskbar**.
 
-Every project task gets everything the Idea Factory has: a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next.
+A fresh install shows sample tasks from `test-fixtures\`. Add your own projects with **Add a project…** in the box's project switcher (top left of the box).
 
-## Use it on more than one computer (OneDrive)
+## Usage
 
-Everything is saved on this computer by default. To have the same desk on another PC:
-1. On this computer, choose **Keep my data in OneDrive…** in the ⋯ menu. Task Desk copies your projects, ticks, notes, plans and look settings to `OneDrive\Task Desk` and restarts.
-2. On the other computer, install Task Desk (see "Setting up another computer" below) and choose **Keep my data in OneDrive…** there too. It sees the data that's already there and offers **Use the data in OneDrive**.
+1. **Open the box:** press **Ctrl+Alt+T**, or click the taskbar or tray icon.
+2. **Open a task:** click it. The plan is on the left and the chat on the right.
+3. **Work the steps:** tell the chat what you did ("sent it") and it ticks the step and leaves a comment. You can also tick steps yourself.
+4. **Finish:** type what happened into the notes box and press **Done** (or **Skip**, or **Snooze**).
 
-Some things stay separate on each computer:
-- **Per computer:** the box's position, Start with Windows, and chat history (each computer's Claude Code keeps its own).
-- **Never in OneDrive:** API keys.
-- **One computer at a time:** OneDrive can't merge two copies of the same file. If the desk is already open on another computer, Task Desk warns you before it opens.
-- **Moving back:** **Move my data back to this computer…** in the ⋯ menu copies everything home and stops using OneDrive on this PC.
+`npm run hidden` starts it straight to the tray without showing the box.
 
-**Setting up another computer:**
-1. Install Node.js and Claude Code, and sign in to Claude Code.
-2. Clone the private GitHub repo (`git clone https://github.com/P-1-K-E-M-1-N/task-desk.git C:\MrC\task-desk`; you'll need to sign in to GitHub on that computer), then run `npm install` inside it. A clone keeps itself up to date (see "Updates"). A copied folder works too, but it can't update itself.
-3. Start it with `npm start`. It makes its own desktop and Startup shortcuts.
+**Where tasks come from.** Each project you add reads one of two things:
+- **A checklist file in its folder.** Every unchecked `- [ ] ...` line is a task, and `## Headings` become groups. The app only reads this file.
+- **Only the tasks you type into the box.**
 
-Projects whose folders are in OneDrive work on both computers. A folder that only exists on one computer shows the "folder isn't on this computer" note on the other.
+**Where your Done notes go.** You choose per project: kept inside Task Desk, or appended to a results file in the project folder (`FROM_NICK.md` by default). The results file is the only file Task Desk writes in a project folder.
 
-## Everything you type saves itself
+**The Idea Factory source** is optional. It's a fixed layout for a multi-lane agent workspace. Tasks come from `ops/NEEDS_NICK.md` plus unchecked lines that mention "Nick" in `lanes/*/LANE.md`. Done notes are appended to `ops/FROM_NICK.md`, the only factory file the app writes. Switch between the sample copy and your real folder in the ⋯ menu (**Idea Factory: test copies** / **live**). [HANDOFF.md](HANDOFF.md) has a note to paste into the factory's own agent session, so it reads those notes.
 
-There's no Save button to remember. Every box (your notes, every paste box, the Keyword Planner results) saves while you type.
-- **"Saving…"** shows while you're typing. About a third of a second after you stop, it changes to a green **✓ Saved**, and by then the text is written to disk.
-- **"All changes saved"** in the top bar of the task window is the one place to glance at.
-- **Closing the window mid-sentence** still saves: the window writes what you typed before it closes.
-- **Ticks and decision choices** save the moment you click them.
-- **The API-key box is the one exception.** The app never stores it. The key only goes into the `.env` file, after you press **Save key** and confirm.
+The full guide covers everything else: the look and moving frames, OneDrive sync between computers, switching AI mid-task, the size lock and autosave. It's in [docs/GUIDE.md](docs/GUIDE.md).
 
-## Make it look the way you like
+## Configuration
 
-Click the **palette** button (top of the task box, or the top bar of any task window), or choose **Customize look…** in the ⋯ menu.
-- **Theme:** Clay, Sage, Ocean, Plum, Honey or Graphite. This sets the colors and the accent used for buttons.
-- **Frame:** what the window's border is made of. Paper (plain), Glass, Linen, Wood, Leather (with stitching), Brushed metal or Neon, plus the moving frames below.
-- **Light or dark:** Auto (follows Windows), Light or Dark.
-- **Text size:** Small, Normal, Large or Larger.
+Most settings are changed in the app. They're stored as JSON in the data folder.
 
-- **Moving frames:** Aurora, Magma, Stars and Rainbow drift slowly.
-  - **Bubbler:** drawn live like a liquid motion bubbler. Colored drops form at the top corners, fall through clear oil (bigger drops fall faster and sometimes merge) and land in a pool with a ripple, while little air bubbles wobble up.
-  - **Lava lamp:** wax blobs warm up in the glow at the bottom, rise, cool off at the top and sink again.
-  - **My picture:** any picture, or a GIF to make it move. Task Desk keeps a copy in its data folder.
-  - **Motion → Keep still** freezes every moving frame. They also hold still when Windows' animation effects are off.
-- **Your colors:** pick an **Accent** (buttons and highlights), a color for the **Task cards** (pink task boxes, for example), and a **Background** tint. Each has preset colors and a picker for any color, and Task cards and Background have a **Strength** slider. **Theme** puts the theme's own color back.
-- **Corners:** Sharp, Normal, Round or Extra round.
+`data\settings.json` holds shared settings (they sync if you move your data to OneDrive):
 
-Changes show up instantly in every open window and are remembered after a restart. The chat panel's colors follow the theme too.
+| Key | Default | What it does |
+|---|---|---|
+| `mode` | `test` | `test` reads the sample factory in `test-fixtures\`; `live` reads `livePath` |
+| `livePath` | a fixed path from the original setup | Your Idea Factory folder. Set it if you use one. |
+| `testPath` | `<app>\test-fixtures` | The sample factory |
+| `pollSeconds` | `60` | How often task files are re-read (they're also watched for changes) |
+| `hotkey` | `Control+Alt+T` | Show/hide shortcut, in Electron accelerator format |
+| `ai` | `claude` | Default AI: `claude`, `codex` or `gemini`. A project can override it, and so can a single task. |
+| `plannerModel` | empty | Optional `--model` for Claude Code when it writes plans |
+| `projects`, `view`, `look` | | Your projects, the box's current view and the look settings. Edit these in the app. |
 
-**Closing the look panel:** click the **X** at its top, **Done** at its bottom, press **Esc**, or click anywhere outside it.
+`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update, and where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**).
 
-**A look for each project.** While a project is showing in the box, the look panel says so at the top.
-- **Give it its own look:** that project gets its own theme, frame and colors, starting in the project's color. The box switches to it whenever you show that project, and so do that project's task windows.
-- **Use the desk's look:** takes the project back to the shared look.
-- **New projects start with their own look** (bottom of the look panel) turns this on for every project you add from then on. The Add a project form also has a box 8 for it.
+Environment variables (mostly for tests and development):
 
-## Stretch the box
+| Variable | Required | What it does |
+|---|---|---|
+| `TASKDESK_LOCAL_DIR` | no | Use this folder instead of `data\` next to the app |
+| `TASKDESK_LOCAL_DATA` | no | Ignore a OneDrive data folder, and turn off self-updates (the tests set this) |
+| `TASKDESK_USERDATA` | no | Separate Electron profile, so a second copy can run beside the main one |
+| `TASKDESK_NO_UPDATE` | no | Turn off the daily self-update |
+| `TASKDESK_FAKE_AI` | no | `<node.exe>\|<script.js>`: run a pretend AI app instead of the real one (tests). `TASKDESK_FAKE_CLAUDE` is the older name. |
+| `CODEX_HOME` | no | Read by the app to find Codex's saved sessions (defaults to `%USERPROFILE%\.codex`) |
 
-The box keeps its size until you unlock it.
-1. Rest the mouse in the box's **bottom-right corner** for 3 seconds, or **right-click 3 times quickly near either bottom corner** (handy over remote desktop, where hovering may not register). A small lock appears in the bottom-right corner.
-2. Click the lock to **unlock**. A grip appears beside it.
-3. Drag the grip to make the box wider (up to 1000 pixels) or taller. You can also drag the box's edges.
-4. Click the lock again to **lock** the size.
+`TASKDESK_PORT`, `TASKDESK_TOKEN` and `TASKDESK_TASK` are set by the app for its own chat-tool server (`src/mcp/taskdesk-mcp.js`); you don't set them.
 
-The size is remembered on this computer. It isn't synced through OneDrive, because screens differ.
+## Updates
 
-## What it does, in plain language
+A copy made with `git clone` checks its GitHub remote every day at 7 AM. If the computer was off at 7, it checks a couple of minutes after the next start. It only fast-forwards, and it waits for a quiet moment before installing. Updates that only change screens refresh the open windows in place, so chats keep running. Bigger ones restart the app and reopen the task windows that were open. A copy with local code changes or local commits is skipped, so work in progress isn't overwritten.
 
-**The task box** reads `C:\MrC\idea-factory\ops\NEEDS_NICK.md` every 60 seconds (and immediately when the file changes). It also picks up unchecked `- [ ]` lines that mention Nick in any `lanes/*/LANE.md`.
-- **Order:** bold items first, then quickest first. "Optional" and "no action needed" items sit at the bottom with a dashed outline.
-- **Card details:** a red-orange stripe marks urgent items, the lightning bolt marks quick wins (10 minutes or less), and a green ring shows how many steps you've ticked.
-- **Badge:** the number on the tray icon is your open-task count.
+A copied folder (not a clone) runs fine but can't update itself. Turn updates off with **Update automatically (daily, 7 AM)** in the ⋯ menu. The log is `data\update.log`.
 
-**Plans** are written by Claude Code itself. When a new task shows up, the app quietly runs `claude -p` in the background, in that lane's folder.
-- **Read-only:** the planner can only read files. It can't write, run commands or browse the web.
-- **What it returns:** a short summary, the task type, a time estimate and 3-7 steps with buttons attached.
-- **Caching:** plans are saved in `data\plans\` and only redone if the task's wording changes. You can also press **Regenerate**.
-- **If it fails:** you get the raw task and an "Ask Claude" button.
-- **Cost:** each plan uses some of your normal Claude plan usage. There are no API keys or extra bills.
+## Project structure
 
-**The chat** is the real `claude` program running inside the window (the same as in your terminal), styled to match. It uses your existing Claude Code login.
-- **First open:** the app makes a copy ("fork") of the factory's most recent Claude Code session, so the chat starts out knowing everything the factory knows. Because it's a copy, it never adds messages to the factory's own running session.
-- **Closing and reopening a task** brings back that task's own chat.
-- **Fallbacks:** if there's no factory session to copy, it tries `--continue`, then starts a fresh chat.
-- **Clear** sends `/clear`: same window, empty conversation.
-- **Fresh chat** closes the current chat and starts a brand-new one for this task, without the factory history. Use it when you want a clean slate for the next thing.
-- **Reset all chats** (in the ⋯ menu) does the same for every task. Old conversations are never deleted. You can still find them with `/resume` in Claude Code.
-- **Permissions:** the chat uses your normal Claude Code permission settings. The factory's session runs in auto mode, and a forked chat inherits that, so every task brief tells Claude not to edit Idea Factory files unless you ask. Press Shift+Tab inside the chat to change the mode.
+```
+src/main/        Electron main process
+  main.js        windows, menus, IPC, updates
+  tasks.js       reads checklists and the Idea Factory files
+  projects.js    projects and their settings
+  planner.js     writes each task's plan with the task's AI (read-only)
+  chat.js        runs the AI app for each task window in a pseudo-terminal
+  ai.js          Claude Code / Codex / Gemini: finding them, their commands, hand-overs
+  bridge.js      local link (127.0.0.1 + secret token) for the chat's plan tools
+  updater.js     daily self-update; update-helper.js finishes ones that change packages
+src/mcp/         the MCP server that gives each chat its plan tools
+src/renderer/    the box, task and project windows; liveframe.js draws the animated frames
+test/            Playwright and Node tests
+test-fixtures/   a sample Idea Factory, used by test mode and the tests
+docs/GUIDE.md    the full user guide
+```
 
-**The chat keeps your plan up to date.** Each task's chat has three Task Desk tools, and they only work on that one task:
-- **Read the plan:** see the steps, which are ticked, any comments, and your notes. Claude checks this when it starts or resumes, so it knows what's already done.
-- **Update a step:** tick it done (or un-tick it) and leave a short comment under it, marked "Claude", such as "Form sent 10/24, ticket #123".
-- **Add to your notes:** append a line to "Notes for the factory". It never replaces what you wrote.
+## Tests
 
-Claude does this as soon as a step is finished or you tell it you did one ("I sent the form"). You'll see the step tick itself, a short highlight, and a small pop-up. Claude never presses Done or Skip; you still finish the task yourself. Step comments go to FROM_NICK.md with your notes when you press Done.
-- **How it works:** the app listens on your own computer only (127.0.0.1), with a secret code that changes every time the app starts. Each chat is told which task it belongs to, so it can't change any other task.
-- **Older chats** get the tools too, the next time they're opened.
+The tests run in their own temporary data folder and Electron profile (`test/env.js`), so they're safe to run while the app is open.
 
-**Handing results back.** Pressing Done or Skip adds an entry to `ops\FROM_NICK.md`: date, lane, task, Done/Skipped, your notes, everything you pasted or chose, and how many steps you ticked. That is the **only** factory file the app ever writes. Paste the message in `HANDOFF.md` into your Idea Factory session once, so the factory reads FROM_NICK.md on every daily tick.
+```powershell
+node test/e2e.js
+node test/projects.js
+node test/look.js
+node test/chat-tools.js
+node test/ai.js
+node test/seamless.js
+node test/updater.js
+```
 
-**API keys.** If a plan has a "Save key to .env" step, the key goes only into the `.env` file the task names, and the app asks you first. It's never saved in app data, logs or git.
+A few things to know:
+- **Which tests use a real AI:** `e2e.js`, `projects.js`, `chat-tools.js` and `look.js` start the real Claude Code, so they need it signed in and use a little of your plan. `ai.js`, `seamless.js` and `updater.js` don't need any AI (the first two use a pretend one, `test/fake-claude.js`).
+- **Before the first run,** `node test/gen-plans.js` builds and caches plans for the sample tasks (in `data\plans\test\`), and the tests reuse them.
+- **Screenshots** are saved to `test/shots/`.
 
-**Emails.** For outreach tasks you get one row per draft, each with **Contact** (opens their contact page), **Copy** (subject and body) and **Gmail** (opens a filled-in Gmail compose window). Tick each row once it's sent. You attach the PDF and press send yourself; the app never sends anything.
+## Ground rules for changes
 
-## Use another AI (OpenAI, Google)
+These hold for anyone (or any agent) changing the code:
+- **What the app writes:** in an Idea Factory folder, only appends to `ops/FROM_NICK.md`. In a project folder, only its chosen results file. (A task's chat may change project files when the project allows it, box 5 of the project form.)
+- **Local only:** no accounts, cloud hosting or API keys. The AI apps use their own sign-in.
+- **API keys:** go only into the `.env` file a task names, after the user confirms. Never into app data, logs or git.
+- **Nothing on the user's behalf:** the app never sends, posts, buys or signs up for anything. It opens drafts and pages, and the user does the rest.
 
-Task chats and plans run on Claude Code by default. They can also run on **OpenAI's Codex** or **Google's Gemini CLI**. Each one is that company's own terminal app, signed in with your own account (a ChatGPT account or a Google account), so there are still no API keys.
-- **Default for new task windows:** the small **AI pill** at the bottom of the task box (it says "Claude" to begin with). Click it and pick one. The same choice is in the ⋯ menu under **AI for chats and plans**.
-- **For one project:** box 9 in its Add/Edit project form. It beats the default.
-- **Mid-task:** click the AI's name at the top of the chat panel (for example **Claude Code ▾**) and pick another.
-  - **What the new AI gets:** the task, the plan, what's ticked and your notes, plus the end of the conversation so far, so it carries on where the last one stopped.
-  - **Switching back:** each AI keeps its own chat for that task, so switching back picks that chat up again.
-  - **Scope:** the switch is for that one task only.
-- **Not installed yet?** The chat panel says so and shows the two commands to run (install, then sign in). For example, for OpenAI: `npm install -g @openai/codex`, then `codex login`. Task Desk never installs anything or signs in for you.
-- **Differences from Claude:**
-  - **Fresh start:** only Claude starts out with a copy of the factory's latest session. The others start fresh with the task brief.
-  - **Codex** works read-only unless the project allows file changes (box 5). Even then it asks before anything else.
-  - **Gemini** asks before every file change.
-  - **The plan tools** (tick a step, comment, add a note) work with all three.
+## License
 
-## Test mode vs live
-
-The ⋯ menu (or right-click the tray icon) has **Idea Factory: test copies** and **Idea Factory: live**.
-- Test mode reads copies in `test-fixtures\`, so you can click anything safely, including Done.
-- Each mode keeps its own memory: `data\state.test.json` for test, `data\state.json` for live.
-- The switch only affects the Idea Factory. Your other projects always read their own folders.
-- The app is set to **live** now.
-
-## Updates (every day at 7 AM)
-
-Task Desk keeps itself up to date with the template on GitHub (P-1-K-E-M-1-N/task-desk). This is part of the app, so every computer that runs it updates the same way.
-- **When:** every day at 7 AM. If the computer was off or asleep at 7, it checks a couple of minutes after the desk next starts.
-- **Installing, without getting in your way.** It waits for a quiet moment: nobody has typed in the desk for 2 minutes, and no Add/Edit project form is open (that form isn't saved until you press Save). Then it goes in one of two ways:
-  - **Screen-only updates** (looks, buttons, layout) just **refresh the open windows** in place. You see a short blink. Your chats keep running, and your notes are saved first.
-  - **Bigger updates** need a quick **restart**. The desk also waits until no chat has printed anything for 2 minutes, so Claude isn't cut off in the middle of a reply. It remembers which task windows were open and where. A few seconds later they're back in the same places, and each chat picks up where it left off.
-- **Straight away:** **Restart to update** in the ⋯ menu installs a waiting update now. Quitting the desk also installs it.
-- **After an update:** a notification says what changed.
-- **Your data is never touched.** Tasks, ticks, notes, projects and settings live in `data\` (or OneDrive), which isn't part of the template.
-- **Copies with their own code changes are left alone.** If someone is working on the app's code on a computer, the update is skipped there, so their work isn't lost. **Check for updates now** explains why.
-- **If an update can't install** (no internet, or a new package won't install), the desk keeps the version it had. A broken package install rolls back automatically.
-- **Your controls:** **Check for updates now** and **Update automatically (daily, 7 AM)** in the ⋯ menu. A log is kept in `data\update.log`.
-- **Needs:** the app folder must be a `git clone` of the repo, with GitHub access on that computer (see "Setting up another computer"). Updates that add new packages also need Node.js, which setup already installs.
-
-## Pin it to the taskbar
-
-The task box has its own button on the taskbar while it's showing.
-- **To pin it:** right-click that button and choose **Pin to taskbar**.
-- **Or from the Start menu:** open it, type **Task Desk**, right-click **Nick's Task Desk**, and choose **Pin to taskbar**.
-- **Using the pin:** one click starts Task Desk if it isn't running, or brings the box back if it's hidden.
-- **Hiding the button:** untick **Show in the taskbar** in the ⋯ menu. A pinned icon stays put either way.
-
-## Starting with Windows
-
-On first run the app put a shortcut on your desktop and one in your Startup folder, so it starts quietly in the tray when you log in. It also keeps one in the Start menu.
-
-**To turn auto-start off:** open the ⋯ menu (or right-click the tray icon) and untick **Start with Windows**. Or press Win+R, type `shell:startup`, and delete "Nick's Task Desk".
-
-## Where things live
-
-| What | Where |
-|---|---|
-| The app | `C:\MrC\task-desk` |
-| Idea Factory ticks, notes, snoozes, chat links (live) | `data\state.json` |
-| Other projects' ticks, notes, added tasks, kept results | `data\projects\<id>\` |
-| Cached plans | `data\plans\live\`, `data\plans\test\`, `data\plans\projects\` |
-| Frame pictures you chose | `data\look\` |
-| Settings (projects, mode, paths, hotkey, look) | `data\settings.json` |
-| This computer only (box position and size, size lock, auto-start, where the data is) | `data\machine.json` |
-| Test copies of the factory files | `test-fixtures\` |
-
-If you moved your data to OneDrive, everything except `machine.json` lives in `OneDrive\Task Desk` instead. **Open app data folder** in the ⋯ menu always opens the right place. `data\` is not committed to git.
-
-## For agents working on this repo
-
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/updater.js` checks the daily updater against a pretend GitHub in a temp folder. `node test/ai.js` checks the AI choice (Codex/Gemini commands and plan reading, the box's AI pill, switching AI mid-task with a hand-over, and the "not installed" help) with a pretend AI; the provider layer is `src/main/ai.js`. `node test/seamless.js` checks that updates refresh windows without stopping chats, wait for a quiet moment, and reopen task windows after a restart (it uses a pretend claude, `test/fake-claude.js`). `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
-- Tests run in their own temporary data folder and browser profile (`test/env.js`), so they never touch the real settings or ticks and can run while the real desk is open.
-- The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`). The Bubbler and Lava lamp frames are drawn on a canvas by `src/renderer/liveframe.js`; the look panel and your colors are in `ui.js`.
-- Rules: the Idea Factory folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.
+There's no license file, and `package.json` marks the package `UNLICENSED`, so all rights are reserved.
