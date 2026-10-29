@@ -58,7 +58,7 @@ Some things stay separate on each computer:
 
 **Setting up another computer:**
 1. Install Node.js and Claude Code, and sign in to Claude Code.
-2. Copy the `task-desk` folder over, without its `data` and `node_modules` folders, or clone the private GitHub repo. Then run `npm install` inside it.
+2. Clone the private GitHub repo (`git clone https://github.com/P-1-K-E-M-1-N/task-desk.git C:\MrC\task-desk`; you'll need to sign in to GitHub on that computer), then run `npm install` inside it. A clone keeps itself up to date (see "Updates"). A copied folder works too, but it can't update itself.
 3. Start it with `npm start`. It makes its own desktop and Startup shortcuts.
 
 Projects whose folders are in OneDrive work on both computers. A folder that only exists on one computer shows the "folder isn't on this computer" note on the other.
@@ -151,6 +151,19 @@ The ⋯ menu (or right-click the tray icon) has **Workshop: test copies** and **
 - The switch only affects the Workshop. Your other projects always read their own folders.
 - The app is set to **live** now.
 
+## Updates (every day at 7 AM)
+
+Task Desk keeps itself up to date with the template on GitHub (P-1-K-E-M-1-N/task-desk). This is part of the app, so every computer that runs it updates the same way.
+- **When:** every day at 7 AM. If the computer was off or asleep at 7, it checks a couple of minutes after the desk next starts.
+- **Installing:** when there's a newer version, it installs as soon as no task or project window is open, then the desk restarts by itself. This usually takes a few seconds.
+- **If a window is open:** it waits. A Windows notification says an update is ready, and **Restart to update** in the ⋯ menu installs it straight away. Quitting the desk also installs it.
+- **After an update:** a notification says what changed.
+- **Your data is never touched.** Tasks, ticks, notes, projects and settings live in `data\` (or OneDrive), which isn't part of the template.
+- **Copies with their own code changes are left alone.** If someone is working on the app's code on a computer, the update is skipped there, so their work isn't lost. **Check for updates now** explains why.
+- **If an update can't install** (no internet, or a new package won't install), the desk keeps the version it had. A broken package install rolls back automatically.
+- **Your controls:** **Check for updates now** and **Update automatically (daily, 7 AM)** in the ⋯ menu. A log is kept in `data\update.log`.
+- **Needs:** the app folder must be a `git clone` of the repo, with GitHub access on that computer (see "Setting up another computer"). Updates that add new packages also need Node.js, which setup already installs.
+
 ## Starting with Windows
 
 On first run the app put a shortcut on your desktop and one in your Startup folder, so it starts quietly in the tray when you log in.
@@ -174,7 +187,7 @@ If you moved your data to OneDrive, everything except `machine.json` lives in `O
 
 ## For agents working on this repo
 
-- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
+- `npm start` runs the app. `node test/gen-plans.js` pre-builds plans. `node test/e2e.js` runs the click-through test in test mode. `node test/chat-tools.js` checks that the chat can tick and comment on its own plan (`src/main/bridge.js` + `src/mcp/taskdesk-mcp.js`). `node test/look.js` tests autosave and the look settings and saves a screenshot of every frame to `test/shots/`. `node test/updater.js` checks the daily updater against a pretend GitHub in a temp folder. `node test/projects.js` covers projects, quick add, the All view, the factory guard and the OneDrive data folder (Claude plans 3 small tasks).
 - Tests run in their own temporary data folder and browser profile (`test/env.js`), so they never touch the real settings or ticks and can run while the real desk is open.
 - The main process is in `src/main/`: `tasks.js` (parser), `projects.js` (projects), `planner.js`, `chat.js` (node-pty + claude), `state.js` (one memory file per project), `config.js` (shared settings vs `machine.json`), `handback.js`, `main.js`. The screens are in `src/renderer/` (`box`, `task`, `project`). The Bubbler and Lava lamp frames are drawn on a canvas by `src/renderer/liveframe.js`; the look panel and your colors are in `ui.js`.
 - Rules: the Workshop folder is read-only except appending to `ops/FROM_NICK.md`. Local only, no API keys, and never send, post, buy or sign up on Nick's behalf.
