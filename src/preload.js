@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const call = (ch) => (...a) => ipcRenderer.invoke(ch, ...a);
+const call =
+  (ch) =>
+  (...a) =>
+    ipcRenderer.invoke(ch, ...a);
 const on = (ch) => (cb) => {
   const h = (_e, ...a) => cb(...a);
   ipcRenderer.on(ch, h);

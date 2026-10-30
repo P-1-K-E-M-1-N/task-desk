@@ -45,13 +45,14 @@ function git(root, args, timeout = 60000) {
 
 // What GitHub has compared with this copy.
 async function status(root, { fetch = true } = {}) {
-  if (!fs.existsSync(path.join(root, '.git'))) return { ok: false, reason: 'This copy of Task Desk wasn\'t installed with git, so it can\'t update itself.' };
+  if (!fs.existsSync(path.join(root, '.git')))
+    return { ok: false, reason: "This copy of Task Desk wasn't installed with git, so it can't update itself." };
   if (fetch) {
     const f = await git(root, ['fetch', '--quiet', 'origin']);
     if (!f.ok) return { ok: false, reason: `Couldn't reach GitHub: ${f.err.split('\n')[0]}` };
   }
   const up = await git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
-  if (!up.ok) return { ok: false, reason: 'This copy isn\'t linked to a branch on GitHub.' };
+  if (!up.ok) return { ok: false, reason: "This copy isn't linked to a branch on GitHub." };
   const count = async (range) => parseInt((await git(root, ['rev-list', '--count', range])).out, 10) || 0;
   const behind = await count('HEAD..@{u}');
   const ahead = await count('@{u}..HEAD');
@@ -59,7 +60,12 @@ async function status(root, { fetch = true } = {}) {
   const changes = behind ? (await git(root, ['log', '--format=%s', '-n', '8', 'HEAD..@{u}'])).out.split('\n').filter(Boolean) : [];
   const files = behind ? (await git(root, ['diff', '--name-only', 'HEAD', '@{u}'])).out.split('\n').filter(Boolean) : [];
   return {
-    ok: true, upstream: up.out, behind, ahead, dirty, changes,
+    ok: true,
+    upstream: up.out,
+    behind,
+    ahead,
+    dirty,
+    changes,
     deps: files.some((f) => DEPS.includes(f)),
     kind: behind ? kindOf(files) : 'none',
     canInstall: behind > 0 && ahead === 0 && !dirty,
@@ -83,9 +89,14 @@ function msUntilNextRun(now = new Date()) {
 // Find the system Node.js (needed only when an update changes the app's packages).
 function findNode() {
   try {
-    const out = execFileSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { windowsHide: true }).toString().split(/\r?\n/)[0].trim();
+    const out = execFileSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { windowsHide: true })
+      .toString()
+      .split(/\r?\n/)[0]
+      .trim();
     return out && fs.existsSync(out) ? out : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // Start the helper that installs the update once this app has quit, then
@@ -94,7 +105,10 @@ function startHelper({ root, relaunch, electron, log }) {
   const node = findNode();
   if (!node) return false;
   const child = spawn(node, [path.join(__dirname, 'update-helper.js'), root, String(process.pid), relaunch ? '1' : '0', electron, log], {
-    cwd: root, detached: true, stdio: 'ignore', windowsHide: true,
+    cwd: root,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
   });
   child.unref();
   return true;

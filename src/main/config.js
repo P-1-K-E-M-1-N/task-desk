@@ -18,7 +18,20 @@ const APP_ROOT = path.resolve(__dirname, '..', '..');
 const LOCAL_DIR = process.env.TASKDESK_LOCAL_DIR || path.join(APP_ROOT, 'data');
 const MACHINE_FILE = path.join(LOCAL_DIR, 'machine.json');
 // Settings that belong to this computer, not to the shared data.
-const MACHINE_KEYS = ['dataDir', 'boxBounds', 'boxLocked', 'collapsed', 'shortcutsDone', 'autostart', 'autoUpdate', 'lastUpdateCheck', 'updatedNote', 'reopenAfterUpdate', 'showInTaskbar', 'linksFor'];
+const MACHINE_KEYS = [
+  'dataDir',
+  'boxBounds',
+  'boxLocked',
+  'collapsed',
+  'shortcutsDone',
+  'autostart',
+  'autoUpdate',
+  'lastUpdateCheck',
+  'updatedNote',
+  'reopenAfterUpdate',
+  'showInTaskbar',
+  'linksFor',
+];
 
 const DEFAULTS = {
   // Who uses this desk: the AI calls them by name, and "only lines that mention
@@ -45,8 +58,17 @@ const DEFAULTS = {
   view: 'all',
 };
 
-const readJson = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
-const writeJson = (f, obj) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(obj, null, 2)); };
+const readJson = (f) => {
+  try {
+    return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+const writeJson = (f, obj) => {
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, JSON.stringify(obj, null, 2));
+};
 
 fs.mkdirSync(LOCAL_DIR, { recursive: true });
 let machine = readJson(MACHINE_FILE) || {};
@@ -66,7 +88,11 @@ function load() {
   const saved = readJson(SETTINGS_FILE) || {};
   // Older versions kept the machine settings in settings.json: move them over once.
   let moved = false;
-  for (const k of MACHINE_KEYS) if (!(k in machine) && k in saved && k !== 'dataDir') { machine[k] = saved[k]; moved = true; }
+  for (const k of MACHINE_KEYS)
+    if (!(k in machine) && k in saved && k !== 'dataDir') {
+      machine[k] = saved[k];
+      moved = true;
+    }
   if (moved) writeJson(MACHINE_FILE, machine);
   // Desks set up before the workspace became optional had a folder saved: keep it on for them.
   if (saved.factory === undefined && saved.livePath) saved.factory = true;
@@ -83,7 +109,10 @@ function set(patch) {
   const shared = {};
   let mine = false;
   for (const [k, v] of Object.entries(patch)) {
-    if (MACHINE_KEYS.includes(k)) { machine[k] = v; mine = true; } else shared[k] = v;
+    if (MACHINE_KEYS.includes(k)) {
+      machine[k] = v;
+      mine = true;
+    } else shared[k] = v;
   }
   if (mine) writeJson(MACHINE_FILE, machine);
   if (Object.keys(shared).length) {
@@ -109,8 +138,13 @@ const whose = () => (userName() ? `${userName()}'s` : "the user's");
 
 // The lanes workspace is shown only when it's turned on (and, live, has a folder).
 const factoryOn = () => settings.factory === true && (settings.mode !== 'live' || !!settings.livePath);
-const titleCase = (s) => s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
-const factoryName = () => String(settings.factoryName || '').trim() || (settings.livePath ? titleCase(path.basename(settings.livePath)) : '') || 'Workspace';
+const titleCase = (s) =>
+  s
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+const factoryName = () =>
+  String(settings.factoryName || '').trim() || (settings.livePath ? titleCase(path.basename(settings.livePath)) : '') || 'Workspace';
 // Is this path inside the live workspace folder? (false when there isn't one)
 function inFactory(p) {
   if (!settings.livePath || !p) return false;
@@ -118,4 +152,22 @@ function inFactory(p) {
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-module.exports = { APP_ROOT, LOCAL_DIR, DATA_DIR, PLANS_DIR, PROJECTS_DIR, get, set, root, synced, dataMissing, wantedDataDir: wanted, userName, who, whose, factoryOn, factoryName, inFactory };
+module.exports = {
+  APP_ROOT,
+  LOCAL_DIR,
+  DATA_DIR,
+  PLANS_DIR,
+  PROJECTS_DIR,
+  get,
+  set,
+  root,
+  synced,
+  dataMissing,
+  wantedDataDir: wanted,
+  userName,
+  who,
+  whose,
+  factoryOn,
+  factoryName,
+  inFactory,
+};

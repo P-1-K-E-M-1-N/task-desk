@@ -26,6 +26,8 @@ jobs:
 
       - run: npm run lint
 
+      - run: npm run format:check
+
       # The tests that need no AI app: they launch Electron with a temporary data
       # folder and a pretend AI (test/fake-claude.js). See test/run.js.
       - run: npm test
