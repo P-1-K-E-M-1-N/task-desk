@@ -54,7 +54,8 @@ const launchOpts = (env = {}) => ({
   executablePath: require('electron'),
   args: [ROOT],
   cwd: ROOT,
-  env: { ...process.env, TASKDESK_LOCAL_DIR: DATA, TASKDESK_LOCAL_DATA: '1', TASKDESK_USERDATA: PROFILE, ...env },
+  // TASKDESK_TEST stays on even when a test turns TASKDESK_LOCAL_DATA off.
+  env: { ...process.env, TASKDESK_LOCAL_DIR: DATA, TASKDESK_LOCAL_DATA: '1', TASKDESK_USERDATA: PROFILE, ...env, TASKDESK_TEST: '1' },
 });
 
 module.exports = { ROOT, DATA, SETTINGS, HOTKEY, WORKSPACE, useTestSettings, launchOpts };
