@@ -6,7 +6,10 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-30
+
 ### Added
+- Eight task types instead of six (Reach out, Ask someone, Tell the AI, Decide, Create an account, Set up or connect, Check or test, Research), each with its own icon and color. The tile's shape says what kind of work it is: a circle for talking to people, a diamond for your call or your knowledge, a rounded square for clicking through a website. Saved tasks move to the closest new type by themselves.
 - `npm test` runs the tests that need no AI app; `npm run test:all` runs every test.
 - ESLint (`npm run lint`), an `.editorconfig`, and CI on GitHub Actions that lints and tests every pull request on Windows.
 - Prettier (`npm run format`), checked in CI alongside ESLint.
