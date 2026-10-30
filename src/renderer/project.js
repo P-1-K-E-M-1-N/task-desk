@@ -78,7 +78,7 @@ async function useFolder(folder) {
   const s = await desk.suggestProject(folder);
   if (!$('#name').value.trim() && s.name) $('#name').value = s.name;
   if (s.tasksFile && !$('#tasksFile').value.trim()) { $('#tasksFile').value = s.tasksFile; setRadio('source', 'file'); }
-  if (s.factory) { setRadio('results', 'app'); toast('That\'s inside the Idea Factory: it stays read-only.'); }
+  if (s.factory) { setRadio('results', 'app'); toast('That\'s inside your lanes workspace: it stays read-only.'); }
   preview();
   changed();
 }
@@ -145,6 +145,10 @@ async function init() {
   drawColors();
   setRadio('source', 'file');
   setRadio('results', 'app');
+  // "Only show lines that mention me" looks for your name (set from the ⋯ menu, Your name…).
+  const me = await desk.getMe();
+  $('#myName').textContent = me.name ? `(${me.name})` : '(set your name first: ⋯ menu, Your name…)';
+  $('#onlyMine').disabled = !me.name && !$('#onlyMine').checked;
   if (!ID) { $('#ownLook').checked = !!LOOK.newOwn; $('#name').focus(); return; }
   const p = await desk.getProject(ID);
   if (!p) { $('.scroll').innerHTML = '<p class="lead">This project was removed. You can close this window.</p>'; return; }
@@ -155,7 +159,7 @@ async function init() {
   $('#folder').value = p.folder || '';
   $('#tasksFile').value = p.tasksFile || '';
   $('#onlyMine').checked = !!p.onlyMine;
-  $('#resultsFile').value = p.resultsFile || 'FROM_NICK.md';
+  $('#resultsFile').value = p.resultsFile || 'TASK_RESULTS.md';
   $('#allowEdits').checked = !!p.allowEdits;
   $('#ownLook').checked = !!p.ownLook;
   $('#ai').value = p.ai || '';

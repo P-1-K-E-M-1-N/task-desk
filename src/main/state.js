@@ -2,7 +2,7 @@
 // session each task uses. Keyed by task id (a hash of lane + title), so it
 // survives the factory regenerating NEEDS_NICK.md.
 // Each project keeps its own file:
-//  - Idea Factory: state.json (live) or state.test.json (test mode)
+//  - lanes workspace: state.json (live) or state.test.json (test mode)
 //  - other projects: projects/<project id>/state.json
 // Project task ids start with "<project id>_", which is how a task finds its file.
 const fs = require('fs');
@@ -10,7 +10,7 @@ const path = require('path');
 const config = require('./config');
 
 const stores = new Map(); // 'factory' or project id -> { file, data, written }
-const api = { state: null }; // the Idea Factory's memory
+const api = { state: null }; // the lanes workspace's memory
 
 function load(file) {
   let data = { tasks: {}, everScanned: false };

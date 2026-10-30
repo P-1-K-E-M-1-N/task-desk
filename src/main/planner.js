@@ -38,7 +38,7 @@ const queue = [];
 const running = new Set();
 const MAX_PARALLEL = 2;
 
-// Idea Factory plans go in plans/<mode>/, other projects' plans in plans/projects/.
+// Lanes-workspace plans go in plans/<mode>/, other projects' plans in plans/projects/.
 const isProject = (task) => !!task.project && task.project !== 'factory';
 const dir = (task) => {
   const d = path.join(config.PLANS_DIR, isProject(task) ? 'projects' : config.get().mode);
@@ -101,20 +101,24 @@ function listFiles(laneDir) {
   return out.slice(0, 80);
 }
 
-const INTRO = 'You are planning one task for Nick, a solo builder who directs AI agents and does not write code. Read any files the task mentions (read-only; never change anything). Then return the plan as JSON matching the schema.';
+// Who the plan is for: their name and, if they gave one, a line about them.
+const intro = () => {
+  const about = String(config.get().userAbout || '').trim();
+  return `You are planning one task for ${config.who()}${about ? `, ${about.replace(/^[,\s]+|[.\s]+$/g, '')}` : ''}. Read any files the task mentions (read-only; never change anything). Then return the plan as JSON matching the schema.`;
+};
 
 function prompt(task) {
   if (isProject(task)) return projectPrompt(task);
   let laneMd = '';
   try { laneMd = fs.readFileSync(path.join(task.laneDir, 'LANE.md'), 'utf8').slice(0, 15000); } catch {}
-  return `${INTRO}
+  return `${intro()}
 
-TASK (from ops/NEEDS_NICK.md, lane: ${task.lane}):
+TASK (from the ${config.factoryName()} workspace's ops/NEEDS_NICK.md, lane: ${task.lane}):
 ${task.rawText}
 
 LANE FOLDER: ${task.laneDir}
-FACTORY ROOT: ${config.root()}
-(Relative paths in the task like lanes/x/... are relative to the factory root.)
+WORKSPACE ROOT: ${config.root()}
+(Relative paths in the task like lanes/x/... are relative to the workspace root.)
 
 FILES IN THE LANE FOLDER:
 ${listFiles(task.laneDir).join('\n')}
@@ -122,7 +126,7 @@ ${listFiles(task.laneDir).join('\n')}
 LANE.md:
 ${laneMd || '(none)'}
 
-${rules('Never plan to edit factory files: results go back through the Done notes.')}`;
+${rules('Never plan to edit workspace files: results go back through the Done notes.')}`;
 }
 
 function projectPrompt(task) {
@@ -132,37 +136,38 @@ function projectPrompt(task) {
     try { readme = fs.readFileSync(path.join(folder, f), 'utf8').slice(0, 8000); if (readme) { readme = `${f}:\n${readme}`; break; } } catch {}
   }
   const from = task.lane === 'my-list' ? 'typed into Task Desk' : `from ${task.sourceFile}${task.lane !== 'general' ? `, section: ${task.lane}` : ''}`;
-  return `${INTRO}
+  return `${intro()}
 
 TASK (project "${task.projectName}", ${from}):
 ${task.rawText}
 
 PROJECT FOLDER: ${folder || '(none: this project is just a list)'}
 ${folder ? `(Relative paths in the task are relative to this folder.)\n\nFILES IN THE PROJECT FOLDER:\n${listFiles(folder).join('\n')}` : ''}
-${task.planNotes ? `\nNICK'S NOTES FOR PLANNING THIS PROJECT:\n${task.planNotes}\n` : ''}
+${task.planNotes ? `\nNOTES FOR PLANNING THIS PROJECT:\n${task.planNotes}\n` : ''}
 ${readme || ''}
 
-${rules(task.allowEdits ? 'The chat beside the plan may change files in the project folder when a step needs it.' : 'Never plan to change project files without Nick asking: results go back through the Done notes.')}`;
+${rules(task.allowEdits ? 'The chat beside the plan may change files in the project folder when a step needs it.' : `Never plan to change project files without ${config.who()} asking: results go back through the Done notes.`)}`;
 }
 
 function rules(last) {
+  const who = config.who();
   return `RULES FOR THE PLAN
-- summary: 2-3 plain sentences: what this is and what "done" looks like. Talk to Nick as "you".
+- summary: 2-3 plain sentences: what this is and what "done" looks like. Talk to ${who} as "you".
 - type: email (sending messages), keywords (keyword research), decision (pick an option), signup (create an account or get an API key), review (read or check something), question (ask someone a question).
-- est_minutes: honest estimate for Nick.
+- est_minutes: honest estimate for ${who}.
 - steps: 3-7 concrete steps in order, each one short. Attach ONE action where a click helps:
   gmail_draft {to, subject, body}: one email with a known address. Write the full ready-to-send text.
   email_list {file}: the task is sending a batch of drafts from an outreach emails.md. file = absolute path to that emails.md. The app shows one row per draft with copy and Gmail buttons, so do NOT copy the drafts into the plan.
   open_folder {path}: e.g. the folder holding attachments.
-  copy_text {text}: a message, subject line or list Nick will paste somewhere (e.g. a web form).
+  copy_text {text}: a message, subject line or list ${who} will paste somewhere (e.g. a web form).
   open_url {url}
   keyword_planner {queries: [..]}: the exact keyword queries, copied in full from the source file.
-  paste_box {label}: Nick pastes results or a reply. The app keeps it and hands it back with the Done notes. Never add a save path.
+  paste_box {label}: ${who} pastes results or a reply. The app keeps it and hands it back with the Done notes. Never add a save path.
   decision {options: [..], recommended}: options as short labels; recommended must equal one option.
   env_key {signup_url, env_path, var_name}: only when the task explicitly names the .env file and variable.
   open_file {path}: absolute path to a draft, sample or LANE.md.
 - files: absolute paths worth opening.
-- Nick sends, submits, signs up and pays for things himself. Never plan for an agent to do that. ${last}`;
+- ${who} sends, submits, signs up and pays for things themselves. Never plan for an agent to do that. ${last}`;
 }
 
 // One run of the plan writer. Claude Code returns the plan checked against the

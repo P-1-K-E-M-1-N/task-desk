@@ -43,7 +43,10 @@ async function load() {
   $('#ttile').className = `tile t-${T.type}`;
   $('#ttile').innerHTML = icon(T.type);
   $('#tname').textContent = `${isFactory() ? laneName(T.lane) : T.projectName}  ·  ${T.title}`;
-  if (!isFactory()) {
+  if (isFactory()) {
+    $('#notesHead').textContent = `Notes for ${T.projectName}`;
+    $('#notes').placeholder = `Notes and results for ${T.projectName}: what you did, replies you got, anything it should know…`;
+  } else {
     $('#notesHead').textContent = 'Notes and results';
     $('#notes').placeholder = RESULTS_TO === 'file'
       ? 'What you did, replies you got, anything the project should know… (goes to its results file when you press Done)'
@@ -221,7 +224,7 @@ function actions(step, i) {
           await desk.paste(ID, key, ST.pastes[key].label, o);
           opts.querySelectorAll('.opt').forEach((x) => x.classList.remove('chosen'));
           b.classList.add('chosen');
-          toast(`Choice saved. It goes ${isFactory() ? 'to the factory' : 'with your notes'} when you press Done.`);
+          toast(`Choice saved. It goes ${isFactory() ? `to ${T.projectName}` : 'with your notes'} when you press Done.`);
         };
         opts.append(b);
       }
@@ -309,8 +312,8 @@ $('#notesSaved').replaceWith(notesSaved);
 async function finish(status, next) {
   const r = await desk.finish(ID, status, $('#notes').value, next);
   if (!r.ok) { toast(r.error || 'Couldn\'t save'); return; }
-  const where = { factory: 'Sent to the factory.', file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
-  const msg = status === 'done' ? `Nice. ${where}` : r.resultsTo === 'factory' ? 'Skipped. The factory will know.' : 'Skipped.';
+  const where = { factory: `Sent to ${T.projectName}.`, file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
+  const msg = status === 'done' ? `Nice. ${where}` : r.resultsTo === 'factory' ? `Skipped. ${T.projectName} will know.` : 'Skipped.';
   document.body.append(h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${msg}` })));
 }
 $('#bdone').onclick = () => finish('done', false);
@@ -462,7 +465,7 @@ $('#cclear').onclick = () => {
 $('#cfresh').onclick = () => startChat('fresh');
 $('#cmore').onclick = (e) => popMenu(e.currentTarget, [
   { label: 'Fresh chat (clean slate)', icon: 'plus', run: () => startChat('fresh') },
-  { label: isFactory() ? 'Restart from factory session' : 'Restart from project\'s latest session', icon: 'refresh', run: () => startChat('fork') },
+  { label: isFactory() ? `Restart from ${T.projectName}'s latest session` : 'Restart from project\'s latest session', icon: 'refresh', run: () => startChat('fork') },
   { label: 'Re-send the task brief', icon: 'send', run: () => sendToChat(`Reminder of what we're doing. Task: ${T.text}${P ? ' Plan: ' + P.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : ''}`) },
   { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
 ]);

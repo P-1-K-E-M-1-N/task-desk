@@ -68,7 +68,7 @@ function decorate(t) {
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
     aiName: ai.pick(t).app,
-    projectName: t.project === 'factory' ? 'Idea Factory' : t.projectName,
+    projectName: t.project === 'factory' ? config.factoryName() : t.projectName,
     projectColor: projects.colorOf(t.project),
   };
 }
@@ -78,7 +78,7 @@ const tier = (t) => (t.important ? 0 : t.low ? 2 : 1);
 // Which project the box shows: 'all', 'factory' or a project id.
 function currentView() {
   const v = config.get().view;
-  return v === 'all' || v === 'factory' || projects.get(v) ? v : 'all';
+  return v === 'all' || (v === 'factory' && config.factoryOn()) || projects.get(v) ? v : 'all';
 }
 
 function payload() {
@@ -102,6 +102,9 @@ function payload() {
     projects: projects.summary().map((p) => ({ ...p, open: openAll.filter((t) => t.project === p.id).length })),
     mode: s.mode,
     root: config.root(),
+    // The person (greeting, and whether to ask their name) and the optional workspace.
+    me: { name: config.userName(), about: s.userAbout || '', asked: !!s.userNameAsked },
+    factory: config.factoryOn() ? { name: config.factoryName() } : null,
     collapsed: s.collapsed,
     locked: s.boxLocked !== false,
     ai: { ...ai.choices(null), project: projects.get(view) && projects.get(view).ai ? projects.get(view).ai : null },
@@ -115,10 +118,10 @@ function broadcast() {
   updateTray(p.totalOpen);
 }
 
-// Reads every project's tasks: the Idea Factory first, then the others.
+// Reads every project's tasks: the lanes workspace first (when it's on), then the others.
 function refresh() {
   const fresh = [];
-  scan('factory', readTasks(config.root()), fresh);
+  if (config.factoryOn()) scan('factory', readTasks(config.root()), fresh);
   for (const p of projects.list()) scan(p.id, projects.read(p), fresh);
   state.save();
   tasks = fresh;
@@ -205,7 +208,7 @@ function lookOut(scope) {
   return look;
 }
 
-// Nick picks a picture or GIF for the frame. A copy goes in the data folder
+// The user picks a picture or GIF for the frame. A copy goes in the data folder
 // (so it moves with OneDrive too); the old copy is removed.
 async function pickFramePicture(scope) {
   const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() || box, {
@@ -261,7 +264,7 @@ function createBox() {
   if (process.platform === 'win32') {
     box.setAppDetails({
       appId: APP_ID, appIconPath: ICON_ICO, appIconIndex: 0,
-      relaunchCommand: `"${process.execPath}" "${config.APP_ROOT}"`, relaunchDisplayName: "Nick's Task Desk",
+      relaunchCommand: `"${process.execPath}" "${config.APP_ROOT}"`, relaunchDisplayName: 'Task Desk',
     });
   }
   box.loadFile(path.join(RENDERER, 'box.html'));
@@ -381,18 +384,28 @@ function setView(view) {
 
 function updateTray(count) {
   if (!tray) return;
-  tray.setToolTip(`Nick's Task Desk · ${count} open task${count === 1 ? '' : 's'}${projects.list().length ? ' (all projects)' : ''}`);
+  tray.setToolTip(`Task Desk · ${count} open task${count === 1 ? '' : 's'}${projects.list().length ? ' (all projects)' : ''}`);
+}
+
+const LINK_NAME = 'Task Desk.lnk';
+// Shortcuts this app made under another name (older versions): same program and folder.
+function oldLinks(dir) {
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((n) => /\.lnk$/i.test(n) && n !== LINK_NAME); } catch { return []; }
+  return names.map((n) => path.join(dir, n)).filter((f) => {
+    try { const l = shell.readShortcutLink(f); return l.target === process.execPath && (l.args || '').includes(config.APP_ROOT); } catch { return false; }
+  });
 }
 
 function startupLink() {
-  return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', "Nick's Task Desk.lnk");
+  return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', LINK_NAME);
 }
 // In the Start menu, so Task Desk can be found by searching and pinned from there.
 function startMenuLink() {
-  return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', "Nick's Task Desk.lnk");
+  return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', LINK_NAME);
 }
 function desktopLink() {
-  return path.join(app.getPath('desktop'), "Nick's Task Desk.lnk");
+  return path.join(app.getPath('desktop'), LINK_NAME);
 }
 function writeLink(file, hidden) {
   return shell.writeShortcutLink(file, 'create', {
@@ -400,7 +413,7 @@ function writeLink(file, hidden) {
     args: `"${config.APP_ROOT}"${hidden ? ' --hidden' : ''}`,
     cwd: config.APP_ROOT,
     icon: ICON_ICO, iconIndex: 0,
-    description: "Nick's Task Desk",
+    description: 'Task Desk',
     appUserModelId: APP_ID,
   });
 }
@@ -414,12 +427,17 @@ function ensureShortcuts() {
   if (!process.env.TASKDESK_LOCAL_DATA) {
     // The Start menu entry is checked every start. When the app id or icon changes,
     // the existing shortcuts are rewritten so pins and the taskbar pick it up.
-    const stale = config.get().linksFor !== APP_ID;
+    const LINKS = `${APP_ID}/${LINK_NAME}`;
+    const stale = config.get().linksFor !== LINKS;
     if (stale || !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
     if (stale) {
-      if (fs.existsSync(desktopLink())) try { writeLink(desktopLink(), false); } catch {}
-      if (fs.existsSync(startupLink())) try { writeLink(startupLink(), true); } catch {}
-      config.set({ linksFor: APP_ID });
+      // Rename older shortcuts, and rewrite the current ones for the new id and icon.
+      for (const [link, hidden] of [[desktopLink(), false], [startupLink(), true], [startMenuLink(), false]]) {
+        const old = oldLinks(path.dirname(link));
+        for (const f of old) try { fs.unlinkSync(f); } catch {}
+        if (old.length || fs.existsSync(link)) try { writeLink(link, hidden); } catch {}
+      }
+      config.set({ linksFor: LINKS });
     }
   }
   if (config.get().shortcutsDone) return;
@@ -433,12 +451,12 @@ function setMode(mode) {
   if (mode === 'live') {
     const r = dialog.showMessageBoxSync({
       type: 'question', buttons: ['Switch to live', 'Cancel'], defaultId: 0, cancelId: 1,
-      message: 'Switch the Idea Factory to live?',
+      message: `Switch ${config.factoryName()} to live?`,
       detail: `Tasks will come from ${config.get().livePath}. The app only ever appends to ops\\FROM_NICK.md there.`,
     });
     if (r !== 0) return;
   }
-  // Only the Idea Factory's windows close: other projects don't change with the mode.
+  // Only the workspace's windows close: other projects don't change with the mode.
   for (const [id, w] of [...taskWins]) if (state.projectOf(id) === 'factory') { chat.stop(id); w.destroy(); taskWins.delete(id); }
   config.set({ mode });
   state.use(mode);
@@ -459,10 +477,30 @@ function resetAllChats() {
   for (const [id, w] of taskWins) if (!w.isDestroyed()) w.webContents.send('chat:reset', id);
 }
 
-// Where Done notes go for what the box is showing (the Idea Factory's FROM_NICK.md when "All").
+// Where Done notes go for what the box is showing (the workspace's FROM_NICK.md when "All").
 function resultsFor(view) {
   const p = projects.get(view);
-  return p ? projects.resultsFile(p) : path.join(config.root(), 'ops', 'FROM_NICK.md');
+  return p ? projects.resultsFile(p) : config.factoryOn() ? path.join(config.root(), 'ops', 'FROM_NICK.md') : null;
+}
+
+// The optional lanes workspace: pick its folder to turn it on, or turn it off.
+function connectWorkspace() {
+  const pick = dialog.showOpenDialogSync({ title: 'Choose the workspace folder (it has ops\\NEEDS_NICK.md and lanes\\)', properties: ['openDirectory'] });
+  if (!pick) return;
+  const dir = pick[0];
+  if (!fs.existsSync(path.join(dir, 'ops', 'NEEDS_NICK.md'))) {
+    dialog.showMessageBoxSync({ type: 'warning', buttons: ['OK'], message: 'That folder isn\'t a lanes workspace', detail: `${dir}\n\nA workspace has ops\\NEEDS_NICK.md (and usually lanes\\<name>\\LANE.md). For any other folder, use Add a project.` });
+    return;
+  }
+  config.set({ factory: true, livePath: dir, mode: 'live' });
+  state.use('live');
+  startPolling();
+  refresh();
+}
+function disconnectWorkspace() {
+  for (const [id, w] of [...taskWins]) if (state.projectOf(id) === 'factory') { chat.stop(id); w.destroy(); taskWins.delete(id); }
+  config.set({ factory: false, view: currentView() === 'factory' ? 'all' : currentView() });
+  refresh();
 }
 
 function menu() {
@@ -478,8 +516,11 @@ function menu() {
     { label: 'Add a project…', click: () => openProjectEditor(null) },
     ...(cur ? [{ label: `Edit "${cur.name}"…`, click: () => openProjectEditor(cur.id) }] : []),
     { type: 'separator' },
-    { label: 'Idea Factory: test copies', type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
-    { label: 'Idea Factory: live', type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
+    ...(config.factoryOn() ? [
+      { label: `${config.factoryName()}: test copies`, type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
+      { label: `${config.factoryName()}: live`, type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
+      { label: `Disconnect ${config.factoryName()}`, click: disconnectWorkspace },
+    ] : [{ label: 'Connect a lanes workspace…', click: connectWorkspace }]),
     { type: 'separator' },
     { label: 'Refresh tasks now', click: refresh },
     { label: 'Reset all chats…', click: resetAllChats },
@@ -496,7 +537,8 @@ function menu() {
         { label: 'A project can use its own: Edit project, box 9', enabled: false },
       ],
     },
-    { label: cur ? `Open "${cur.name}" results` : 'Open FROM_NICK.md', click: () => shell.openPath(resultsFor(view)) },
+    ...(resultsFor(view) ? [{ label: cur ? `Open "${cur.name}" results` : `Open ${config.factoryName()} results (FROM_NICK.md)`, click: () => shell.openPath(resultsFor(view)) }] : []),
+    { label: 'Your name…', click: () => { box.show(); box.webContents.send('me:ask'); } },
     { label: 'Open app data folder', click: () => shell.openPath(config.DATA_DIR) },
     { type: 'separator' },
     config.synced()
@@ -723,7 +765,7 @@ let lockTimer = null;
 function beat() {
   try { fs.writeFileSync(LOCK, JSON.stringify({ computer: os.hostname(), at: Date.now() })); } catch {}
 }
-// Returns false if Nick chose to quit because the desk is open on another computer.
+// Returns false if the user chose to quit because the desk is open on another computer.
 function takeLock() {
   if (!config.synced()) return true;
   try {
@@ -814,7 +856,7 @@ async function chatTool(id, tool, args) {
 // ---------- IPC ----------
 
 const winOf = (e) => BrowserWindow.fromWebContents(e.sender);
-// Relative paths in a plan are relative to its project's folder (the factory root for the Idea Factory).
+// Relative paths in a plan are relative to its project's folder (the workspace root for the lanes workspace).
 function baseFor(e) {
   const w = winOf(e);
   const id = [...taskWins].find(([, x]) => x === w)?.[0];
@@ -1009,11 +1051,11 @@ ipcMain.handle('act:emails', (e, p) => {
 });
 ipcMain.handle('act:env', (e, id, envPath, name, value) => {
   const f = resolvePath(envPath, e);
-  const inFactory = f.toLowerCase().startsWith(path.resolve(config.get().livePath).toLowerCase());
+  const inFactory = config.inFactory(f);
   const r = dialog.showMessageBoxSync(winOf(e), {
     type: 'warning', buttons: ['Write the key', 'Cancel'], defaultId: 1, cancelId: 1,
     message: `Write ${name} into this .env file?`,
-    detail: `${f}${inFactory ? '\n\nThis file is inside the Idea Factory.' : ''}\n\nThe key is not saved anywhere else (not in app data, logs or git).`,
+    detail: `${f}${inFactory ? `\n\nThis file is inside ${config.factoryName()}.` : ''}\n\nThe key is not saved anywhere else (not in app data, logs or git).`,
   });
   if (r !== 0) return { ok: false, cancelled: true };
   try { writeEnv(f, name, value); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
@@ -1045,6 +1087,15 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
   broadcast();
 });
 // Which AI: the pickers in the box footer (desk default) and the task chat panel (this task).
+// Your name (and an optional line about you) for the AI and the greeting.
+ipcMain.handle('me:get', () => ({ name: config.userName(), about: config.get().userAbout || '' }));
+ipcMain.handle('me:set', (e, me) => {
+  const name = String((me && me.name) || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const about = String((me && me.about) || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  config.set({ userName: name, userAbout: about, userNameAsked: true });
+  refresh();
+  return { name, about };
+});
 ipcMain.handle('ai:choices', (e, id) => ai.choices(id ? findTask(id) : null));
 ipcMain.handle('ai:setDefault', (e, id) => { if (ai.PROVIDERS[id]) setAI(id); return ai.choices(null); });
 ipcMain.handle('chat:switchAI', (e, id, to) => {
@@ -1104,7 +1155,7 @@ app.whenReady().then(async () => {
   scheduleUpdates();
   reopenWindows();
   // Tests (their own data folder only) drive the update steps directly.
-  if (process.env.TASKDESK_LOCAL_DATA) global.__update = { refreshWindows, rememberWindows, quietNow, setLastInput: (t) => { lastInput = t; } };
+  if (process.env.TASKDESK_LOCAL_DATA) global.__update = { refreshWindows, rememberWindows, quietNow, setLastInput: (t) => { lastInput = t; }, planPrompt: planner.prompt };
   const note = config.get().updatedNote;
   if (note) { config.set({ updatedNote: '' }); say('Task Desk was updated', note); }
 });

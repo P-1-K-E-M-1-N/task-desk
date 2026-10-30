@@ -1,6 +1,6 @@
 // Tiny MCP server that the chat's `claude` starts for one task. It gives Claude
 // three tools to keep that task's plan up to date: read the plan, tick a step /
-// comment on it, and add to Nick's notes. Every call is forwarded to the Task
+// comment on it, and add to the user's notes. Every call is forwarded to the Task
 // Desk app over a local connection (127.0.0.1 + a secret token), and the app
 // only lets it change the task it was started for.
 // Runs under Electron's Node (ELECTRON_RUN_AS_NODE=1); no dependencies.
@@ -14,12 +14,12 @@ const TASK = process.env.TASKDESK_TASK;
 const TOOLS = [
   {
     name: 'get_task',
-    description: "Show Nick's current task in Task Desk: the task text, the plan's numbered steps with which ones are already done and any comments on them, and his notes for the factory. Check this before picking the work up, so you know what's already done.",
+    description: "Show the user's current task in Task Desk: the task text, the plan's numbered steps with which ones are already done and any comments on them, and his notes for the factory. Check this before picking the work up, so you know what's already done.",
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'update_step',
-    description: "Update one step of this task's plan in Task Desk: tick it done (or un-tick it) and/or leave a short comment on it (what happened, what's left, a result). Use it as soon as a step is finished or Nick says he did it. Nick sees the change right away.",
+    description: "Update one step of this task's plan in Task Desk: tick it done (or un-tick it) and/or leave a short comment on it (what happened, what's left, a result). Use it as soon as a step is finished or the user says they did it. They see the change right away.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -33,7 +33,7 @@ const TOOLS = [
   },
   {
     name: 'add_note',
-    description: "Add a line to Nick's \"Notes for the factory\" box for this task (results, replies, dates, anything the factory should know). It's appended, never replaces what's there. Nick still presses Done himself.",
+    description: "Add a line to this task's notes box in Task Desk (results, replies, dates, anything worth keeping). It's appended, never replaces what's there. The user still presses Done themselves.",
     inputSchema: {
       type: 'object',
       properties: { text: { type: 'string', description: 'The text to add.' } },
