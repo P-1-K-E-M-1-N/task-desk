@@ -12,7 +12,13 @@ Changes a user would notice, newest first. The format follows
 - Prettier (`npm run format`), checked in CI alongside ESLint.
 - An MIT license, a contributing guide, a security policy, a code of conduct, issue and pull request templates, Dependabot.
 
+- Unit tests (`npm run test:unit`, part of `npm test`) for the checklist parser, project settings, results files and task state.
+- A log file, `data\taskdesk.log`, for errors you never saw (a watcher that couldn't start, a state file that couldn't be saved, an unexpected error). It stays under a megabyte.
+
 ### Changed
+- The three windows now run in Chromium's sandbox with a strict content security policy (no inline scripts, nothing from the network), and the app only answers messages from its own pages.
+- **Open** buttons in a plan open documents and folders only; a path to a program (.exe, .bat, .ps1, .lnk and the like) is refused.
+- The folder picker starts in your home folder instead of the first owner's.
 - Installed copies now follow the `release` branch, so a change merged into `main` reaches them only when it's promoted. See "How releases work" in CONTRIBUTING.md.
 
 ## 1.0.0 - 2026-10-30
