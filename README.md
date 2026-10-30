@@ -1,5 +1,8 @@
 # Task Desk
 
+[![CI](https://github.com/P-1-K-E-M-1-N/task-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/P-1-K-E-M-1-N/task-desk/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A small always-on-top Windows app that lists what your projects need you to do, and opens each task with a step-by-step plan and an AI chat that already knows the task.
 
 It's for people who run projects with AI agents and end up with a pile of human-only jobs: send this email, sign up for that, decide between two options, paste a reply back. Task Desk reads those to-do items from your project folders and shows them in a floating box. Click one and a task window opens with two halves. On the left is a plan with buttons for each step (copy text, open a link, draft a Gmail message, paste a result). On the right is a real Claude Code chat running in that project's folder. You can also use OpenAI's Codex or Google's Gemini CLI there instead. The chat can tick steps and add notes as you go. When you press Done, your notes go back into the project, where its agents can pick them up.
@@ -21,11 +24,13 @@ No API keys are needed. Each AI app runs on its own account login.
 ## Setup
 
 ```powershell
-git clone <this repo's URL> task-desk
+git clone -b release https://github.com/P-1-K-E-M-1-N/task-desk.git task-desk
 cd task-desk
 npm install
 npm start
 ```
+
+`-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, where changes land before they're released.
 
 The first start does three things:
 - creates a `data\` folder next to the app,
@@ -99,7 +104,7 @@ Environment variables (mostly for tests and development):
 
 ## Updates
 
-A copy made with `git clone` checks its GitHub remote every day at 7 AM. If the computer was off at 7, it checks a couple of minutes after the next start. It only fast-forwards, and it waits for a quiet moment before installing. Updates that only change screens refresh the open windows in place, so chats keep running. Bigger ones restart the app and reopen the task windows that were open. A copy with local code changes or local commits is skipped, so work in progress isn't overwritten.
+A copy made with `git clone` checks its GitHub remote every day at 7 AM. It follows the `release` branch: changes merged into `main` reach installed copies only when the maintainer promotes them (see [CONTRIBUTING.md](CONTRIBUTING.md)), so a half-finished change never lands on your desk. If the computer was off at 7, it checks a couple of minutes after the next start. It only fast-forwards, and it waits for a quiet moment before installing. Updates that only change screens refresh the open windows in place, so chats keep running. Bigger ones restart the app and reopen the task windows that were open. A copy with local code changes or local commits is skipped, so work in progress isn't overwritten.
 
 A copied folder (not a clone) runs fine but can't update itself. Turn updates off with **Update automatically (daily, 7 AM)** in the ⋯ menu. The log is `data\update.log`.
 
@@ -128,20 +133,21 @@ docs/WORKSPACE.md  the optional lanes workspace
 The tests run in their own temporary data folder and Electron profile (`test/env.js`), so they're safe to run while the app is open.
 
 ```powershell
-node test/standalone.js
-node test/e2e.js
-node test/projects.js
-node test/look.js
-node test/chat-tools.js
-node test/ai.js
-node test/seamless.js
-node test/updater.js
+npm run lint      # ESLint
+npm test          # the tests that need no AI app (this is what CI runs)
+npm run test:all  # every test, including the four that start a real Claude Code
+node test/look.js # or any single test file
 ```
 
 A few things to know:
 - **Which tests use a real AI:** `e2e.js`, `projects.js`, `chat-tools.js` and `look.js` start the real Claude Code, so they need it signed in and use a little of your plan. `standalone.js` (a brand-new desk), `ai.js`, `seamless.js` and `updater.js` don't need any AI (`ai.js` and `seamless.js` use a pretend one, `test/fake-claude.js`).
-- **Before the first run,** `node test/gen-plans.js` builds and caches plans for the sample tasks (in `data\plans\test\`), and the tests reuse them.
+- **Before the first `test:all`,** `npm run test:plans` builds and caches plans for the sample tasks (in `data\plans\test\`), and the tests reuse them.
 - **Screenshots** are saved to `test/shots/`.
+- **CI** runs lint and `npm test` on a Windows runner for every pull request (`.github/workflows/ci.yml`).
+
+## Contributing
+
+Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the checks every change has to pass and how releases work. [SECURITY.md](SECURITY.md) says what the app does and doesn't touch and how to report a problem privately. Changes a user would notice are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Ground rules for changes
 
@@ -153,4 +159,4 @@ These hold for anyone (or any agent) changing the code:
 
 ## License
 
-There's no license file, and `package.json` marks the package `UNLICENSED`, so all rights are reserved.
+[MIT](LICENSE).
