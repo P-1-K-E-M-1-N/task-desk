@@ -4,7 +4,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
+const { useTestSettings, launchOpts, DATA } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');

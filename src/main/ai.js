@@ -60,7 +60,7 @@ function sessionFor(st, id) {
 // user said. It comes from the saved conversation where possible (clean text), else
 // from what the chat panel showed. The plan's ticks, comments and notes travel
 // anyway: every AI reads them with the get_task tool.
-const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][0-9A-B]|\x1b[=>78]/g;
+const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][0-9A-B]|\x1b[=>78]/g;
 function screenText(buf) {
   const lines = String(buf || '').replace(ANSI, '').replace(/\r(?!\n)/g, '\n').split(/\r?\n/)
     .map((l) => l.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '').trimEnd())

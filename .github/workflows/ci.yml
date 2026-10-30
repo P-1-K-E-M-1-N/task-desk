@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, release]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint and test (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # The tests that need no AI app: they launch Electron with a temporary data
+      # folder and a pretend AI (test/fake-claude.js). See test/run.js.
+      - run: npm test
+        env:
+          TASKDESK_NO_UPDATE: '1'
+
+      - name: Keep the screenshots when something fails
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-screenshots
+          path: test/shots/
+          if-no-files-found: ignore

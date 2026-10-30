@@ -130,7 +130,7 @@
 
   // ---------- simulation ----------
   function newSim() {
-    const { w, h, t } = G;
+    const { w, t } = G;
     const lane = (side) => ({
       side, x: side ? w - t * 0.5 : t * 0.5, color: LIQUID[side],
       y0: Math.max(t * 0.45, G.rad * 0.5), grow: 0, target: rand(0.18, 0.32) * t, wait: rand(0, 0.3),
