@@ -6,6 +6,7 @@ const path = require('path');
     executablePath: require('electron'),
     args: [path.join(__dirname, '..')],
     cwd: path.join(__dirname, '..'),
+    env: { ...process.env, TASKDESK_TEST: '1' },
   });
   app.process().stdout.on('data', (d) => process.stdout.write('[main] ' + d));
   app.process().stderr.on('data', (d) => process.stdout.write('[main!] ' + d));
