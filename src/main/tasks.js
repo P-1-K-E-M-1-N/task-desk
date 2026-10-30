@@ -65,20 +65,52 @@ function titleOf(text) {
   return first.length > 90 ? first.slice(0, 87) + '…' : first.replace(/[.:]$/, '');
 }
 
+// The kinds of work a task can be. The tile shape groups them:
+// circle = talking to people, diamond = your call or your knowledge,
+// rounded square = clicking through a website.
+const TYPES = ['outreach', 'ask', 'info', 'decide', 'account', 'setup', 'qa', 'research'];
+const MINUTES = { outreach: 45, ask: 10, info: 3, decide: 5, account: 10, setup: 10, qa: 10, research: 15 };
+
 function guessType(text) {
   const t = text.toLowerCase();
-  if (/keyword/.test(t)) return 'keywords';
-  if (/outreach|email|send .*draft/.test(t)) return 'email';
-  if (/api key|sign ?up|signup|\.env|token|account/.test(t)) return 'signup';
-  if (/decide|decision|approve|choose/.test(t)) return 'decision';
-  if (/\bask\b|confirm|question/.test(t)) return 'question';
-  return 'review';
+  if (/spot.?check|look over|what('s| is) wrong/.test(t)) return 'qa';
+  if (/keyword|search volume|research|competitor|market size/.test(t)) return 'research';
+  if (/send me|tell (me|us)|what('s| is) your|your (developer |legal |full )?(name|e-?mail|gmail|address)|\btype ['"]/.test(t))
+    return 'info';
+  if (/outreach|send .*(draft|email)|emails? to|contact form|reach out/.test(t)) return 'outreach';
+  if (/sign ?up|(create|make|open) (a |an )?(free |new )?\S* ?account|register|identity|prove who|verify (your|my)/.test(t))
+    return 'account';
+  if (/api key|\bkey\b|\.env|token|enable|turn(ing)? on|permission|\brole\b|invite|connect|grant|access/.test(t)) return 'setup';
+  if (/decide|decision|approve|choose|\bpick\b|which (one|option)/.test(t)) return 'decide';
+  if (/\bask\b|question|find out from|check with/.test(t)) return 'ask';
+  if (/\btest\b|\breview\b|\bcheck\b/.test(t)) return 'qa';
+  if (/account/.test(t)) return 'account';
+  if (/e-?mail/.test(t)) return 'outreach';
+  return 'qa';
+}
+
+// Plans saved before the eight types used six older names. Each old name maps
+// to its closest new one, and the wording settles the ones that split in two.
+const OLD = {
+  email: ['outreach'],
+  keywords: ['research'],
+  decision: ['decide', 'info', 'setup'],
+  signup: ['account', 'setup'],
+  review: ['qa'],
+  question: ['info', 'ask'],
+};
+function normType(type, text = '') {
+  if (TYPES.includes(type)) return type;
+  const options = OLD[type];
+  if (!options) return guessType(text);
+  const guess = guessType(text);
+  return options.includes(guess) ? guess : options[0];
 }
 
 function guessMinutes(text, type) {
   const m = text.match(/(\d+)[\s-]*min/i);
   if (m) return parseInt(m[1], 10);
-  return { email: 45, keywords: 15, signup: 10, decision: 5, question: 10, review: 10 }[type];
+  return MINUTES[type];
 }
 
 // Low-priority wording: optional, informational, or "only if we ever want it".
@@ -148,7 +180,7 @@ function toTasks(raw, dirs, prefix = '') {
     if (seen.has(id)) continue;
     seen.add(id);
     const fromTitle = guessType(title);
-    const type = fromTitle !== 'review' ? fromTitle : guessType(r.text);
+    const type = fromTitle !== 'qa' ? fromTitle : guessType(r.text);
     const date = (r.text.match(/\((\d{4}-\d{2}-\d{2})\)/) || [])[1] || null;
     tasks.push({
       id,
@@ -185,4 +217,4 @@ function parseEmails(md) {
   return { attach, emails: out };
 }
 
-module.exports = { readTasks, readChecklist, toTasks, parseNeedsNick, parseEmails, sha, norm };
+module.exports = { readTasks, readChecklist, toTasks, parseNeedsNick, parseEmails, sha, norm, TYPES, guessType, normType };

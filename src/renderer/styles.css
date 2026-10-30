@@ -26,12 +26,14 @@
   --mono: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
   --r: 14px;
   --r-sm: 9px;
-  --t-email: #c96442;
-  --t-keywords: #b88324;
-  --t-decision: #6a68b0;
-  --t-signup: #2f8580;
-  --t-review: #6f8450;
-  --t-question: #b0587a;
+  --t-outreach: #c96442;
+  --t-ask: #b0587a;
+  --t-info: #3a82b8;
+  --t-decide: #6a68b0;
+  --t-account: #2f8580;
+  --t-setup: #96693f;
+  --t-qa: #6f8450;
+  --t-research: #b88324;
   --term-bg: #fffdf9;
   --term-fg: #2a2723;
   color-scheme: light;
@@ -58,12 +60,14 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 24px 64px -16px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --t-email: #e8875f;
-  --t-keywords: #d9a644;
-  --t-decision: #9a98e0;
-  --t-signup: #5fb7b0;
-  --t-review: #a3b87d;
-  --t-question: #df86a8;
+  --t-outreach: #e8875f;
+  --t-ask: #df86a8;
+  --t-info: #77b3e3;
+  --t-decide: #9a98e0;
+  --t-account: #5fb7b0;
+  --t-setup: #cf9f72;
+  --t-qa: #a3b87d;
+  --t-research: #d9a644;
   --term-bg: #282520;
   --term-fg: #f2ece3;
   color-scheme: dark;
@@ -255,8 +259,8 @@ a {
   flex: none;
 }
 .mode-test {
-  background: color-mix(in srgb, var(--t-keywords) 18%, transparent);
-  color: var(--t-keywords);
+  background: color-mix(in srgb, var(--t-research) 18%, transparent);
+  color: var(--t-research);
   letter-spacing: 0.06em;
   font-size: 10px;
   font-weight: 700;
@@ -277,28 +281,59 @@ a {
   height: 17px;
   stroke-width: 1.9;
 }
-.t-email {
-  --tc: var(--t-email);
+.t-outreach {
+  --tc: var(--t-outreach);
 }
-.t-keywords {
-  --tc: var(--t-keywords);
+.t-ask {
+  --tc: var(--t-ask);
 }
-.t-decision {
-  --tc: var(--t-decision);
+.t-info {
+  --tc: var(--t-info);
 }
-.t-signup {
-  --tc: var(--t-signup);
+.t-decide {
+  --tc: var(--t-decide);
 }
-.t-review {
-  --tc: var(--t-review);
+.t-account {
+  --tc: var(--t-account);
 }
-.t-question {
-  --tc: var(--t-question);
+.t-setup {
+  --tc: var(--t-setup);
+}
+.t-qa {
+  --tc: var(--t-qa);
+}
+.t-research {
+  --tc: var(--t-research);
 }
 .tile {
   color: var(--tc);
   background: color-mix(in srgb, var(--tc) 14%, var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc) 18%, transparent);
+}
+/* Shapes: circle = talking to people, diamond = your call or your knowledge,
+   rounded square (the default) = clicking through a website. */
+.tile.s-talk {
+  border-radius: 50%;
+}
+.tile.s-you {
+  position: relative;
+  isolation: isolate;
+  background: none;
+  box-shadow: none;
+}
+.tile.s-you::before {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  z-index: -1;
+  border-radius: 22%;
+  transform: rotate(45deg);
+  background: color-mix(in srgb, var(--tc) 14%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc) 18%, transparent);
+}
+.tile.s-you svg.i {
+  width: 15px;
+  height: 15px;
 }
 
 .shimmer {

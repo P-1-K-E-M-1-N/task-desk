@@ -260,7 +260,7 @@ function card(t, i) {
     title: t.text,
     onclick: () => desk.openTask(t.id),
     html: `
-      <div class="tile t-${t.type}">${icon(t.type)}</div>
+      <div class="${tileClass(t.type)}" title="${typeHint(t.type)}">${icon(t.type)}</div>
       <div class="body">
         <div class="ttl"></div>
         <div class="meta">
