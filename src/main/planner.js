@@ -9,6 +9,7 @@ const { EventEmitter } = require('events');
 const config = require('./config');
 const { cleanEnv } = require('./sessions');
 const ai = require('./ai');
+const { TYPES } = require('./tasks');
 
 const ACTIONS = [
   'gmail_draft',
@@ -24,7 +25,6 @@ const ACTIONS = [
   'ask_claude',
   'none',
 ];
-const TYPES = ['email', 'keywords', 'decision', 'signup', 'review', 'question'];
 
 const SCHEMA = {
   type: 'object',
@@ -186,7 +186,15 @@ function rules(last) {
   const who = config.who();
   return `RULES FOR THE PLAN
 - summary: 2-3 plain sentences: what this is and what "done" looks like. Talk to ${who} as "you".
-- type: email (sending messages), keywords (keyword research), decision (pick an option), signup (create an account or get an API key), review (read or check something), question (ask someone a question).
+- type: the kind of work ${who} does, one of:
+  outreach (send emails or fill in contact forms to businesses or people),
+  ask (put a question to an outside person or office and wait for the answer),
+  info (${who} tells the agents a fact only they know: a name, an address, a login email, or types a reply),
+  decide (a real choice between options),
+  account (create an account, sign up, or prove identity on a website),
+  setup (change settings on a website: turn on an API, get a key, give permissions, connect services),
+  check (look over or test something an agent made),
+  research (look up numbers or facts on a website, e.g. keyword volumes).
 - est_minutes: honest estimate for ${who}.
 - steps: 3-7 concrete steps in order, each one short. Attach ONE action where a click helps:
   gmail_draft {to, subject, body}: one email with a known address. Write the full ready-to-send text.

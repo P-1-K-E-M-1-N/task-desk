@@ -1,12 +1,16 @@
 // Small shared helpers: icons, element builder, lane colors, toasts.
-/* exported icon, h, laneColor, laneName, TYPE_LABEL, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
+/* exported icon, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
 const ICONS = {
+  // The eight kinds of task.
+  outreach: '<path d="M20.5 3.5 3.5 10.2l6.8 3.5 3.5 6.8z"/><path d="m20.5 3.5-10.2 10.2"/>',
+  ask: '<path d="M20 11.5a7.5 7.5 0 0 1-11 6.6L4.5 19.5l1-4A7.5 7.5 0 1 1 20 11.5z"/><path d="M10.4 9.6a2.1 2.1 0 1 1 2.8 2c-.6.2-.9.7-.9 1.3M12.3 15.3v.01"/>',
+  info: '<rect x="3" y="5.5" width="18" height="13" rx="2.2"/><circle cx="8.5" cy="10.8" r="1.9"/><path d="M5.6 15.6c.5-1.4 1.6-2.1 2.9-2.1s2.4.7 2.9 2.1M14 10h4M14 13.5h3"/>',
+  decide: '<path d="M12 21v-8.5M12 12.5 6.5 7M12 12.5 17.5 7M5 10.5V5.5h5M19 10.5V5.5h-5"/>',
+  account: '<circle cx="9.5" cy="8.5" r="3.5"/><path d="M3.5 19.5c.8-3.2 3.1-5 6-5s5.2 1.8 6 5M18.5 8v6M15.5 11h6"/>',
+  setup: '<path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0zM12 16v4.5"/>',
+  qa: '<rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 4.5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v.5M8.8 12.8l2.3 2.3 4.3-4.6"/>',
+  research: '<path d="M4 20h16M6.5 17v-4M10 17v-7.5"/><circle cx="16" cy="9" r="3.8"/><path d="m18.8 11.8 2.2 2.2"/>',
   email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/>',
-  keywords: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
-  decision: '<path d="M12 4v16M8 20h8M5 8h14M5 8l-2.5 5.5a2.5 2.5 0 0 0 5 0zM19 8l-2.5 5.5a2.5 2.5 0 0 0 5 0zM12 4l-1 1M12 4l1 1"/>',
-  signup: '<circle cx="8" cy="15" r="4"/><path d="m10.9 12.1 8.6-8.6M16 7l2.5 2.5M13.8 9.2l2 2"/>',
-  review: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
-  question: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.6M12 16.8v.01"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2.2"/><path d="M15.5 8.5V6.2A1.7 1.7 0 0 0 13.8 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v7.6a1.7 1.7 0 0 0 1.7 1.7h2.3"/>',
   external: '<path d="M14 4.5h5.5V10M19.5 4.5 11 13M18 14v4.3a1.7 1.7 0 0 1-1.7 1.7H5.7A1.7 1.7 0 0 1 4 18.3V7.7A1.7 1.7 0 0 1 5.7 6H10"/>',
@@ -68,13 +72,23 @@ function laneColor(lane) {
 }
 
 const TYPE_LABEL = {
-  email: 'Email',
-  keywords: 'Keywords',
-  decision: 'Decision',
-  signup: 'Key / signup',
-  review: 'Review',
-  question: 'Question',
+  outreach: 'Reach out',
+  ask: 'Ask someone',
+  info: 'Tell the AI',
+  decide: 'Decide',
+  account: 'Create an account',
+  setup: 'Set up or connect',
+  qa: 'Check or test',
+  research: 'Research',
 };
+// The tile's shape says what kind of work it is before you read anything:
+// circle = talking to people, diamond = your call or your knowledge,
+// rounded square = clicking through a website.
+const TYPE_SHAPE = { outreach: 'talk', ask: 'talk', info: 'you', decide: 'you' };
+const SHAPE_HINT = { talk: 'talking to people', you: 'your call or your knowledge', web: 'clicking through a website' };
+const shapeOf = (type) => TYPE_SHAPE[type] || 'web';
+const tileClass = (type) => `tile t-${type} s-${shapeOf(type)}`;
+const typeHint = (type) => `${TYPE_LABEL[type] || type}: ${SHAPE_HINT[shapeOf(type)]}`;
 const laneName = (l) => (l === 'factory' ? 'Workspace-wide' : l.replace(/-/g, ' '));
 
 function fmtMin(m) {
