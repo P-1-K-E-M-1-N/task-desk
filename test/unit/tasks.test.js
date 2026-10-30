@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { scratch } = require('./setup');
 const config = require('../../src/main/config');
-const { parseNeedsNick, toTasks, readChecklist, parseEmails } = require('../../src/main/tasks');
+const { parseNeedsNick, toTasks, readChecklist, parseEmails, guessType, normType, TYPES } = require('../../src/main/tasks');
 
 const NEEDS = `# What I need
 
@@ -33,11 +33,11 @@ test('toTasks: title, type, minutes, priority and date are read from the text', 
   const tasks = toTasks(parseNeedsNick(NEEDS), () => ({ laneDir: 'L', workDir: 'W' }), 'p1_');
   const [pick, email, optional] = tasks;
   assert.equal(pick.title, 'Pick a name');
-  assert.equal(pick.type, 'decision');
+  assert.equal(pick.type, 'decide');
   assert.equal(pick.date, '2026-10-24');
   assert.equal(pick.important, true);
   assert.ok(pick.id.startsWith('p1_'));
-  assert.equal(email.type, 'email');
+  assert.equal(email.type, 'outreach');
   assert.equal(email.minutes, 45, 'a "(45 min)" hint wins over the default for the type');
   assert.equal(optional.low, true);
   assert.equal(optional.important, false);
@@ -101,4 +101,43 @@ test('parseEmails: one draft per ### heading, with subject, body and contact pag
     subject: 'Hello',
     body: 'Body line 1\nBody line 2',
   });
+});
+
+test('guessType: real task wording lands in the right one of the eight kinds', () => {
+  const cases = {
+    'Send the outreach emails to 20 roofers': 'outreach',
+    'Fill in the contact form on each site': 'outreach',
+    'Ask the city open data office if commercial use is allowed': 'ask',
+    'Send me the support email for the app listing': 'info',
+    'Tell me your Play developer name': 'info',
+    'Pick an Android package prefix': 'decide',
+    'Decide whether to pay for Open-Meteo': 'decide',
+    'Create a RevenueCat account': 'account',
+    'Sign up for PostHog': 'account',
+    'Finish the Play Console identity check and verify your ID': 'account',
+    'Enable the Google Play Developer API': 'setup',
+    'Invite the service account and grant release permissions': 'setup',
+    'Get a Census API key into the .env': 'setup',
+    'Test the three prototype apps on your phone': 'qa',
+    'Spot-check the competitor list': 'qa',
+    'Pull search volumes from Keyword Planner': 'research',
+  };
+  for (const [text, want] of Object.entries(cases)) assert.equal(guessType(text), want, text);
+});
+
+test('normType: plans saved with the six old names move to the closest new one', () => {
+  assert.ok(
+    TYPES.every((t) => normType(t) === t),
+    'new names stay as they are'
+  );
+  assert.equal(normType('email', 'Send the drafts'), 'outreach');
+  assert.equal(normType('keywords', 'anything'), 'research');
+  assert.equal(normType('review', 'Look over the copy'), 'qa');
+  assert.equal(normType('signup', 'Create a RevenueCat account'), 'account');
+  assert.equal(normType('signup', 'Enable the Play Developer API'), 'setup');
+  assert.equal(normType('decision', 'Send me the support email'), 'info', 'a "decision" that is really giving info');
+  assert.equal(normType('decision', 'Pick a package prefix'), 'decide');
+  assert.equal(normType('question', 'Ask the city data office about reuse'), 'ask');
+  assert.equal(normType('question', 'Your Gmail on the test phone'), 'info');
+  assert.equal(normType('question', 'something vague'), 'info', 'falls back to the closest new name');
 });

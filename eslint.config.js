@@ -11,6 +11,8 @@ const UI_HELPERS = [
   'laneColor',
   'laneName',
   'TYPE_LABEL',
+  'tileClass',
+  'typeHint',
   'fmtMin',
   'toast',
   'actBtn',
