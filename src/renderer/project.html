@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' file: data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; font-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Project</title>
 <link rel="stylesheet" href="styles.css">
 <style>
@@ -93,7 +93,7 @@
 
       <div class="field" id="f-folder">
         <span class="label"><span class="num">2</span>Folder</span>
-        <div class="row"><input class="box" id="folder" placeholder="C:\MrC\my-project"><button class="btn" id="pickFolder">Choose…</button></div>
+        <div class="row"><input class="box" id="folder" placeholder="C:\Projects\my-project"><button class="btn" id="pickFolder">Choose…</button></div>
         <div class="hint">Where the project's files are. The chat starts here. Leave it empty if the project is just a list.</div>
       </div>
 

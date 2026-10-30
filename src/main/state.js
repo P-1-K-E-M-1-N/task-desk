@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
+const log = require('./log');
 
 const stores = new Map(); // 'factory' or project id -> { file, data, written }
 const api = { state: null }; // the lanes workspace's memory
@@ -45,10 +46,14 @@ function flush() {
   for (const s of stores.values()) {
     const json = JSON.stringify(s.data, null, 2);
     if (json === s.written) continue;
-    fs.mkdirSync(path.dirname(s.file), { recursive: true });
-    fs.writeFileSync(s.file + '.tmp', json);
-    fs.renameSync(s.file + '.tmp', s.file);
-    s.written = json;
+    try {
+      fs.mkdirSync(path.dirname(s.file), { recursive: true });
+      fs.writeFileSync(s.file + '.tmp', json);
+      fs.renameSync(s.file + '.tmp', s.file);
+      s.written = json;
+    } catch (err) {
+      log.error(`couldn't save ${s.file}`, err);
+    }
   }
 }
 

@@ -224,6 +224,7 @@ module.exports = {
   read,
   addTask,
   save,
+  clean,
   setLook,
   setOwnLook,
   remove,

@@ -87,6 +87,8 @@ Most settings are changed in the app. They're stored as JSON in the data folder.
 | `plannerModel` | empty | Optional `--model` for Claude Code when it writes plans |
 | `projects`, `view`, `look` | | Your projects, the box's current view and the look settings. Edit these in the app. |
 
+`data\taskdesk.log` is the app's log: errors you never saw on screen, useful in a bug report. `data\update.log` is the self-updater's.
+
 `data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update, and where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**).
 
 Environment variables (mostly for tests and development):
@@ -119,10 +121,11 @@ src/main/        Electron main process
   chat.js        runs the AI app for each task window in a pseudo-terminal
   ai.js          Claude Code / Codex / Gemini: finding them, their commands, hand-overs
   bridge.js      local link (127.0.0.1 + secret token) for the chat's plan tools
+  log.js         data\taskdesk.log: errors you never saw, kept under a megabyte
   updater.js     daily self-update; update-helper.js finishes ones that change packages
 src/mcp/         the MCP server that gives each chat its plan tools
 src/renderer/    the box, task and project windows; liveframe.js draws the animated frames
-test/            Playwright and Node tests
+test/            Playwright tests; test/unit/ holds the fast node:test unit tests
 test-fixtures/   a sample lanes workspace, used by the tests
 docs/GUIDE.md    the full user guide
 docs/WORKSPACE.md  the optional lanes workspace
@@ -134,7 +137,8 @@ The tests run in their own temporary data folder and Electron profile (`test/env
 
 ```powershell
 npm run lint      # ESLint
-npm test          # the tests that need no AI app (this is what CI runs)
+npm test          # unit tests + the tests that need no AI app (this is what CI runs)
+npm run test:unit # just the unit tests (a few seconds, no Electron)
 npm run test:all  # every test, including the four that start a real Claude Code
 node test/look.js # or any single test file
 ```
