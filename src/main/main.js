@@ -23,8 +23,10 @@ if (!app.requestSingleInstanceLock()) {
 }
 // Windows groups taskbar buttons, pins and notifications by this id, and caches
 // an icon for it. The id changed when the icon did (the old one kept showing
-// Electron's icon); ensureShortcuts() moves the shortcuts over.
-const APP_ID = 'com.taskdesk.desk';
+// Electron's icon); ensureShortcuts() moves the shortcuts over. Tests use their
+// own id, so a test copy can't leave Windows a shortcut with Electron's icon for
+// the real one.
+const APP_ID = process.env.TASKDESK_LOCAL_DATA ? 'com.taskdesk.desk.test' : 'com.taskdesk.desk';
 app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
@@ -403,7 +405,12 @@ function oldLinks(dir) {
   let names = [];
   try { names = fs.readdirSync(dir).filter((n) => /\.lnk$/i.test(n) && n !== LINK_NAME); } catch { return []; }
   return names.map((n) => path.join(dir, n)).filter((f) => {
-    try { const l = shell.readShortcutLink(f); return l.target === process.execPath && (l.args || '').includes(config.APP_ROOT); } catch { return false; }
+    try {
+      const l = shell.readShortcutLink(f);
+      // Ours by its arguments, or a bare "Electron" shortcut carrying our id (Windows
+      // would show its plain Electron icon on the taskbar instead of ours).
+      return l.target === process.execPath && ((l.args || '').includes(config.APP_ROOT) || l.appUserModelId === APP_ID);
+    } catch { return false; }
   });
 }
 
@@ -440,6 +447,8 @@ function ensureShortcuts() {
     const LINKS = `${APP_ID}/${LINK_NAME}`;
     const stale = config.get().linksFor !== LINKS;
     if (stale || !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
+    // Stray shortcuts with our id (see oldLinks) are removed every start.
+    for (const f of oldLinks(path.dirname(startMenuLink()))) try { fs.unlinkSync(f); } catch {}
     if (stale) {
       // Rename older shortcuts, and rewrite the current ones for the new id and icon.
       for (const [link, hidden] of [[desktopLink(), false], [startupLink(), true], [startMenuLink(), false]]) {
