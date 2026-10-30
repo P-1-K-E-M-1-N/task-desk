@@ -6,7 +6,7 @@ const { execFileSync } = require('child_process');
 
 const PROJECTS = path.join(os.homedir(), '.claude', 'projects');
 
-// Claude Code stores sessions for C:\MrC\idea-factory in projects\C--MrC-idea-factory
+// Claude Code stores sessions for C:\Projects\shop in projects\C--Projects-shop
 function projectDir(folder) {
   return path.join(PROJECTS, path.resolve(folder).replace(/[^a-zA-Z0-9]/g, '-'));
 }

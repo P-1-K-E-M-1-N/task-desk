@@ -28,6 +28,7 @@ const updater = require('./updater');
 const ai = require('./ai');
 const icon = require('./icon');
 const bridge = require('./bridge');
+const log = require('./log');
 
 // Tests can run beside the real desk with their own browser profile (and so their own lock).
 if (process.env.TASKDESK_USERDATA) app.setPath('userData', process.env.TASKDESK_USERDATA);
@@ -44,6 +45,31 @@ const APP_ID = process.env.TASKDESK_LOCAL_DATA ? 'com.taskdesk.desk.test' : 'com
 app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
+// Only the app's own pages may call into the app. Every IPC handler below goes
+// through handle() or onSync(), which check where the message came from.
+const PAGES_URL = pathToFileURL(RENDERER).href;
+const fromOurPage = (e) => {
+  const u = (e.senderFrame && e.senderFrame.url) || '';
+  return u.startsWith(PAGES_URL);
+};
+const handle = (channel, fn) =>
+  ipcMain.handle(channel, (e, ...args) => {
+    if (!fromOurPage(e)) {
+      log.warn(`ipc ${channel} refused from ${(e.senderFrame && e.senderFrame.url) || 'an unknown sender'}`);
+      throw new Error('Not allowed');
+    }
+    return fn(e, ...args);
+  });
+const onSync = (channel, fn) =>
+  ipcMain.on(channel, (e, ...args) => {
+    if (!fromOurPage(e)) {
+      e.returnValue = null;
+      return;
+    }
+    fn(e, ...args);
+  });
+// Files Windows would run rather than show. The app opens documents and folders, never programs.
+const RUNS = /\.(exe|bat|cmd|com|msi|msix|appx|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|scr|pif|lnk|url|reg|hta|cpl|msc|jar|inf|sct)$/i;
 const ICON_PNG = path.join(config.APP_ROOT, 'assets', 'icon.png');
 const ICON_ICO = path.join(config.APP_ROOT, 'assets', 'icon.ico');
 const BOX_W = 340;
@@ -193,7 +219,9 @@ function startPolling() {
           }
         })
       );
-    } catch {}
+    } catch (err) {
+      log.warn(`couldn't watch ${dir}`, err);
+    }
   };
   watch(path.join(config.root(), 'ops'), (f) => /NEEDS_NICK/i.test(f));
   for (const p of projects.list()) {
@@ -329,7 +357,7 @@ function createBox() {
     icon: ICON_PNG,
     backgroundColor: '#00000000',
     hasShadow: true,
-    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
+    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: true },
   });
   box.setAlwaysOnTop(true, 'floating');
   // "Pin to taskbar" on the box's button pins Task Desk itself (not plain Electron).
@@ -426,7 +454,7 @@ function openTask(id, bounds) {
     icon: ICON_PNG,
     backgroundColor: windowBg(),
     title: t.title,
-    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
+    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: true },
   });
   if (bounds) {
     const { x, y, width, height } = bounds;
@@ -472,7 +500,7 @@ function openProjectEditor(id) {
     icon: ICON_PNG,
     backgroundColor: windowBg(),
     title: id ? 'Edit project' : 'Add a project',
-    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
+    webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: true },
   });
   w.loadFile(path.join(RENDERER, 'project.html'), { query: { id: id || '' } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
@@ -1193,8 +1221,8 @@ function baseFor(e) {
 }
 const resolvePath = (p, e) => (p ? (path.isAbsolute(p) ? path.normalize(p) : path.join(e ? baseFor(e) : config.root(), p)) : null);
 
-ipcMain.handle('tasks:list', () => payload());
-ipcMain.handle('task:get', (e, id) => {
+handle('tasks:list', () => payload());
+handle('task:get', (e, id) => {
   const t = findTask(id);
   if (!t) return null;
   const c = planner.cached(t);
@@ -1212,26 +1240,26 @@ function resultsKind(t) {
   const p = projects.get(t.project);
   return p ? p.results : 'factory';
 }
-ipcMain.handle('task:open', (e, id) => openTask(id));
-ipcMain.handle('task:tick', (e, id, key, val) => {
+handle('task:open', (e, id) => openTask(id));
+handle('task:tick', (e, id, key, val) => {
   const st = state.task(id);
   st.ticks[key] = !!val;
   state.save();
   broadcast();
 });
 // Typed text is written to disk right away, so "Saved" in the window means saved.
-ipcMain.handle('task:paste', (e, id, key, label, value) => {
+handle('task:paste', (e, id, key, label, value) => {
   state.task(id).pastes[key] = { label, value };
   state.flush();
   return true;
 });
-ipcMain.handle('task:notes', (e, id, notes) => {
+handle('task:notes', (e, id, notes) => {
   state.update(id, { notes });
   state.flush();
   return true;
 });
 // Used when a window closes mid-typing: blocks until the text is on disk.
-ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
+onSync('task:saveSync', (e, id, kind, value, key, label) => {
   try {
     if (kind === 'notes') state.update(id, { notes: value });
     else state.task(id).pastes[key] = { label, value };
@@ -1242,11 +1270,11 @@ ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
   }
 });
 const senderScope = (e) => scopeOf(BrowserWindow.fromWebContents(e.sender));
-ipcMain.on('look:get', (e) => {
+onSync('look:get', (e) => {
   e.returnValue = lookOut(senderScope(e));
 });
 // Changes go to the project's own look when the window shows such a project, else to the desk's.
-ipcMain.handle('look:set', (e, patch) => {
+handle('look:set', (e, patch) => {
   const scope = senderScope(e);
   if (ownLookOf(scope)) projects.setLook(scope, patch);
   else config.set({ look: { ...config.get().look, ...patch } });
@@ -1254,7 +1282,7 @@ ipcMain.handle('look:set', (e, patch) => {
   return lookOut(scope);
 });
 // Give the showing project its own look (starting from the desk's, in the project's color), or drop it.
-ipcMain.handle('look:own', (e, on) => {
+handle('look:own', (e, on) => {
   const scope = senderScope(e);
   const p = scope && projects.get(scope);
   if (!p) return lookOut(scope);
@@ -1262,21 +1290,21 @@ ipcMain.handle('look:own', (e, on) => {
   applyLook();
   return lookOut(scope);
 });
-ipcMain.handle('look:newOwn', (e, on) => {
+handle('look:newOwn', (e, on) => {
   config.set({ newProjectsOwnLook: !!on });
   applyLook();
   return lookOut(senderScope(e));
 });
-ipcMain.handle('look:picture', (e) => pickFramePicture(senderScope(e)));
+handle('look:picture', (e) => pickFramePicture(senderScope(e)));
 // The box's size lock, and the corner grip that stretches it while unlocked.
-ipcMain.handle('box:lock', (e, locked) => {
+handle('box:lock', (e, locked) => {
   setBoxLocked(!!locked);
   return !!locked;
 });
 // The renderer only says start / move / end; the size comes from where the mouse
 // is on screen, so it stays right at any text size or screen scaling.
 let grab = null;
-ipcMain.handle('box:resize', (e, phase) => {
+handle('box:resize', (e, phase) => {
   if (!box || box.isDestroyed() || config.get().boxLocked !== false || config.get().collapsed) return null;
   const cur = screen.getCursorScreenPoint();
   if (phase === 'start') {
@@ -1295,11 +1323,11 @@ ipcMain.handle('box:resize', (e, phase) => {
   }
   return { width, height };
 });
-ipcMain.handle('task:replan', (e, id) => {
+handle('task:replan', (e, id) => {
   const t = findTask(id);
   if (t) planner.regenerate(t);
 });
-ipcMain.handle('task:snooze', (e, id, when) => {
+handle('task:snooze', (e, id, when) => {
   const d = new Date();
   d.setDate(d.getDate() + (when === 'week' ? 7 : 1));
   d.setHours(8, 0, 0, 0);
@@ -1307,7 +1335,7 @@ ipcMain.handle('task:snooze', (e, id, when) => {
   broadcast();
   return d.toISOString();
 });
-ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
+handle('task:finish', (e, id, status, notes, goNext) => {
   const t = findTask(id);
   if (!t) return { ok: false };
   const st = state.task(id);
@@ -1340,13 +1368,13 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
 });
 
 // ---------- projects ----------
-ipcMain.handle('view:set', (e, view) => setView(view));
-ipcMain.handle('project:edit', (e, id) => openProjectEditor(id || null));
-ipcMain.handle('project:get', (e, id) => {
+handle('view:set', (e, view) => setView(view));
+handle('project:edit', (e, id) => openProjectEditor(id || null));
+handle('project:get', (e, id) => {
   const p = projects.get(id);
   return p ? { ...p, resultsPath: projects.resultsFile(p), tasksPath: projects.tasksFile(p), missing: projects.missing(p) } : null;
 });
-ipcMain.handle('project:save', (e, draft) => {
+handle('project:save', (e, draft) => {
   const r = projects.save(draft);
   if (!r.ok) return r;
   if (r.created) config.set({ view: r.project.id });
@@ -1355,7 +1383,7 @@ ipcMain.handle('project:save', (e, draft) => {
   applyLook();
   return { ...r, resultsPath: projects.resultsFile(r.project) };
 });
-ipcMain.handle('project:remove', (e, id) => {
+handle('project:remove', (e, id) => {
   const p = projects.get(id);
   if (!p) return false;
   const r = dialog.showMessageBoxSync(winOf(e), {
@@ -1374,13 +1402,13 @@ ipcMain.handle('project:remove', (e, id) => {
   startPolling();
   return true;
 });
-ipcMain.handle('project:preview', (e, draft) => projects.preview(draft));
-ipcMain.handle('project:suggest', (e, folder) => projects.suggest(folder));
-ipcMain.handle('project:pick', async (e, kind, from) => {
+handle('project:preview', (e, draft) => projects.preview(draft));
+handle('project:suggest', (e, folder) => projects.suggest(folder));
+handle('project:pick', async (e, kind, from) => {
   const r = await dialog.showOpenDialog(
     winOf(e),
     kind === 'folder'
-      ? { title: 'Choose the project folder', defaultPath: from || 'C:\\MrC', properties: ['openDirectory'] }
+      ? { title: 'Choose the project folder', defaultPath: from || os.homedir(), properties: ['openDirectory'] }
       : {
           title: 'Choose the checklist file',
           defaultPath: from || undefined,
@@ -1393,31 +1421,32 @@ ipcMain.handle('project:pick', async (e, kind, from) => {
   );
   return r.canceled ? null : r.filePaths[0];
 });
-ipcMain.handle('project:open', (e, p) => {
-  if (p && fs.existsSync(p)) shell.openPath(p);
+handle('project:open', (e, p) => {
+  if (p && fs.existsSync(p) && !RUNS.test(p)) shell.openPath(p);
   else return { ok: false, error: 'Nothing there yet: it appears after your first Done.' };
 });
-ipcMain.handle('task:add', (e, pid, text) => {
+handle('task:add', (e, pid, text) => {
   const id = projects.addTask(pid, text);
   if (id) refresh();
   return id;
 });
 
-ipcMain.handle('act:url', (e, url) => {
+handle('act:url', (e, url) => {
   if (/^https?:\/\//i.test(url)) shell.openExternal(url);
 });
-ipcMain.handle('act:copy', (e, text) => clipboard.writeText(String(text)));
-ipcMain.handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
+handle('act:copy', (e, text) => clipboard.writeText(String(text)));
+handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
   const u = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   shell.openExternal(u);
 });
-ipcMain.handle('act:file', async (e, p) => {
+handle('act:file', async (e, p) => {
   const f = resolvePath(p, e);
   if (!f || !fs.existsSync(f)) return { ok: false, error: 'File not found: ' + f };
+  if (RUNS.test(f)) return { ok: false, error: "Task Desk doesn't run programs. Use 'Show in folder' instead." };
   const err = await shell.openPath(f);
   return { ok: !err, error: err };
 });
-ipcMain.handle('act:folder', async (e, p) => {
+handle('act:folder', async (e, p) => {
   let f = resolvePath(p, e);
   if (f && fs.existsSync(f) && fs.statSync(f).isFile()) {
     shell.showItemInFolder(f);
@@ -1428,11 +1457,11 @@ ipcMain.handle('act:folder', async (e, p) => {
   await shell.openPath(f);
   return { ok: true, path: f };
 });
-ipcMain.handle('act:exists', (e, p) => {
+handle('act:exists', (e, p) => {
   const f = resolvePath(p, e);
   return !!f && fs.existsSync(f);
 });
-ipcMain.handle('act:emails', (e, p) => {
+handle('act:emails', (e, p) => {
   const f = resolvePath(p, e);
   try {
     const r = parseEmails(fs.readFileSync(f, 'utf8'));
@@ -1441,7 +1470,7 @@ ipcMain.handle('act:emails', (e, p) => {
     return { emails: [], error: err.message };
   }
 });
-ipcMain.handle('act:env', (e, id, envPath, name, value) => {
+handle('act:env', (e, id, envPath, name, value) => {
   const f = resolvePath(envPath, e);
   const inFactory = config.inFactory(f);
   const r = dialog.showMessageBoxSync(winOf(e), {
@@ -1461,7 +1490,7 @@ ipcMain.handle('act:env', (e, id, envPath, name, value) => {
   }
 });
 
-ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
+handle('chat:start', (e, id, mode, cols, rows) => {
   const t = findTask(id);
   const w = winOf(e);
   if (!t || !w) return;
@@ -1493,8 +1522,8 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
 });
 // Which AI: the pickers in the box footer (desk default) and the task chat panel (this task).
 // Your name (and an optional line about you) for the AI and the greeting.
-ipcMain.handle('me:get', () => ({ name: config.userName(), about: config.get().userAbout || '' }));
-ipcMain.handle('me:set', (e, me) => {
+handle('me:get', () => ({ name: config.userName(), about: config.get().userAbout || '' }));
+handle('me:set', (e, me) => {
   const name = String((me && me.name) || '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -1507,12 +1536,12 @@ ipcMain.handle('me:set', (e, me) => {
   refresh();
   return { name, about };
 });
-ipcMain.handle('ai:choices', (e, id) => ai.choices(id ? findTask(id) : null));
-ipcMain.handle('ai:setDefault', (e, id) => {
+handle('ai:choices', (e, id) => ai.choices(id ? findTask(id) : null));
+handle('ai:setDefault', (e, id) => {
   if (ai.PROVIDERS[id]) setAI(id);
   return ai.choices(null);
 });
-ipcMain.handle('chat:switchAI', (e, id, to) => {
+handle('chat:switchAI', (e, id, to) => {
   const t = findTask(id);
   if (!t) return null;
   ai.forget();
@@ -1520,24 +1549,24 @@ ipcMain.handle('chat:switchAI', (e, id, to) => {
   broadcast();
   return { app: p.app, name: p.name, installed: !!ai.locate(p), choices: ai.choices(t) };
 });
-ipcMain.handle('chat:write', (e, id, d) => chat.write(id, d));
-ipcMain.handle('chat:send', (e, id, text) => chat.send(id, text));
-ipcMain.handle('chat:resize', (e, id, c, r) => chat.resize(id, c, r));
-ipcMain.handle('chat:stop', (e, id) => {
+handle('chat:write', (e, id, d) => chat.write(id, d));
+handle('chat:send', (e, id, text) => chat.send(id, text));
+handle('chat:resize', (e, id, c, r) => chat.resize(id, c, r));
+handle('chat:stop', (e, id) => {
   chat.stop(id);
   broadcast();
 });
 
-ipcMain.handle('win:close', (e) => winOf(e) && winOf(e).close());
-ipcMain.handle('win:min', (e) => winOf(e) && winOf(e).minimize());
-ipcMain.handle('win:max', (e) => {
+handle('win:close', (e) => winOf(e) && winOf(e).close());
+handle('win:min', (e) => winOf(e) && winOf(e).minimize());
+handle('win:max', (e) => {
   const w = winOf(e);
   if (w) w.isMaximized() ? w.unmaximize() : w.maximize();
 });
-ipcMain.handle('win:hide', () => tuckAway());
-ipcMain.handle('win:collapse', (e, c) => setCollapsed(c));
-ipcMain.handle('app:menu', (e) => menu().popup({ window: winOf(e) }));
-ipcMain.handle('tray:badge', (e, dataUrl) => {
+handle('win:hide', () => tuckAway());
+handle('win:collapse', (e, c) => setCollapsed(c));
+handle('app:menu', (e) => menu().popup({ window: winOf(e) }));
+handle('tray:badge', (e, dataUrl) => {
   if (tray && dataUrl) tray.setImage(nativeImage.createFromDataURL(dataUrl));
 });
 
@@ -1561,6 +1590,15 @@ app.on('before-quit', () => {
   if (pendingUpdate && !installing) installUpdate(false);
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
+
+process.on('uncaughtException', (err) => {
+  log.error('unexpected error', err);
+  try {
+    say('Task Desk hit a problem', 'It kept running. The details are in data\\taskdesk.log.');
+  } catch {}
+});
+process.on('unhandledRejection', (err) => log.error('unexpected error (promise)', err));
+log.info(`Task Desk starting (electron ${process.versions.electron}, node ${process.versions.node})`);
 
 app.whenReady().then(async () => {
   if (config.dataMissing) {

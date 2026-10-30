@@ -35,5 +35,5 @@ body:
   - type: textarea
     id: log
     attributes:
-      label: Anything from data\update.log or the terminal
+      label: Anything from data\taskdesk.log, data\update.log or the terminal
       render: text
