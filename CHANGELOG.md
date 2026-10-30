@@ -6,6 +6,11 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.1.1 - 2026-10-30
+
+### Fixed
+- Running the tests can no longer repoint your desktop, Start menu or startup shortcuts at the copy being tested, or run the daily update from it.
+
 ## 1.1.0 - 2026-10-30
 
 ### Added

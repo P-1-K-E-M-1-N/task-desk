@@ -1,6 +1,6 @@
 {
   "name": "task-desk",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A floating Windows task box that turns your projects' to-do lists into step-by-step plans with an AI chat for every task.",
   "private": true,
   "license": "MIT",
