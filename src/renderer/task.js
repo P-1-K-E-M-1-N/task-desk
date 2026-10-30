@@ -50,7 +50,8 @@ async function load() {
   RESULTS_TO = r.resultsTo;
   document.title = T.title;
   $('#aiName').textContent = T.aiName || 'Claude Code';
-  $('#ttile').className = `tile t-${T.type}`;
+  $('#ttile').className = tileClass(T.type);
+  $('#ttile').title = typeHint(T.type);
   $('#ttile').innerHTML = icon(T.type);
   $('#tname').textContent = `${isFactory() ? laneName(T.lane) : T.projectName}  ·  ${T.title}`;
   if (isFactory()) {
@@ -79,7 +80,12 @@ function renderPlan(planOk) {
   const eyebrow = h(
     'div',
     { class: 'eyebrow' },
-    h('span', { class: 'pill', html: `${icon(T.type)}${TYPE_LABEL[T.type] || T.type}`, style: `color:var(--t-${T.type})` }),
+    h('span', {
+      class: 'pill',
+      title: typeHint(T.type),
+      html: `${icon(T.type)}${TYPE_LABEL[T.type] || T.type}`,
+      style: `color:var(--t-${T.type})`,
+    }),
     isFactory()
       ? null
       : h('span', { class: 'pill', html: `<span class="dot" style="background:${T.projectColor}"></span>${esc(T.projectName)}` }),

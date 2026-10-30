@@ -10,7 +10,9 @@
   /* The body is the window frame (its material comes from the Frame setting); the content sits inside it. */
   body { display: flex; flex-direction: column; background: var(--frame); background-color: var(--bg-2); padding: var(--frame-w); animation: var(--frame-anim); }
   .titlebar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 14px; flex: none; border-bottom: 1px solid var(--line); background: var(--bg-2); }
-  .titlebar .tile { width: 24px; height: 24px; border-radius: 7px; }
+  .titlebar .tile { width: 24px; height: 24px; }
+  .titlebar .tile.s-web { border-radius: 7px; }
+  .titlebar .tile.s-you svg.i { width: 11px; height: 11px; }
   .titlebar .tile svg.i { width: 13px; height: 13px; }
   .titlebar .name { font-weight: 600; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .titlebar .sp { flex: 1; }
@@ -138,7 +140,7 @@
   .cstat { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cstat .dot { background: var(--ink-3); }
   .cstat.live .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
-  .cstat.connecting .dot { background: var(--t-keywords); animation: pulse 1s infinite; }
+  .cstat.connecting .dot { background: var(--t-research); animation: pulse 1s infinite; }
   .term { flex: 1; min-height: 0; min-width: 0; overflow: hidden; padding: 12px 6px 6px 16px; }
   .term .xterm-viewport { background: transparent !important; }
   .term .xterm-viewport::-webkit-scrollbar-thumb { background: var(--line-2); }

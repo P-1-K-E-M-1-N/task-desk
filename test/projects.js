@@ -157,7 +157,7 @@ const until = async (page, fn, ms) => {
         await win.keyboard.press('ArrowDown');
         await win.keyboard.press('Enter');
       }
-      return /his project "Rental Houses"/.test(t.replace(/\s+/g, ' ')) ? t : null;
+      return /project "Rental Houses"/.test(t.replace(/\s+/g, ' ')) ? t : null;
     },
     120000
   );

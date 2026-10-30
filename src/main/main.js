@@ -21,7 +21,7 @@ const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
 const chat = require('./chat');
-const { readTasks, parseEmails } = require('./tasks');
+const { readTasks, parseEmails, normType } = require('./tasks');
 const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./handback');
 const projects = require('./projects');
 const updater = require('./updater');
@@ -107,7 +107,7 @@ function decorate(t) {
   const ticked = plan ? plan.steps.filter((_, i) => st.ticks['s' + i]).length : 0;
   return {
     ...t,
-    type: (plan && plan.type) || t.type,
+    type: plan && plan.type ? normType(plan.type, t.text) : t.type,
     minutes: (plan && plan.est_minutes) || t.minutes,
     planStatus: planner.status(t),
     planOk: c ? c.ok : null,
