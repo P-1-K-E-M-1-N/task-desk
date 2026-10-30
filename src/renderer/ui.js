@@ -1,4 +1,5 @@
 // Small shared helpers: icons, element builder, lane colors, toasts.
+/* exported icon, h, laneColor, laneName, TYPE_LABEL, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
 const ICONS = {
   email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/>',
   keywords: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',

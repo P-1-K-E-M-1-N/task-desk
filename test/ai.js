@@ -95,7 +95,7 @@ const FAKE = `${process.execPath}|${path.join(__dirname, 'fake-claude.js')}`;
   ok('only this task switched; the default stays OpenAI', /OpenAI/.test(await box.locator('#aipick').innerText()) && Object.values(stateNow()).some((x) => x.ai === 'claude'));
   await win.locator('#aiSwitch').click();
   await win.locator('.popmenu button', { hasText: 'OpenAI' }).click();
-  t = await waitFor(/--sandbox/);
+  await waitFor(/--sandbox/);
   ok('switching back goes to the default again', (await win.locator('#aiName').innerText()) === 'Codex' && !Object.values(stateNow()).some((x) => x.ai));
   await app.close();
 

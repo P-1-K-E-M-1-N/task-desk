@@ -1,6 +1,6 @@
 // Keeps Task Desk up to date with the template on GitHub.
 //
-// The app folder is a git clone. Every day at 7 AM (or soon after startup, if
+// The app folder is a git clone of the release branch. Every day at 7 AM (or soon after startup, if
 // the computer was off at 7) it asks GitHub whether there's a newer version.
 // When there is, it installs it at a quiet moment (see main.js): updates that
 // only change the screens just refresh the open windows, and the chats keep

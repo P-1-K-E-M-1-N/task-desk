@@ -1,0 +1,39 @@
+name: Something is broken
+description: Task Desk did something wrong, or didn't do something it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open the box
+        2. Click a task
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: Task Desk version
+      description: Run `git log -1 --format=%h` in the Task Desk folder, or copy the line from the ⋯ menu.
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and Node.js version
+      placeholder: Windows 11 23H2, Node 24.1
+  - type: dropdown
+    id: ai
+    attributes:
+      label: Which AI was the task using?
+      options: [Claude Code, OpenAI Codex, Google Gemini CLI, Not sure, Not relevant]
+  - type: textarea
+    id: log
+    attributes:
+      label: Anything from data\update.log or the terminal
+      render: text

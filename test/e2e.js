@@ -10,7 +10,6 @@ const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');
 const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
 const NEEDS = path.join(ROOT, 'test-fixtures', 'ops', 'NEEDS_NICK.md');
-const SETTINGS = path.join(DATA, 'settings.json');
 let mainLog = '';
 const results = [];
 const ok = (name, cond, extra = '') => { results.push([cond ? 'PASS' : 'FAIL', name, extra]); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
