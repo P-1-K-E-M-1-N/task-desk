@@ -159,7 +159,7 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await ed2.locator('#cancel').click();
 
   // ---- safety ----
-  const guard = await box.evaluate(() => desk.saveProject({ name: 'Factory copy', folder: 'C:\\MrC\\idea-factory', source: 'list', results: 'file', resultsFile: 'ops/NOTES.md' }));
+  const guard = await box.evaluate((f) => desk.saveProject({ name: 'Factory copy', folder: f, source: 'list', results: 'file', resultsFile: 'ops/NOTES.md' }), require('./env').WORKSPACE);
   ok('a project can\'t write into the Workshop', guard.ok === false && /read-only/.test(guard.error), guard.error);
   const outside = await box.evaluate((f) => desk.saveProject({ name: 'Sneaky', folder: f, source: 'list', results: 'file', resultsFile: '..\\escape.md' }), PROJ);
   ok('results file must stay inside the project folder', outside.ok === false);

@@ -56,8 +56,8 @@ function sessionFor(st, id) {
 }
 
 // ---------- handing a task over to another AI ----------
-// When you switch AI mid-task, the new one is told what the last one and Nick
-// said. It comes from the saved conversation where possible (clean text), else
+// When you switch AI mid-task, the new one is told what the last one and the
+// user said. It comes from the saved conversation where possible (clean text), else
 // from what the chat panel showed. The plan's ticks, comments and notes travel
 // anyway: every AI reads them with the get_task tool.
 const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][0-9A-B]|\x1b[=>78]/g;
@@ -84,7 +84,7 @@ function savedConversation(p, sid, workDir) {
     if (!role || role === 'system' || role === 'developer') continue;
     const said = typeof content === 'string' ? content
       : Array.isArray(content) ? content.filter((c) => c && typeof c.text === 'string' && /text/.test(c.type || 'text')).map((c) => c.text).join('\n') : '';
-    if (said.trim()) out.push(`${role === 'user' ? 'Nick' : p.name}: ${said.trim()}`);
+    if (said.trim()) out.push(`${role === 'user' ? config.userName() || 'User' : p.name}: ${said.trim()}`);
   }
   return out.slice(1).join('\n\n'); // the first message is the task brief, which the new AI gets anyway
 }
@@ -108,7 +108,7 @@ function handover(from, sid, workDir, screen) {
   said = said.trim();
   if (!said) return '';
   if (said.length > 6000) said = '…' + said.slice(-6000);
-  return `Nick just switched this task over to you from ${from.name} (${from.app}). The plan's ticks, comments and notes are up to date (check them with get_task). Here is the end of that conversation, so you can carry on where it left off:\n---\n${said}\n---`;
+  return `${config.userName() || 'The user'} just switched this task over to you from ${from.name} (${from.app}). The plan's ticks, comments and notes are up to date (check them with get_task). Here is the end of that conversation, so you can carry on where it left off:\n---\n${said}\n---`;
 }
 
 // Tests swap in a pretend AI: TASKDESK_FAKE_AI (or TASKDESK_FAKE_CLAUDE) = "<node.exe>|<script.js>".

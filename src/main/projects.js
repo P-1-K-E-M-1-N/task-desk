@@ -1,5 +1,5 @@
-// Projects besides the Workshop. A project is a folder plus a few choices:
-//  - where its tasks come from: a checklist file (read only) and/or tasks Nick
+// Projects besides the lanes workspace. A project is a folder plus a few choices:
+//  - where its tasks come from: a checklist file (read only) and/or tasks you
 //    types into the box ("My list")
 //  - where Done notes go: a file in the project folder, or kept in Task Desk
 //  - whether the chat may change files in the folder, and notes for the planner
@@ -14,7 +14,9 @@ const { readChecklist, toTasks } = require('./tasks');
 
 const COLORS = ['#c96442', '#2f6fae', '#4f7a5a', '#8a4a87', '#a87414', '#2f8580', '#b0587a', '#6a68b0'];
 const FACTORY_COLOR = '#9a9184';
-// Files that usually hold a to-do list, checked in this order when Nick picks a folder.
+// The results file a project's Done notes go to, unless you name another.
+const DEFAULT_RESULTS = 'TASK_RESULTS.md';
+// Files that usually hold a to-do list, checked in this order when a folder is picked.
 const CANDIDATES = ['NEEDS_NICK.md', 'ops/NEEDS_NICK.md', 'TODO.md', 'todo.md', 'TASKS.md', 'tasks.md', 'CHECKLIST.md', 'docs/TODO.md', 'README.md'];
 
 const list = () => config.get().projects || [];
@@ -24,10 +26,7 @@ const inside = (file, folder) => {
   const rel = path.relative(path.resolve(folder), path.resolve(file));
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
 };
-const isFactoryPath = (p) => {
-  const live = path.resolve(config.get().livePath);
-  return path.resolve(p).toLowerCase() === live.toLowerCase() || inside(p, live);
-};
+const isFactoryPath = (p) => config.inFactory(p);
 
 const folderOk = (p) => !!p.folder && fs.existsSync(p.folder);
 const missing = (p) => !!p.folder && !fs.existsSync(p.folder);
@@ -46,7 +45,7 @@ function tasksFile(p) {
 }
 
 function resultsFile(p) {
-  if (p.results === 'file' && p.folder) return path.resolve(p.folder, p.resultsFile || 'FROM_NICK.md');
+  if (p.results === 'file' && p.folder) return path.resolve(p.folder, p.resultsFile || DEFAULT_RESULTS);
   return path.join(config.PROJECTS_DIR, p.id, 'results.md');
 }
 
@@ -84,7 +83,7 @@ function clean(d) {
     tasksFile: String(d.tasksFile || '').trim(),
     onlyMine: !!d.onlyMine,
     results: d.results === 'file' ? 'file' : 'app',
-    resultsFile: String(d.resultsFile || 'FROM_NICK.md').trim() || 'FROM_NICK.md',
+    resultsFile: String(d.resultsFile || DEFAULT_RESULTS).trim() || DEFAULT_RESULTS,
     allowEdits: !!d.allowEdits,
     // Which AI runs its chats and plans ('' = the desk's choice). See ai.js.
     ai: ['claude', 'codex', 'gemini'].includes(d.ai) ? d.ai : '',
@@ -106,7 +105,7 @@ function clean(d) {
   }
   if (p.results === 'file') {
     if (!p.folder) return { ok: false, error: 'Pick the project folder first, or keep the notes in Task Desk.', field: 'results' };
-    if (isFactoryPath(p.folder)) return { ok: false, error: 'The Workshop folder is read-only. Keep the notes in Task Desk instead.', field: 'results' };
+    if (isFactoryPath(p.folder)) return { ok: false, error: `The ${config.factoryName()} folder is read-only. Keep the notes in Task Desk instead.`, field: 'results' };
     const f = path.resolve(p.folder, p.resultsFile);
     if (!inside(f, p.folder)) return { ok: false, error: 'The results file has to be inside the project folder.', field: 'resultsFile' };
     if (!/\.(md|txt)$/i.test(f)) return { ok: false, error: 'The results file should be a .md or .txt file.', field: 'resultsFile' };
@@ -160,7 +159,7 @@ function preview(d) {
   return { ok: true, count: tasks.length, titles: tasks.slice(0, 3).map((t) => t.title) };
 }
 
-// After Nick picks a folder: a name and the likeliest checklist file.
+// After a folder is picked: a name and the likeliest checklist file.
 function suggest(folder) {
   const out = { name: path.basename(folder || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), tasksFile: '', factory: !!folder && isFactoryPath(folder) };
   for (const c of CANDIDATES) {
@@ -170,10 +169,10 @@ function suggest(folder) {
   return out;
 }
 
-// The box's project list (Workshop first), with open-task counts filled in by main.js.
+// The box's project list (the lanes workspace first, when it's on), with open-task counts filled in by main.js.
 function summary() {
   return [
-    { id: 'factory', name: 'Workshop', color: FACTORY_COLOR, kind: 'factory' },
+    ...(config.factoryOn() ? [{ id: 'factory', name: config.factoryName(), color: FACTORY_COLOR, kind: 'factory' }] : []),
     ...list().map((p) => ({ id: p.id, name: p.name, color: p.color, kind: p.source, missing: missing(p) })),
   ];
 }

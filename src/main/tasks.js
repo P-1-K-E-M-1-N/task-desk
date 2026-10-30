@@ -1,11 +1,21 @@
-// Reads ops/NEEDS_NICK.md (and Nick-flagged checkboxes in lanes/*/LANE.md)
-// and turns them into task objects. Never writes to the factory.
+// Reads a lanes workspace's ops/NEEDS_NICK.md (and checkboxes in lanes/*/LANE.md
+// that mention the user), plus plain checklists, and turns them into task
+// objects. Never writes anything.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
+const config = require('./config');
+
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex');
+// Does a line mention the user? (needs their name; false until they've given it)
+const mentionsMe = (text) => {
+  const n = config.userName();
+  if (!n) return false;
+  const name = n.replace(/[^\w\s'-]/g, '');
+  return new RegExp(`\\b${name}\\b`, 'i').test(text);
+};
 const norm = (s) => s.toLowerCase().replace(/[`*_]/g, '').replace(/\s+/g, ' ').trim();
 
 // NEEDS_NICK.md looks like:
@@ -37,11 +47,11 @@ function parseNeedsNick(md) {
   return items.filter((i) => !i.done).map((i) => ({ lane: i.lane, text: i.lines.join(' ') }));
 }
 
-// Extra items: unchecked checkboxes in LANE.md that mention Nick.
+// Extra items: unchecked checkboxes in LANE.md that mention the user by name.
 function parseLaneFlags(md, lane) {
   return md
     .split(/\r?\n/)
-    .filter((l) => /^\s*[-*]\s+\[ \]/.test(l) && /\bnick\b/i.test(l))
+    .filter((l) => /^\s*[-*]\s+\[ \]/.test(l) && mentionsMe(l))
     .map((l) => ({ lane, text: l.replace(/^\s*[-*]\s+\[ \]\s*/, '').trim(), fromLaneMd: true }));
 }
 
@@ -105,7 +115,7 @@ function readTasks(root) {
 function readChecklist(file, onlyMine) {
   let raw = [];
   try { raw = parseNeedsNick(fs.readFileSync(file, 'utf8')); } catch {}
-  if (onlyMine) raw = raw.filter((r) => /\bnick\b/i.test(r.text));
+  if (onlyMine) raw = raw.filter((r) => mentionsMe(r.text));
   return raw.map((r) => ({ ...r, lane: r.lane === 'factory' ? 'general' : r.lane }));
 }
 

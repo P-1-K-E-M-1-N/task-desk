@@ -318,7 +318,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   --frame-anim: frameLava 14s ease-in-out infinite alternate;
 }
 @keyframes frameLava { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 0 -120px, 0 120px, 0 0; } }
-/* Nick's own picture or GIF (a GIF keeps moving). */
+/* Your own picture or GIF (a GIF keeps moving). */
 [data-material=picture] {
   --frame-w: 12px;
   --frame: var(--frame-pic, linear-gradient(135deg, #8a8a8a, #3c3c3c)) center / cover no-repeat, #222;

@@ -29,7 +29,10 @@ function remember(sid) {
   state.save();
 }
 
+const config = require('./config');
 const isProject = (task) => !!task.project && task.project !== 'factory';
+
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function firstMessage(task, plan) {
   const steps = plan && plan.steps ? plan.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : '(plan not ready yet)';
@@ -38,11 +41,11 @@ function firstMessage(task, plan) {
     const where = task.projectFolder ? ` (folder ${task.projectFolder})` : '';
     const edits = task.allowEdits
       ? 'You may change files in the project folder when a step needs it.'
-      : 'Don\'t change files in the project folder unless he explicitly asks: his results go back through the Done notes.';
-    msg = `Sam is working on this task from his project "${task.projectName}"${where}: ${task.text}. The plan he's following: ${steps} Help him finish it. ${edits} As steps get done, tick them in his plan with the Task Desk tools.`;
+      : 'Don\'t change files in the project folder unless they explicitly ask: their results go back through the Done notes.';
+    msg = `${cap(config.who())} is working on this task from the project "${task.projectName}"${where}: ${task.text}. The plan they're following: ${steps} Help them finish it. ${edits} As steps get done, tick them in the plan with the Task Desk tools.`;
   } else {
-    const lane = task.lane === 'factory' ? 'factory-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
-    msg = `Sam is working on this task from NEEDS_NICK.md, ${lane}: ${task.text}. The plan he's following: ${steps} Help him finish it. Don't edit Workshop files unless he explicitly asks: his results go back through the Done notes. As steps get done, tick them in his plan with the Task Desk tools.`;
+    const lane = task.lane === 'factory' ? 'workspace-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
+    msg = `${cap(config.who())} is working on this task from the ${config.factoryName()} workspace's ops/NEEDS_NICK.md, ${lane}: ${task.text}. The plan they're following: ${steps} Help them finish it. Don't edit ${config.factoryName()} files unless they explicitly ask: their results go back through the Done notes. As steps get done, tick them in the plan with the Task Desk tools.`;
   }
   return msg.replace(/\s+/g, ' ').slice(0, 7000);
 }
@@ -51,12 +54,12 @@ function firstMessage(task, plan) {
 function systemNote(task) {
   const where = isProject(task) ? `project "${task.projectName}"` : `lane ${task.lane}`;
   return [
-    `You are running inside Nick's Task Desk, in the chat window for one task: "${task.title}" (${where}).`,
-    "The taskdesk tools update THIS task's plan, which Nick sees next to this chat:",
-    'get_task shows the numbered steps, which are done, comments, and his notes. Call it when you start or resume, so you know what is already done.',
-    'update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or Nick says he did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).',
-    'add_note appends a line to his "Notes for the factory" (results, replies, dates). Do not repeat what is already there.',
-    'Never press Done/Skip for him; he finishes the task himself.',
+    `You are running inside Task Desk, in the chat window for one task: "${task.title}" (${where}).`,
+    `The taskdesk tools update THIS task's plan, which ${config.who()} sees next to this chat:`,
+    'get_task shows the numbered steps, which are done, comments, and their notes. Call it when you start or resume, so you know what is already done.',
+    `update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or ${config.who()} says they did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).`,
+    'add_note appends a line to the task\'s notes box (results, replies, dates). Do not repeat what is already there.',
+    'Never press Done/Skip for them; they finish the task themselves.',
   ].join(' ');
 }
 
@@ -66,7 +69,7 @@ function withTools(task, args) {
   return ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk', '--append-system-prompt', systemNote(task), ...args];
 }
 
-// Notes for the next AI when Nick switches a task's AI mid-way (taskId -> text).
+// Notes for the next AI when the user switches a task's AI mid-way (taskId -> text).
 const handoffs = new Map();
 
 // Claude Code: resume this task's chat, or fork the folder's newest session.

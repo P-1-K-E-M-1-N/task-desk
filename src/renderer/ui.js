@@ -63,7 +63,7 @@ function laneColor(lane) {
 }
 
 const TYPE_LABEL = { email: 'Email', keywords: 'Keywords', decision: 'Decision', signup: 'Key / signup', review: 'Review', question: 'Question' };
-const laneName = (l) => (l === 'factory' ? 'Factory-wide' : l.replace(/-/g, ' '));
+const laneName = (l) => (l === 'factory' ? 'Workspace-wide' : l.replace(/-/g, ' '));
 
 function fmtMin(m) {
   if (!m) return '';

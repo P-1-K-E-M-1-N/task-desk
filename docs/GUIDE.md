@@ -9,7 +9,7 @@ Everything about using Task Desk day to day. For what it is and how to install i
 2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
 3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
 4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
-5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes land in the factory's `ops/FROM_NICK.md`.
+5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes go where the project says (box 4 of its form).
 
 ## One desk for all your projects
 
@@ -22,12 +22,12 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
 
 **Adding a project.** Click **Add a project…**. The form has eight numbered boxes, and these steps use the same numbers. Only 1 is required.
 1. **Name:** what the project is called in the switcher.
-2. **Folder:** where the project lives. Press **Choose…**. Task Desk then fills in 1 and 3 for you when it can (it looks for TODO.md, TASKS.md, NEEDS_NICK.md and similar).
+2. **Folder:** where the project lives. Press **Choose…**. Task Desk then fills in 1 and 3 for you when it can (it looks for TODO.md, TASKS.md, CHECKLIST.md and similar).
 3. **Where its tasks come from:**
    - **A checklist file:** every `- [ ] something` line in that file becomes a task, and `## Headings` become groups. Ticked `- [x]` lines are skipped. The form shows how many tasks it found right away. Tick **Only show lines that mention me** for a shared file.
    - **Only tasks I add here.**
    - Either way, a box for typing tasks appears at the top of the project ("Add a task to…"). Press Enter and Claude drafts a plan for it. Those tasks show under "My list".
-4. **When I press Done, my notes go to:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (FROM_NICK.md by default) so that project's agents can read what you did.
+4. **When I press Done, my notes go to:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (TASK_RESULTS.md by default) so that project's agents can read what you did.
 5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
 6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
 7. **Color:** used for the project's dot.
@@ -41,10 +41,12 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
 **Safety rules for projects:**
 - Task Desk only reads a project's checklist file. It never edits it.
 - The only file it writes in a project folder is the results file you chose. The results file has to be inside that folder.
-- The Workshop stays read-only, apart from its own FROM_NICK.md. A project pointing at a factory folder can only keep its notes in Task Desk.
+- A connected lanes workspace stays read-only, apart from its own results file. A project pointing at a workspace folder can only keep its notes in Task Desk.
 - If a project's folder isn't on this computer, the box says so and offers **Fix the folder**.
 
-Every project task gets everything the Workshop has: a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next.
+Every task gets a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next.
+
+**Your name.** On a new desk, Task Desk asks what to call you, plus an optional line about you (say, "a designer who doesn't write code"). The AI uses both, and "Only show lines that mention me" (box 3) looks for your name. Change them any time with **Your name…** in the ⋯ menu.
 
 ## Use it on more than one computer (OneDrive)
 
@@ -111,12 +113,12 @@ The size is remembered on this computer. It isn't synced through OneDrive, becau
 
 ## What it does, in plain language
 
-**The task box** reads the Workshop's `ops\NEEDS_NICK.md` every 60 seconds (and immediately when the file changes). The factory folder is `livePath` in `settings.json`. It also picks up unchecked `- [ ]` lines that mention "Nick" (the name is fixed in the code) in any `lanes/*/LANE.md`.
+**The task box** reads each project's checklist every 60 seconds (and immediately when the file changes).
 - **Order:** bold items first, then quickest first. "Optional" and "no action needed" items sit at the bottom with a dashed outline.
 - **Card details:** a red-orange stripe marks urgent items, the lightning bolt marks quick wins (10 minutes or less), and a green ring shows how many steps you've ticked.
 - **Badge:** the number on the tray icon is your open-task count.
 
-**Plans** are written by Claude Code itself. When a new task shows up, the app quietly runs `claude -p` in the background, in that lane's folder.
+**Plans** are written by the task's AI itself (Claude Code by default). When a new task shows up, the app quietly runs it in the background (`claude -p`), in that project's folder.
 - **Read-only:** the planner can only read files. It can't write, run commands or browse the web.
 - **What it returns:** a short summary, the task type, a time estimate and 3-7 steps with buttons attached.
 - **Caching:** plans are saved in `data\plans\` and only redone if the task's wording changes. You can also press **Regenerate**.
@@ -124,24 +126,24 @@ The size is remembered on this computer. It isn't synced through OneDrive, becau
 - **Cost:** each plan uses some of your normal Claude plan usage. There are no API keys or extra bills.
 
 **The chat** is the real `claude` program running inside the window (the same as in your terminal), styled to match. It uses your existing Claude Code login.
-- **First open:** the app makes a copy ("fork") of the factory's most recent Claude Code session, so the chat starts out knowing everything the factory knows. Because it's a copy, it never adds messages to the factory's own running session.
+- **First open:** the app makes a copy ("fork") of the project folder's most recent Claude Code session, so the chat starts out knowing what your other Claude Code work in that folder knows. Because it's a copy, it never adds messages to that session.
 - **Closing and reopening a task** brings back that task's own chat.
-- **Fallbacks:** if there's no factory session to copy, it tries `--continue`, then starts a fresh chat.
+- **Fallbacks:** if there's no session to copy, it tries `--continue`, then starts a fresh chat.
 - **Clear** sends `/clear`: same window, empty conversation.
-- **Fresh chat** closes the current chat and starts a brand-new one for this task, without the factory history. Use it when you want a clean slate for the next thing.
+- **Fresh chat** closes the current chat and starts a brand-new one for this task, without the folder's history. Use it when you want a clean slate for the next thing.
 - **Reset all chats** (in the ⋯ menu) does the same for every task. Old conversations are never deleted. You can still find them with `/resume` in Claude Code.
-- **Permissions:** the chat uses your normal Claude Code permission settings. The factory's session runs in auto mode, and a forked chat inherits that, so every task brief tells Claude not to edit Workshop files unless you ask. Press Shift+Tab inside the chat to change the mode.
+- **Permissions:** the chat uses your normal Claude Code permission settings, and a forked chat inherits the mode of the session it copied. So unless the project allows file changes (box 5), every task brief tells Claude not to edit the project's files unless you ask. Press Shift+Tab inside the chat to change the mode.
 
 **The chat keeps your plan up to date.** Each task's chat has three Task Desk tools, and they only work on that one task:
 - **Read the plan:** see the steps, which are ticked, any comments, and your notes. Claude checks this when it starts or resumes, so it knows what's already done.
 - **Update a step:** tick it done (or un-tick it) and leave a short comment under it, marked "Claude", such as "Form sent 10/24, ticket #123".
-- **Add to your notes:** append a line to "Notes for the factory". It never replaces what you wrote.
+- **Add to your notes:** append a line to the task's notes box. It never replaces what you wrote.
 
-Claude does this as soon as a step is finished or you tell it you did one ("I sent the form"). You'll see the step tick itself, a short highlight, and a small pop-up. Claude never presses Done or Skip; you still finish the task yourself. Step comments go to FROM_NICK.md with your notes when you press Done.
+Claude does this as soon as a step is finished or you tell it you did one ("I sent the form"). You'll see the step tick itself, a short highlight, and a small pop-up. Claude never presses Done or Skip; you still finish the task yourself. Step comments go with your notes when you press Done.
 - **How it works:** the app listens on your own computer only (127.0.0.1), with a secret code that changes every time the app starts. Each chat is told which task it belongs to, so it can't change any other task.
 - **Older chats** get the tools too, the next time they're opened.
 
-**Handing results back.** Pressing Done or Skip adds an entry to `ops\FROM_NICK.md`: date, lane, task, Done/Skipped, your notes, everything you pasted or chose, and how many steps you ticked. That is the **only** factory file the app ever writes. Paste the message in `HANDOFF.md` into your Workshop session once, so the factory reads FROM_NICK.md on every daily tick.
+**Handing results back.** Pressing Done or Skip adds an entry to the project's results file (if it has one): date, section, task, Done/Skipped, your notes, everything you pasted or chose, and how many steps you ticked. Tell the project's agents to read that file at the start of each session.
 
 **API keys.** If a plan has a "Save key to .env" step, the key goes only into the `.env` file the task names, and the app asks you first. It's never saved in app data, logs or git.
 
@@ -158,18 +160,10 @@ Task chats and plans run on Claude Code by default. They can also run on **OpenA
   - **Scope:** the switch is for that one task only.
 - **Not installed yet?** The chat panel says so and shows the two commands to run (install, then sign in). For example, for OpenAI: `npm install -g @openai/codex`, then `codex login`. Task Desk never installs anything or signs in for you.
 - **Differences from Claude:**
-  - **Fresh start:** only Claude starts out with a copy of the factory's latest session. The others start fresh with the task brief.
+  - **Fresh start:** only Claude starts out with a copy of the folder's latest session. The others start fresh with the task brief.
   - **Codex** works read-only unless the project allows file changes (box 5). Even then it asks before anything else.
   - **Gemini** asks before every file change.
   - **The plan tools** (tick a step, comment, add a note) work with all three.
-
-## Test mode vs live
-
-The ⋯ menu (or right-click the tray icon) has **Workshop: test copies** and **Workshop: live**.
-- Test mode reads copies in `test-fixtures\`, so you can click anything safely, including Done.
-- Each mode keeps its own memory: `data\state.test.json` for test, `data\state.json` for live.
-- The switch only affects the Workshop. Your other projects always read their own folders.
-- A fresh install starts in test mode.
 
 ## Updates (every day at 7 AM)
 
@@ -190,7 +184,7 @@ Task Desk keeps itself up to date with the GitHub repo it was cloned from. This 
 
 The task box has its own button on the taskbar while it's showing.
 - **To pin it:** right-click that button and choose **Pin to taskbar**.
-- **Or from the Start menu:** open it, type **Task Desk**, right-click **Nick's Task Desk**, and choose **Pin to taskbar**.
+- **Or from the Start menu:** open it, type **Task Desk**, right-click it, and choose **Pin to taskbar**.
 - **Using the pin:** one click starts Task Desk if it isn't running, or brings the box back if it's hidden.
 - **The X button** minimizes the box to its taskbar button, so it stays there and one click brings the box back.
 - **Hiding the button:** untick **Show in the taskbar** in the ⋯ menu. The X then hides the box to the tray (the small icons by the clock) instead. A pinned icon stays put either way.
@@ -200,19 +194,19 @@ The task box has its own button on the taskbar while it's showing.
 
 On first run the app put a shortcut on your desktop and one in your Startup folder, so it starts quietly in the tray when you log in. It also keeps one in the Start menu.
 
-**To turn auto-start off:** open the ⋯ menu (or right-click the tray icon) and untick **Start with Windows**. Or press Win+R, type `shell:startup`, and delete "Nick's Task Desk".
+**To turn auto-start off:** open the ⋯ menu (or right-click the tray icon) and untick **Start with Windows**. Or press Win+R, type `shell:startup`, and delete "Task Desk".
 
 ## Where things live
 
 | What | Where |
 |---|---|
 | The app | the folder you cloned |
-| Workshop ticks, notes, snoozes, chat links (live) | `data\state.json` |
-| Other projects' ticks, notes, added tasks, kept results | `data\projects\<id>\` |
+| Projects' ticks, notes, added tasks, kept results | `data\projects\<id>\` |
+| A lanes workspace's ticks and notes (if you connect one) | `data\state.json` (`state.test.json` for its test copy) |
 | Cached plans | `data\plans\live\`, `data\plans\test\`, `data\plans\projects\` |
 | Frame pictures you chose | `data\look\` |
-| Settings (projects, mode, paths, hotkey, look) | `data\settings.json` |
+| Settings (your name, projects, AI, hotkey, look) | `data\settings.json` |
 | This computer only (box position and size, size lock, auto-start, where the data is) | `data\machine.json` |
-| Test copies of the factory files | `test-fixtures\` |
+| A sample lanes workspace (for the tests) | `test-fixtures\` |
 
 If you moved your data to OneDrive, everything except `machine.json` lives in `OneDrive\Task Desk` instead. **Open app data folder** in the ⋯ menu always opens the right place. `data\` is not committed to git.

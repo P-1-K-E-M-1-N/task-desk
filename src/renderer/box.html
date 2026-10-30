@@ -154,6 +154,14 @@
   .unlocked .grip { display: block; pointer-events: auto; }
   .unlocked .panel { box-shadow: 0 0 0 2px color-mix(in srgb, var(--clay) 45%, transparent); }
   .bar-mode .corner { display: none; }
+  .mecard { display: flex; flex-direction: column; gap: 7px; margin: 0 12px 10px; padding: 11px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-2); flex: none; font-size: 12px; }
+  .mecard .hint { color: var(--ink-3); font-size: 11px; line-height: 1.35; }
+  .mecard .box { height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink); font: inherit; outline: none; }
+  .mecard .box:focus { border-color: var(--clay); }
+  .mecard .row { display: flex; justify-content: flex-end; gap: 6px; }
+  .bar-mode .mecard { display: none; }
+  .empty.welcome { gap: 8px; }
+  .empty.welcome .btn { margin-top: 6px; }
   .warnline button { border: 0; background: none; padding: 0; color: var(--clay); font-weight: 650; cursor: pointer; text-decoration: underline; }
 </style>
 </head>

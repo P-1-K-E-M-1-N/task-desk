@@ -14,7 +14,7 @@ $('#switch').onclick = (e) => { e.stopPropagation(); if (data && data.collapsed)
 const many = () => data && data.projects.length > 1;
 const viewName = () => {
   if (!data) return 'Task Desk';
-  if (data.view === 'all') return many() ? 'All projects' : 'Workshop';
+  if (data.view === 'all') return many() ? 'All projects' : (data.projects[0] || {}).name || 'Task Desk';
   return (data.projects.find((p) => p.id === data.view) || {}).name || 'Task Desk';
 };
 const userProject = () => data && data.view !== 'all' && data.view !== 'factory' ? data.projects.find((p) => p.id === data.view) : null;
@@ -69,7 +69,8 @@ $('#collapse').onclick = () => desk.collapse(!data.collapsed);
 
 function greeting() {
   const hr = new Date().getHours();
-  return hr < 5 ? 'Late night, Nick' : hr < 12 ? 'Good morning, Nick' : hr < 17 ? 'Good afternoon, Nick' : 'Good evening, Nick';
+  const name = data && data.me && data.me.name ? `, ${data.me.name}` : '';
+  return (hr < 5 ? 'Late night' : hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + name;
 }
 
 function ring(done, total) {
@@ -86,7 +87,7 @@ function render() {
   $('#lockbtn').innerHTML = icon(data.locked ? 'lock' : 'unlock');
   $('#lockbtn').title = data.locked ? 'Size is locked. Click to unlock and stretch the box.' : 'Size is unlocked. Drag the corner to stretch the box, or click to lock it.';
   $('#collapse').innerHTML = icon(data.collapsed ? 'chevDown' : 'chevUp');
-  $('#mode').hidden = data.mode !== 'test';
+  $('#mode').hidden = data.mode !== 'test' || !data.factory; // test mode is the workspace's sample copy
   $('#hello').textContent = greeting();
   $('#count').textContent = `${counts.open} task${counts.open === 1 ? '' : 's'}`;
   $('#mins').textContent = counts.open ? `· ~${fmtMin(counts.minutes)}` : '';
@@ -117,6 +118,7 @@ function render() {
   for (const t of tasks) groups[keyOf(t)] = (groups[keyOf(t)] || 0) + 1;
   if (lane !== 'all' && !groups[lane]) lane = 'all';
   const chips = $('#chips');
+  chips.hidden = !data.projects.length; // a new desk has nothing to filter yet
   const order = byProject
     ? data.projects.map((p) => p.id).filter((id) => groups[id])
     : Object.keys(groups).sort((a, b) => (a === 'factory') - (b === 'factory') || a.localeCompare(b));
@@ -130,7 +132,14 @@ function render() {
 
   const shown = tasks.filter((t) => lane === 'all' || keyOf(t) === lane);
   const list = $('#list');
-  if (!shown.length) {
+  if (!data.projects.length) {
+    // A new desk: nothing to read yet.
+    list.replaceChildren(h('div', { class: 'empty welcome' },
+      h('div', { class: 'tile', html: icon('sparkle') }),
+      h('b', {}, 'Welcome to Task Desk'),
+      'Add a project: a folder with a to-do list (any - [ ] checklist), or just a list you type here. Every task gets a plan and an AI chat.',
+      h('button', { class: 'btn primary', onclick: () => desk.editProject(null), html: `${icon('plus')}<span>Add your first project</span>` })));
+  } else if (!shown.length) {
     const hint = up ? (up.kind === 'file' ? 'Nothing open in its checklist. Type a task above to add one.' : 'Type a task above to add one.') : 'Nothing needs you right now.';
     list.replaceChildren(h('div', { class: 'empty', html: `<div class="tile">${icon('check')}</div><b>All clear</b>${hint}` }));
   } else {
@@ -142,6 +151,7 @@ function render() {
   }
   drawBadge(data.totalOpen);
   drawAIPick();
+  if (data.me && !data.me.asked && !render.askedOnce) { render.askedOnce = true; askName(); }
 }
 
 function chipEl(key, label, n, color, plain) {
@@ -219,6 +229,31 @@ function tickUpdated() {
   $('#updated').textContent = s < 10 ? 'Updated just now' : s < 60 ? `Updated ${s}s ago` : `Updated ${Math.round(s / 60)} min ago`;
 }
 setInterval(tickUpdated, 5000);
+
+// ---------- your name ----------
+// Asked once on a new desk (and from "Your name…" in the menu). The AI calls
+// you by it, and "only lines that mention me" looks for it. Skipping is fine.
+function askName() {
+  if ($('#me')) return;
+  const cur = (data && data.me) || {};
+  const name = h('input', { class: 'box', id: 'meName', maxlength: 40, placeholder: 'Your first name', value: cur.name || '' });
+  const about = h('input', { class: 'box', id: 'meAbout', maxlength: 200, placeholder: 'Optional: a line about you, e.g. "a solo builder who doesn\'t write code"', value: cur.about || '' });
+  const done = async (save) => {
+    const r = await desk.setMe(save ? { name: name.value, about: about.value } : { name: cur.name || '', about: cur.about || '' });
+    $('#me').remove();
+    if (save) toast(r.name ? `Hi, ${r.name}.` : 'Saved.');
+  };
+  const card = h('form', { class: 'mecard', id: 'me', onsubmit: (e) => { e.preventDefault(); done(true); } },
+    h('b', {}, 'What should Task Desk call you?'),
+    h('span', { class: 'hint' }, 'The AI uses it, and it lets a project show only the lines that mention you.'),
+    name, about,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn', type: 'button', onclick: () => done(false) }, cur.asked ? 'Cancel' : 'Skip'),
+      h('button', { class: 'btn primary', type: 'submit' }, 'Save')));
+  $('#warn').after(card);
+  setTimeout(() => name.focus(), 50);
+}
+desk.onAskMe(() => { if (data && data.collapsed) desk.collapse(false); askName(); });
 
 // ---------- default AI ----------
 // The footer pill shows the AI new task chats start with; click it to change.

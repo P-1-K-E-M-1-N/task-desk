@@ -1,36 +1,37 @@
 // The only factory file this app ever writes: ops/FROM_NICK.md (append-only).
 // Other projects get the same kind of entry in the results file they chose.
-// Plus the optional .env write for signup keys, which always asks Nick first.
+// Plus the optional .env write for signup keys, which always asks first.
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 
-const HEADER = '# From Nick\n\n_Appended by Nick\'s Task Desk when Nick finishes or skips a task. Newest at the bottom. The factory reads this on every daily tick._\n\n';
-const projectHeader = (name) => `# From Nick\n\n_Appended by Nick's Task Desk when Nick finishes or skips a task in "${name}". Newest at the bottom._\n\n`;
+const from = () => (config.userName() ? `From ${config.userName()}` : 'Task Desk results');
+const header = () => `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task. Newest at the bottom. The workspace's agents read this._\n\n`;
+const projectHeader = (name) => `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task in "${name}". Newest at the bottom._\n\n`;
 
-// Safety net: inside the Workshop, only ops/FROM_NICK.md may ever be written.
+// Safety net: inside the lanes workspace, only ops/FROM_NICK.md may ever be written.
 function guard(file) {
+  if (!config.inFactory(file)) return;
   const rel = path.relative(path.resolve(config.get().livePath), path.resolve(file));
-  const inFactory = !rel.startsWith('..') && !path.isAbsolute(rel);
-  if (inFactory && rel.toLowerCase() !== path.join('ops', 'from_nick.md')) {
-    throw new Error('The Workshop folder is read-only (only ops\\FROM_NICK.md may be added to).');
+  if (rel.toLowerCase() !== path.join('ops', 'from_nick.md')) {
+    throw new Error(`The ${config.factoryName()} folder is read-only (only ops\\FROM_NICK.md may be added to).`);
   }
 }
 
 function appendFromNick(root, entry) {
-  return appendResults(path.join(root, 'ops', 'FROM_NICK.md'), entry, HEADER);
+  return appendResults(path.join(root, 'ops', 'FROM_NICK.md'), entry, header());
 }
 
-function appendResults(file, { lane, text, status, notes, results, ticked }, header = HEADER) {
+function appendResults(file, { lane, text, status, notes, results, ticked }, head = header()) {
   guard(file);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  if (!fs.existsSync(file)) fs.writeFileSync(file, header);
+  if (!fs.existsSync(file)) fs.writeFileSync(file, head);
   const now = new Date();
   const stamp = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
   let entry = `## ${stamp} · ${lane} · ${status.toUpperCase()}\n\n`;
   entry += `**Task:** ${text}\n\n`;
   if (ticked) entry += `**Steps ticked:** ${ticked}\n\n`;
-  entry += `**Nick's notes:** ${notes && notes.trim() ? notes.trim() : '(none)'}\n\n`;
+  entry += `**${config.userName() ? `${config.userName()}'s notes` : 'Notes'}:** ${notes && notes.trim() ? notes.trim() : '(none)'}\n\n`;
   if (results && results.length) {
     entry += '**Pasted results:**\n\n';
     for (const r of results) entry += `- ${r.label}:\n\n${indent(r.value.trim())}\n\n`;

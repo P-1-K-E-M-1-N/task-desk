@@ -1,7 +1,7 @@
 {
   "name": "task-desk",
   "version": "1.0.0",
-  "description": "A floating task box for the Workshop with a plan and a Claude Code chat for every task.",
+  "description": "A floating Windows task box that turns your projects' to-do lists into step-by-step plans with an AI chat for every task.",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
@@ -21,6 +21,6 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0"
   },
-  "productName": "Nick's Task Desk",
+  "productName": "Task Desk",
   "private": true
 }
