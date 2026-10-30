@@ -1,4 +1,18 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, shell, clipboard, dialog, nativeImage, nativeTheme, Notification, screen } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  ipcMain,
+  globalShortcut,
+  shell,
+  clipboard,
+  dialog,
+  nativeImage,
+  nativeTheme,
+  Notification,
+  screen,
+} = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -36,12 +50,18 @@ const BOX_W = 340;
 const BOX_H = 520;
 const BAR_H = 56;
 // How wide the box can be stretched once it's unlocked.
-const BOX_MIN_W = 300, BOX_MAX_W = 1000, BOX_MIN_H = 320;
+const BOX_MIN_W = 300,
+  BOX_MAX_W = 1000,
+  BOX_MIN_H = 320;
 const ZOOM = { s: 0.9, m: 1, l: 1.1, xl: 1.22 };
 // Window background behind the page (shown while it loads), per theme.
 const THEME_BG = {
-  clay: ['#f6f1e9', '#1c1a17'], sage: ['#eef1ea', '#171b18'], ocean: ['#edf1f5', '#141820'],
-  plum: ['#f4eff3', '#1b161b'], honey: ['#f8f2e2', '#1b1812'], graphite: ['#f2f2f1', '#141414'],
+  clay: ['#f6f1e9', '#1c1a17'],
+  sage: ['#eef1ea', '#171b18'],
+  ocean: ['#edf1f5', '#141820'],
+  plum: ['#f4eff3', '#1b161b'],
+  honey: ['#f8f2e2', '#1b1812'],
+  graphite: ['#f2f2f1', '#141414'],
 };
 
 let box = null;
@@ -65,7 +85,8 @@ function decorate(t) {
     minutes: (plan && plan.est_minutes) || t.minutes,
     planStatus: planner.status(t),
     planOk: c ? c.ok : null,
-    steps, ticked,
+    steps,
+    ticked,
     status: st.status,
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
@@ -86,7 +107,9 @@ function currentView() {
 function payload() {
   const view = currentView();
   const everything = tasks.map(decorate);
-  const openAll = everything.filter((t) => state.isOpen(t.id)).sort((a, b) => tier(a) - tier(b) || a.minutes - b.minutes || (a.date || '').localeCompare(b.date || ''));
+  const openAll = everything
+    .filter((t) => state.isOpen(t.id))
+    .sort((a, b) => tier(a) - tier(b) || a.minutes - b.minutes || (a.date || '').localeCompare(b.date || ''));
   const inView = (t) => view === 'all' || t.project === view;
   const all = everything.filter(inView);
   const open = openAll.filter(inView);
@@ -153,12 +176,24 @@ function scan(key, list, out) {
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, config.get().pollSeconds * 1000);
-  for (const w of watchers) try { w.close(); } catch {}
+  for (const w of watchers)
+    try {
+      w.close();
+    } catch {}
   watchers = [];
   // Re-read a moment after a task list file changes.
   let t = null;
   const watch = (dir, test) => {
-    try { watchers.push(fs.watch(dir, (ev, f) => { if (f && test(f)) { clearTimeout(t); t = setTimeout(refresh, 800); } })); } catch {}
+    try {
+      watchers.push(
+        fs.watch(dir, (ev, f) => {
+          if (f && test(f)) {
+            clearTimeout(t);
+            t = setTimeout(refresh, 800);
+          }
+        })
+      );
+    } catch {}
   };
   watch(path.join(config.root(), 'ops'), (f) => /NEEDS_NICK/i.test(f));
   for (const p of projects.list()) {
@@ -189,11 +224,18 @@ function windowBg() {
 function scopeOf(w) {
   if (!w) return null;
   if (w === box) return currentView();
-  for (const [id, tw] of taskWins) if (tw === w) { const t = findTask(id); return t ? t.project : null; }
+  for (const [id, tw] of taskWins)
+    if (tw === w) {
+      const t = findTask(id);
+      return t ? t.project : null;
+    }
   for (const [id, pw] of projectWins) if (pw === w) return id === 'new' ? null : id;
   return null;
 }
-const ownLookOf = (scope) => { const p = scope && projects.get(scope); return p && p.ownLook ? p : null; };
+const ownLookOf = (scope) => {
+  const p = scope && projects.get(scope);
+  return p && p.ownLook ? p : null;
+};
 
 // The look as a window sees it: the desk's look, with the project's own look on
 // top when it has one. A picture frame also gets the picture's file address.
@@ -214,7 +256,8 @@ function lookOut(scope) {
 // (so it moves with OneDrive too); the old copy is removed.
 async function pickFramePicture(scope) {
   const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() || box, {
-    title: 'Choose a picture or GIF for the frame', properties: ['openFile'],
+    title: 'Choose a picture or GIF for the frame',
+    properties: ['openFile'],
     filters: [{ name: 'Pictures and GIFs', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp'] }],
   });
   if (r.canceled || !r.filePaths[0]) return null;
@@ -230,14 +273,19 @@ async function pickFramePicture(scope) {
   else config.set({ look: { ...config.get().look, material: 'picture', picture: name } });
   // Remove the old copy unless the desk or another project still uses it.
   const used = [config.get().look.picture, ...projects.list().map((p) => p.look && p.look.picture)];
-  if (old && old !== name && !used.includes(old)) { try { fs.unlinkSync(path.join(dir, old)); } catch {} }
+  if (old && old !== name && !used.includes(old)) {
+    try {
+      fs.unlinkSync(path.join(dir, old));
+    } catch {}
+  }
   applyLook();
   return { ok: true, look: lookOut(scope) };
 }
 
 // "Day & night" (appearance 'cycle') is light from 7:00 to 19:00 and dark the rest;
 // the windows follow the clock (see ui.js), and so does Windows' own theming of them.
-const DAY_FROM = 7, DAY_TO = 19;
+const DAY_FROM = 7,
+  DAY_TO = 19;
 const isNight = (d = new Date()) => d.getHours() < DAY_FROM || d.getHours() >= DAY_TO;
 const themeSource = (a) => (a === 'cycle' ? (isNight() ? 'dark' : 'light') : a);
 setInterval(() => {
@@ -263,26 +311,48 @@ function createBox() {
   const b = s.boxBounds || { x: wa.x + wa.width - BOX_W - 24, y: wa.y + 64, width: BOX_W, height: BOX_H };
   const width = Math.max(BOX_MIN_W, Math.min(BOX_MAX_W, b.width || BOX_W));
   box = new BrowserWindow({
-    x: b.x, y: b.y, width, height: s.collapsed ? BAR_H : b.height,
-    minWidth: BOX_MIN_W, minHeight: BAR_H, maxWidth: BOX_MAX_W,
+    x: b.x,
+    y: b.y,
+    width,
+    height: s.collapsed ? BAR_H : b.height,
+    minWidth: BOX_MIN_W,
+    minHeight: BAR_H,
+    maxWidth: BOX_MAX_W,
     // Locked (the default) keeps the size fixed; the lock in the bottom-right corner frees it.
     // It has a taskbar button (pin it to start the desk with one click) unless that's turned off in the ⋯ menu.
-    frame: false, transparent: true, resizable: s.boxLocked === false && !s.collapsed, alwaysOnTop: true, skipTaskbar: s.showInTaskbar === false,
-    show: false, icon: ICON_PNG, backgroundColor: '#00000000', hasShadow: true,
+    frame: false,
+    transparent: true,
+    resizable: s.boxLocked === false && !s.collapsed,
+    alwaysOnTop: true,
+    skipTaskbar: s.showInTaskbar === false,
+    show: false,
+    icon: ICON_PNG,
+    backgroundColor: '#00000000',
+    hasShadow: true,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
   box.setAlwaysOnTop(true, 'floating');
   // "Pin to taskbar" on the box's button pins Task Desk itself (not plain Electron).
   if (process.platform === 'win32') {
     box.setAppDetails({
-      appId: APP_ID, appIconPath: ICON_ICO, appIconIndex: 0,
-      relaunchCommand: `"${process.execPath}" "${config.APP_ROOT}"`, relaunchDisplayName: 'Task Desk',
+      appId: APP_ID,
+      appIconPath: ICON_ICO,
+      appIconIndex: 0,
+      relaunchCommand: `"${process.execPath}" "${config.APP_ROOT}"`,
+      relaunchDisplayName: 'Task Desk',
     });
   }
   box.loadFile(path.join(RENDERER, 'box.html'));
   box.webContents.on('did-finish-load', () => box.webContents.setZoomFactor(ZOOM[s.look.size] || 1));
-  box.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) box.show(); });
-  box.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); tuckAway(); } });
+  box.once('ready-to-show', () => {
+    if (!process.argv.includes('--hidden')) box.show();
+  });
+  box.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault();
+      tuckAway();
+    }
+  });
   const saveBounds = () => {
     if (!box || box.isDestroyed()) return;
     const cur = box.getBounds();
@@ -311,7 +381,11 @@ function tuckAway() {
 function toggleBox() {
   if (!box) return;
   if (box.isVisible() && box.isFocused() && !box.isMinimized()) tuckAway();
-  else { if (box.isMinimized()) box.restore(); box.show(); box.focus(); }
+  else {
+    if (box.isMinimized()) box.restore();
+    box.show();
+    box.focus();
+  }
 }
 
 function setCollapsed(c) {
@@ -327,8 +401,13 @@ function openTask(id, bounds) {
   const t = findTask(id);
   if (!t) return;
   const existing = taskWins.get(id);
-  if (existing && !existing.isDestroyed()) { existing.show(); existing.focus(); return; }
-  const W = 1240, H = 800;
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    return;
+  }
+  const W = 1240,
+    H = 800;
   const bb = box ? box.getBounds() : { x: 0, y: 0, width: 0 };
   const wa = screen.getDisplayMatching(bb).workArea;
   let x = bb.x - W - 16;
@@ -336,16 +415,32 @@ function openTask(id, bounds) {
   if (x + W > wa.x + wa.width) x = Math.max(wa.x, Math.round(wa.x + (wa.width - W) / 2));
   const y = Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H));
   const w = new BrowserWindow({
-    x: x + taskWins.size * 24, y: y + taskWins.size * 24, width: Math.min(W, wa.width), height: Math.min(H, wa.height),
-    minWidth: 880, minHeight: 560, frame: false, show: false, icon: ICON_PNG, backgroundColor: windowBg(),
+    x: x + taskWins.size * 24,
+    y: y + taskWins.size * 24,
+    width: Math.min(W, wa.width),
+    height: Math.min(H, wa.height),
+    minWidth: 880,
+    minHeight: 560,
+    frame: false,
+    show: false,
+    icon: ICON_PNG,
+    backgroundColor: windowBg(),
     title: t.title,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
-  if (bounds) { const { x, y, width, height } = bounds; w.setBounds({ x, y, width, height }); if (bounds.maximized) w.maximize(); }
+  if (bounds) {
+    const { x, y, width, height } = bounds;
+    w.setBounds({ x, y, width, height });
+    if (bounds.maximized) w.maximize();
+  }
   w.loadFile(path.join(RENDERER, 'task.html'), { query: { id } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
-  w.on('closed', () => { chat.stop(id); taskWins.delete(id); broadcast(); });
+  w.on('closed', () => {
+    chat.stop(id);
+    taskWins.delete(id);
+    broadcast();
+  });
   taskWins.set(id, w);
 }
 
@@ -354,15 +449,29 @@ const projectWins = new Map();
 function openProjectEditor(id) {
   const key = id || 'new';
   const existing = projectWins.get(key);
-  if (existing && !existing.isDestroyed()) { existing.show(); existing.focus(); return; }
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    return;
+  }
   const bb = box ? box.getBounds() : { x: 0, y: 0, width: 0 };
   const wa = screen.getDisplayMatching(bb).workArea;
-  const W = 620, H = Math.min(820, wa.height);
+  const W = 620,
+    H = Math.min(820, wa.height);
   let x = bb.x - W - 16;
   if (x < wa.x) x = Math.max(wa.x, Math.round(wa.x + (wa.width - W) / 2));
   const w = new BrowserWindow({
-    x, y: Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H)), width: W, height: H, minWidth: 520, minHeight: 520,
-    frame: false, show: false, icon: ICON_PNG, backgroundColor: windowBg(), title: id ? 'Edit project' : 'Add a project',
+    x,
+    y: Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H)),
+    width: W,
+    height: H,
+    minWidth: 520,
+    minHeight: 520,
+    frame: false,
+    show: false,
+    icon: ICON_PNG,
+    backgroundColor: windowBg(),
+    title: id ? 'Edit project' : 'Add a project',
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: false },
   });
   w.loadFile(path.join(RENDERER, 'project.html'), { query: { id: id || '' } });
@@ -379,7 +488,9 @@ function setAI(id) {
   const p = ai.PROVIDERS[id];
   if (!ai.locate(p)) {
     dialog.showMessageBox({
-      type: 'info', buttons: ['OK'], message: `${p.app} isn't installed on this computer yet`,
+      type: 'info',
+      buttons: ['OK'],
+      message: `${p.app} isn't installed on this computer yet`,
       detail: `To use ${p.name}, open PowerShell and run:\n\n   ${p.install}\n   ${p.signin}   (${p.signinNote})\n\nThen open a task. Task Desk never signs in or installs anything for you.`,
     });
   }
@@ -403,15 +514,23 @@ const LINK_NAME = 'Task Desk.lnk';
 // Shortcuts this app made under another name (older versions): same program and folder.
 function oldLinks(dir) {
   let names = [];
-  try { names = fs.readdirSync(dir).filter((n) => /\.lnk$/i.test(n) && n !== LINK_NAME); } catch { return []; }
-  return names.map((n) => path.join(dir, n)).filter((f) => {
-    try {
-      const l = shell.readShortcutLink(f);
-      // Ours by its arguments, or a bare "Electron" shortcut carrying our id (Windows
-      // would show its plain Electron icon on the taskbar instead of ours).
-      return l.target === process.execPath && ((l.args || '').includes(config.APP_ROOT) || l.appUserModelId === APP_ID);
-    } catch { return false; }
-  });
+  try {
+    names = fs.readdirSync(dir).filter((n) => /\.lnk$/i.test(n) && n !== LINK_NAME);
+  } catch {
+    return [];
+  }
+  return names
+    .map((n) => path.join(dir, n))
+    .filter((f) => {
+      try {
+        const l = shell.readShortcutLink(f);
+        // Ours by its arguments, or a bare "Electron" shortcut carrying our id (Windows
+        // would show its plain Electron icon on the taskbar instead of ours).
+        return l.target === process.execPath && ((l.args || '').includes(config.APP_ROOT) || l.appUserModelId === APP_ID);
+      } catch {
+        return false;
+      }
+    });
 }
 
 function startupLink() {
@@ -429,14 +548,18 @@ function writeLink(file, hidden) {
     target: process.execPath,
     args: `"${config.APP_ROOT}"${hidden ? ' --hidden' : ''}`,
     cwd: config.APP_ROOT,
-    icon: ICON_ICO, iconIndex: 0,
+    icon: ICON_ICO,
+    iconIndex: 0,
     description: 'Task Desk',
     appUserModelId: APP_ID,
   });
 }
 function setAutostart(on) {
   if (on) writeLink(startupLink(), true);
-  else try { fs.unlinkSync(startupLink()); } catch {}
+  else
+    try {
+      fs.unlinkSync(startupLink());
+    } catch {}
   config.set({ autostart: on });
 }
 function ensureShortcuts() {
@@ -446,22 +569,42 @@ function ensureShortcuts() {
     // the existing shortcuts are rewritten so pins and the taskbar pick it up.
     const LINKS = `${APP_ID}/${LINK_NAME}`;
     const stale = config.get().linksFor !== LINKS;
-    if (stale || !fs.existsSync(startMenuLink())) try { writeLink(startMenuLink(), false); } catch {}
+    if (stale || !fs.existsSync(startMenuLink()))
+      try {
+        writeLink(startMenuLink(), false);
+      } catch {}
     // Stray shortcuts with our id (see oldLinks) are removed every start.
-    for (const f of oldLinks(path.dirname(startMenuLink()))) try { fs.unlinkSync(f); } catch {}
+    for (const f of oldLinks(path.dirname(startMenuLink())))
+      try {
+        fs.unlinkSync(f);
+      } catch {}
     if (stale) {
       // Rename older shortcuts, and rewrite the current ones for the new id and icon.
-      for (const [link, hidden] of [[desktopLink(), false], [startupLink(), true], [startMenuLink(), false]]) {
+      for (const [link, hidden] of [
+        [desktopLink(), false],
+        [startupLink(), true],
+        [startMenuLink(), false],
+      ]) {
         const old = oldLinks(path.dirname(link));
-        for (const f of old) try { fs.unlinkSync(f); } catch {}
-        if (old.length || fs.existsSync(link)) try { writeLink(link, hidden); } catch {}
+        for (const f of old)
+          try {
+            fs.unlinkSync(f);
+          } catch {}
+        if (old.length || fs.existsSync(link))
+          try {
+            writeLink(link, hidden);
+          } catch {}
       }
       config.set({ linksFor: LINKS });
     }
   }
   if (config.get().shortcutsDone) return;
-  try { writeLink(desktopLink(), false); } catch {}
-  try { setAutostart(true); } catch {}
+  try {
+    writeLink(desktopLink(), false);
+  } catch {}
+  try {
+    setAutostart(true);
+  } catch {}
   config.set({ shortcutsDone: true });
 }
 
@@ -469,14 +612,22 @@ function setMode(mode) {
   if (mode === config.get().mode) return;
   if (mode === 'live') {
     const r = dialog.showMessageBoxSync({
-      type: 'question', buttons: ['Switch to live', 'Cancel'], defaultId: 0, cancelId: 1,
+      type: 'question',
+      buttons: ['Switch to live', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
       message: `Switch ${config.factoryName()} to live?`,
       detail: `Tasks will come from ${config.get().livePath}. The app only ever appends to ops\\FROM_NICK.md there.`,
     });
     if (r !== 0) return;
   }
   // Only the workspace's windows close: other projects don't change with the mode.
-  for (const [id, w] of [...taskWins]) if (state.projectOf(id) === 'factory') { chat.stop(id); w.destroy(); taskWins.delete(id); }
+  for (const [id, w] of [...taskWins])
+    if (state.projectOf(id) === 'factory') {
+      chat.stop(id);
+      w.destroy();
+      taskWins.delete(id);
+    }
   config.set({ mode });
   state.use(mode);
   startPolling();
@@ -485,9 +636,12 @@ function setMode(mode) {
 
 function resetAllChats() {
   const r = dialog.showMessageBoxSync({
-    type: 'question', buttons: ['Reset all chats', 'Cancel'], defaultId: 1, cancelId: 1,
+    type: 'question',
+    buttons: ['Reset all chats', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
     message: 'Start every task chat fresh?',
-    detail: 'Open chats close, and each task starts a brand-new chat next time. Old conversations stay in Claude Code\'s history (/resume).',
+    detail: "Open chats close, and each task starts a brand-new chat next time. Old conversations stay in Claude Code's history (/resume).",
   });
   if (r !== 0) return;
   chat.stopAll();
@@ -504,11 +658,19 @@ function resultsFor(view) {
 
 // The optional lanes workspace: pick its folder to turn it on, or turn it off.
 function connectWorkspace() {
-  const pick = dialog.showOpenDialogSync({ title: 'Choose the workspace folder (it has ops\\NEEDS_NICK.md and lanes\\)', properties: ['openDirectory'] });
+  const pick = dialog.showOpenDialogSync({
+    title: 'Choose the workspace folder (it has ops\\NEEDS_NICK.md and lanes\\)',
+    properties: ['openDirectory'],
+  });
   if (!pick) return;
   const dir = pick[0];
   if (!fs.existsSync(path.join(dir, 'ops', 'NEEDS_NICK.md'))) {
-    dialog.showMessageBoxSync({ type: 'warning', buttons: ['OK'], message: 'That folder isn\'t a lanes workspace', detail: `${dir}\n\nA workspace has ops\\NEEDS_NICK.md (and usually lanes\\<name>\\LANE.md). For any other folder, use Add a project.` });
+    dialog.showMessageBoxSync({
+      type: 'warning',
+      buttons: ['OK'],
+      message: "That folder isn't a lanes workspace",
+      detail: `${dir}\n\nA workspace has ops\\NEEDS_NICK.md (and usually lanes\\<name>\\LANE.md). For any other folder, use Add a project.`,
+    });
     return;
   }
   config.set({ factory: true, livePath: dir, mode: 'live' });
@@ -517,7 +679,12 @@ function connectWorkspace() {
   refresh();
 }
 function disconnectWorkspace() {
-  for (const [id, w] of [...taskWins]) if (state.projectOf(id) === 'factory') { chat.stop(id); w.destroy(); taskWins.delete(id); }
+  for (const [id, w] of [...taskWins])
+    if (state.projectOf(id) === 'factory') {
+      chat.stop(id);
+      w.destroy();
+      taskWins.delete(id);
+    }
   config.set({ factory: false, view: currentView() === 'factory' ? 'all' : currentView() });
   refresh();
 }
@@ -526,7 +693,13 @@ function menu() {
   const s = config.get();
   const view = currentView();
   const cur = projects.get(view);
-  const show = (v) => () => { setView(v); if (box) { box.show(); box.focus(); } };
+  const show = (v) => () => {
+    setView(v);
+    if (box) {
+      box.show();
+      box.focus();
+    }
+  };
   return Menu.buildFromTemplate([
     { label: box && box.isVisible() ? 'Hide task box' : 'Show task box', accelerator: 'Ctrl+Alt+T', click: toggleBox },
     { type: 'separator' },
@@ -535,41 +708,96 @@ function menu() {
     { label: 'Add a project…', click: () => openProjectEditor(null) },
     ...(cur ? [{ label: `Edit "${cur.name}"…`, click: () => openProjectEditor(cur.id) }] : []),
     { type: 'separator' },
-    ...(config.factoryOn() ? [
-      { label: `${config.factoryName()}: test copies`, type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
-      { label: `${config.factoryName()}: live`, type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
-      { label: `Disconnect ${config.factoryName()}`, click: disconnectWorkspace },
-    ] : [{ label: 'Connect a lanes workspace…', click: connectWorkspace }]),
+    ...(config.factoryOn()
+      ? [
+          { label: `${config.factoryName()}: test copies`, type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
+          { label: `${config.factoryName()}: live`, type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
+          { label: `Disconnect ${config.factoryName()}`, click: disconnectWorkspace },
+        ]
+      : [{ label: 'Connect a lanes workspace…', click: connectWorkspace }]),
     { type: 'separator' },
     { label: 'Refresh tasks now', click: refresh },
     { label: 'Reset all chats…', click: resetAllChats },
-    { label: 'Show snoozed & done again', click: () => { for (const t of state.allTasks()) if (t.status === 'snoozed') t.status = 'open'; state.save(); broadcast(); } },
-    { label: 'Customize look…', click: () => { box.show(); box.webContents.send('look:open'); } },
+    {
+      label: 'Show snoozed & done again',
+      click: () => {
+        for (const t of state.allTasks()) if (t.status === 'snoozed') t.status = 'open';
+        state.save();
+        broadcast();
+      },
+    },
+    {
+      label: 'Customize look…',
+      click: () => {
+        box.show();
+        box.webContents.send('look:open');
+      },
+    },
     {
       label: 'AI for chats and plans',
       submenu: [
         ...ai.IDS.map((id) => {
           const p = ai.PROVIDERS[id];
-          return { label: `${p.name} (${p.app})${ai.locate(p) ? '' : ' - not installed'}`, type: 'radio', checked: (s.ai || 'claude') === id, click: () => setAI(id) };
+          return {
+            label: `${p.name} (${p.app})${ai.locate(p) ? '' : ' - not installed'}`,
+            type: 'radio',
+            checked: (s.ai || 'claude') === id,
+            click: () => setAI(id),
+          };
         }),
         { type: 'separator' },
         { label: 'A project can use its own: Edit project, box 9', enabled: false },
       ],
     },
-    ...(resultsFor(view) ? [{ label: cur ? `Open "${cur.name}" results` : `Open ${config.factoryName()} results (FROM_NICK.md)`, click: () => shell.openPath(resultsFor(view)) }] : []),
-    { label: 'Your name…', click: () => { box.show(); box.webContents.send('me:ask'); } },
+    ...(resultsFor(view)
+      ? [
+          {
+            label: cur ? `Open "${cur.name}" results` : `Open ${config.factoryName()} results (FROM_NICK.md)`,
+            click: () => shell.openPath(resultsFor(view)),
+          },
+        ]
+      : []),
+    {
+      label: 'Your name…',
+      click: () => {
+        box.show();
+        box.webContents.send('me:ask');
+      },
+    },
     { label: 'Open app data folder', click: () => shell.openPath(config.DATA_DIR) },
     { type: 'separator' },
     config.synced()
       ? { label: 'Move my data back to this computer…', click: moveDataHome }
       : { label: 'Keep my data in OneDrive…', click: moveDataToCloud },
     { label: 'Start with Windows', type: 'checkbox', checked: fs.existsSync(startupLink()), click: (i) => setAutostart(i.checked) },
-    { label: 'Show in the taskbar', type: 'checkbox', checked: config.get().showInTaskbar !== false, click: (i) => { config.set({ showInTaskbar: i.checked }); box.setSkipTaskbar(!i.checked); } },
+    {
+      label: 'Show in the taskbar',
+      type: 'checkbox',
+      checked: config.get().showInTaskbar !== false,
+      click: (i) => {
+        config.set({ showInTaskbar: i.checked });
+        box.setSkipTaskbar(!i.checked);
+      },
+    },
     pendingUpdate
       ? { label: 'Restart to update', click: () => installUpdate(true) }
       : { label: 'Check for updates now', click: () => checkForUpdate(true) },
-    { label: 'Update automatically (daily, 7 AM)', type: 'checkbox', checked: config.get().autoUpdate !== false, click: (i) => { config.set({ autoUpdate: i.checked }); scheduleUpdates(); } },
-    { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } },
+    {
+      label: 'Update automatically (daily, 7 AM)',
+      type: 'checkbox',
+      checked: config.get().autoUpdate !== false,
+      click: (i) => {
+        config.set({ autoUpdate: i.checked });
+        scheduleUpdates();
+      },
+    },
+    {
+      label: 'Quit',
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      },
+    },
   ]);
 }
 
@@ -598,33 +826,59 @@ function oneDriveRoot() {
 // See updater.js. Checks GitHub every day at 7 AM, installs when the desk is idle.
 
 const UPDATE_LOG = path.join(config.LOCAL_DIR, 'update.log');
-let pendingUpdate = null, updateTimer = null, idleTimer = null, installing = false;
+let pendingUpdate = null,
+  updateTimer = null,
+  idleTimer = null,
+  installing = false;
 // Tests run their own copy and never update.
 const autoUpdateOn = () => config.get().autoUpdate !== false && !process.env.TASKDESK_LOCAL_DATA && !process.env.TASKDESK_NO_UPDATE;
-const logUpdate = (msg) => { try { fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`); } catch {} };
-const say = (title, body) => { try { new Notification({ title, body, icon: ICON_PNG }).show(); } catch {} };
+const logUpdate = (msg) => {
+  try {
+    fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`);
+  } catch {}
+};
+const say = (title, body) => {
+  try {
+    new Notification({ title, body, icon: ICON_PNG }).show();
+  } catch {}
+};
 
 async function checkForUpdate(manual) {
   const s = await updater.status(config.APP_ROOT);
   config.set({ lastUpdateCheck: Date.now() });
   const tell = (message, detail = '') => manual && dialog.showMessageBox({ type: 'info', buttons: ['OK'], message, detail });
-  if (!s.ok) { logUpdate(`check: ${s.reason}`); tell('Couldn\'t check for updates', s.reason); return s; }
-  if (!s.behind) { pendingUpdate = null; tell('Task Desk is up to date'); return s; }
+  if (!s.ok) {
+    logUpdate(`check: ${s.reason}`);
+    tell("Couldn't check for updates", s.reason);
+    return s;
+  }
+  if (!s.behind) {
+    pendingUpdate = null;
+    tell('Task Desk is up to date');
+    return s;
+  }
   if (!s.canInstall) {
     logUpdate(`check: ${s.behind} new, not installed (own changes: ${s.dirty}, own commits: ${s.ahead})`);
-    tell('There\'s a newer version, but this copy wasn\'t updated',
-      'This copy of Task Desk has its own changes to the app (someone is working on the code here), so updating it automatically could lose them. Save or undo those changes, then check again.');
+    tell(
+      "There's a newer version, but this copy wasn't updated",
+      'This copy of Task Desk has its own changes to the app (someone is working on the code here), so updating it automatically could lose them. Save or undo those changes, then check again.'
+    );
     return s;
   }
   pendingUpdate = s;
   logUpdate(`check: ${s.behind} new: ${s.changes.join(' | ')}`);
   if (manual) {
     const r = await dialog.showMessageBox({
-      type: 'info', buttons: ['Install and restart', 'Later'], defaultId: 0, cancelId: 1,
+      type: 'info',
+      buttons: ['Install and restart', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
       message: 'A new version of Task Desk is ready',
-      detail: `${s.changes.map((c) => '• ' + c).join('\n')}\n\n${s.kind === 'refresh' || s.kind === 'none'
-        ? 'Your windows refresh for a moment; your chats keep running.'
-        : 'The desk restarts for a few seconds and reopens your task windows. Each chat picks up where it left off, but a reply Claude is writing right now would be cut off.'}`,
+      detail: `${s.changes.map((c) => '• ' + c).join('\n')}\n\n${
+        s.kind === 'refresh' || s.kind === 'none'
+          ? 'Your windows refresh for a moment; your chats keep running.'
+          : 'The desk restarts for a few seconds and reopens your task windows. Each chat picks up where it left off, but a reply Claude is writing right now would be cut off.'
+      }`,
     });
     if (r.response === 0) installUpdate(true);
     else installWhenIdle();
@@ -640,7 +894,11 @@ async function checkForUpdate(manual) {
 // A refresh-only update keeps the chats running, so it doesn't wait for them.
 const QUIET_MS = 2 * 60 * 1000;
 let lastInput = 0;
-app.on('browser-window-created', (e, w) => w.webContents.on('before-input-event', () => { lastInput = Date.now(); }));
+app.on('browser-window-created', (e, w) =>
+  w.webContents.on('before-input-event', () => {
+    lastInput = Date.now();
+  })
+);
 function quietNow(kind) {
   if ([...projectWins.values()].some((w) => w && !w.isDestroyed())) return false;
   if (Date.now() - lastInput < QUIET_MS) return false;
@@ -650,7 +908,10 @@ function quietNow(kind) {
 function installWhenIdle() {
   clearTimeout(idleTimer);
   if (!pendingUpdate) return;
-  if (!quietNow(pendingUpdate.kind)) { idleTimer = setTimeout(installWhenIdle, 60 * 1000); return; }
+  if (!quietNow(pendingUpdate.kind)) {
+    idleTimer = setTimeout(installWhenIdle, 60 * 1000);
+    return;
+  }
   installUpdate(true);
 }
 
@@ -658,9 +919,14 @@ const liveWins = () => [box, ...taskWins.values(), ...projectWins.values()].filt
 
 // Remember the open task windows, so the desk reopens them after restarting.
 function rememberWindows() {
-  const wins = [...taskWins].filter(([, w]) => w && !w.isDestroyed()).map(([id, w]) => ({
-    id, ...w.getNormalBounds(), maximized: w.isMaximized(), minimized: w.isMinimized(),
-  }));
+  const wins = [...taskWins]
+    .filter(([, w]) => w && !w.isDestroyed())
+    .map(([id, w]) => ({
+      id,
+      ...w.getNormalBounds(),
+      maximized: w.isMaximized(),
+      minimized: w.isMinimized(),
+    }));
   config.set({ reopenAfterUpdate: { at: Date.now(), wins, boxHidden: !!box && !box.isVisible() } });
 }
 function reopenWindows() {
@@ -691,11 +957,20 @@ function installUpdate(relaunch) {
     // Only the app's own files changed: update them now.
     const r = updater.pullNow(config.APP_ROOT);
     logUpdate(r.ok ? `installed (${s.kind})` : `install failed: ${r.error}`);
-    if (!r.ok) { installing = false; pendingUpdate = null; say('Task Desk couldn\'t update', r.error); return; }
+    if (!r.ok) {
+      installing = false;
+      pendingUpdate = null;
+      say("Task Desk couldn't update", r.error);
+      return;
+    }
     if (!relaunch) return; // quitting: the new version is there next time
     if (s.kind === 'none' || s.kind === 'refresh') {
-      installing = false; pendingUpdate = null;
-      if (s.kind === 'refresh') { refreshWindows(); say('Task Desk was updated', note); }
+      installing = false;
+      pendingUpdate = null;
+      if (s.kind === 'refresh') {
+        refreshWindows();
+        say('Task Desk was updated', note);
+      }
       return;
     }
     config.set({ updatedNote: note });
@@ -706,12 +981,19 @@ function installUpdate(relaunch) {
   // The packages changed too: a helper installs them after the desk has closed.
   if (!updater.startHelper({ root: config.APP_ROOT, relaunch, electron: process.execPath, log: UPDATE_LOG })) {
     installing = false;
-    say('Task Desk update needs Node.js', 'This update needs "npm install", and Node.js wasn\'t found. Install Node.js, then choose Check for updates now.');
+    say(
+      'Task Desk update needs Node.js',
+      'This update needs "npm install", and Node.js wasn\'t found. Install Node.js, then choose Check for updates now.'
+    );
     return;
   }
   config.set({ updatedNote: note });
   logUpdate('installing with helper');
-  if (relaunch) { rememberWindows(); app.isQuitting = true; app.quit(); }
+  if (relaunch) {
+    rememberWindows();
+    app.isQuitting = true;
+    app.quit();
+  }
 }
 
 function scheduleUpdates() {
@@ -744,8 +1026,11 @@ function moveDataToCloud() {
   const target = path.join(base, 'Task Desk');
   if (fs.existsSync(path.join(target, 'settings.json'))) {
     const r = dialog.showMessageBoxSync({
-      type: 'question', buttons: ['Use the data in OneDrive', 'Replace it with this computer\'s data', 'Cancel'], defaultId: 0, cancelId: 2,
-      message: 'There\'s already Task Desk data in OneDrive',
+      type: 'question',
+      buttons: ['Use the data in OneDrive', "Replace it with this computer's data", 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      message: "There's already Task Desk data in OneDrive",
       detail: `${target}\n\nIt's probably from your other computer. "Use the data in OneDrive" picks up where you left off there. "Replace" puts this computer's data there instead (the old copy is kept in a backup folder next to it).`,
     });
     if (r === 2) return;
@@ -755,7 +1040,10 @@ function moveDataToCloud() {
     }
   } else {
     const r = dialog.showMessageBoxSync({
-      type: 'question', buttons: ['Move to OneDrive', 'Cancel'], defaultId: 0, cancelId: 1,
+      type: 'question',
+      buttons: ['Move to OneDrive', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
       message: 'Keep your Task Desk data in OneDrive?',
       detail: `Your projects, ticks, notes, plans and look settings move to:\n${target}\n\nOn another computer, install Task Desk and choose this again to pick up the same data. Chat history stays on each computer, and API keys are never stored there.\n\nTip: use Task Desk on one computer at a time. Task Desk restarts now.`,
     });
@@ -768,7 +1056,10 @@ function moveDataToCloud() {
 
 function moveDataHome() {
   const r = dialog.showMessageBoxSync({
-    type: 'question', buttons: ['Move it back', 'Cancel'], defaultId: 0, cancelId: 1,
+    type: 'question',
+    buttons: ['Move it back', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
     message: 'Move your data back to this computer?',
     detail: `Copies everything from ${config.DATA_DIR} to ${config.LOCAL_DIR} and stops using OneDrive on this computer. The OneDrive copy is left alone. Task Desk restarts now.`,
   });
@@ -781,7 +1072,9 @@ function moveDataHome() {
 const LOCK = path.join(config.DATA_DIR, 'in-use.json');
 let lockTimer = null;
 function beat() {
-  try { fs.writeFileSync(LOCK, JSON.stringify({ computer: os.hostname(), at: Date.now() })); } catch {}
+  try {
+    fs.writeFileSync(LOCK, JSON.stringify({ computer: os.hostname(), at: Date.now() }));
+  } catch {}
 }
 // Returns false if the user chose to quit because the desk is open on another computer.
 function takeLock() {
@@ -790,9 +1083,13 @@ function takeLock() {
     const l = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
     if (l.computer !== os.hostname() && Date.now() - l.at < 3 * 60 * 1000) {
       const r = dialog.showMessageBoxSync({
-        type: 'warning', buttons: ['Open anyway', 'Quit'], defaultId: 1, cancelId: 1,
+        type: 'warning',
+        buttons: ['Open anyway', 'Quit'],
+        defaultId: 1,
+        cancelId: 1,
         message: `Task Desk looks open on ${l.computer}`,
-        detail: 'Your data is shared through OneDrive. Using it on two computers at the same time can leave OneDrive with two versions of the same file. Close it on the other computer first, or open anyway.',
+        detail:
+          'Your data is shared through OneDrive. Using it on two computers at the same time can leave OneDrive with two versions of the same file. Close it on the other computer first, or open anyway.',
       });
       if (r !== 0) return false;
     }
@@ -804,7 +1101,9 @@ function takeLock() {
 function releaseLock() {
   clearInterval(lockTimer);
   if (!config.synced()) return;
-  try { if (JSON.parse(fs.readFileSync(LOCK, 'utf8')).computer === os.hostname()) fs.unlinkSync(LOCK); } catch {}
+  try {
+    if (JSON.parse(fs.readFileSync(LOCK, 'utf8')).computer === os.hostname()) fs.unlinkSync(LOCK);
+  } catch {}
 }
 
 function createTray() {
@@ -822,7 +1121,9 @@ function planView(t) {
   const st = state.task(t.id);
   const steps = c && c.plan ? c.plan.steps : [];
   return {
-    task: t.title, lane: t.lane, text: t.text,
+    task: t.title,
+    lane: t.lane,
+    text: t.text,
     summary: c && c.plan ? c.plan.summary : null,
     steps: steps.map((s, i) => ({ step: i + 1, text: s.text, done: !!st.ticks['s' + i], comment: (st.stepNotes || {})['s' + i] || '' })),
     notes: st.notes || '',
@@ -848,20 +1149,29 @@ async function chatTool(id, tool, args) {
     if (!Number.isInteger(n) || n < 1 || n > steps.length) return { ok: false, error: `Step must be 1-${steps.length}.` };
     const key = 's' + (n - 1);
     const change = { kind: 'step', key };
-    if (typeof args.done === 'boolean') { st.ticks[key] = args.done; change.done = args.done; }
+    if (typeof args.done === 'boolean') {
+      st.ticks[key] = args.done;
+      change.done = args.done;
+    }
     if (typeof args.comment === 'string') {
       st.stepNotes = st.stepNotes || {};
       const text = args.comment.trim().slice(0, 1000);
-      if (text) st.stepNotes[key] = text; else delete st.stepNotes[key];
+      if (text) st.stepNotes[key] = text;
+      else delete st.stepNotes[key];
       change.comment = text;
     }
     state.flush();
     toWindow(id, change);
     broadcast();
-    return { ok: true, result: `Step ${n} updated${change.done === true ? ': done' : change.done === false ? ': not done' : ''}${change.comment ? ' (comment saved)' : ''}.` };
+    return {
+      ok: true,
+      result: `Step ${n} updated${change.done === true ? ': done' : change.done === false ? ': not done' : ''}${change.comment ? ' (comment saved)' : ''}.`,
+    };
   }
   if (tool === 'add_note') {
-    const text = String(args.text || '').trim().slice(0, 4000);
+    const text = String(args.text || '')
+      .trim()
+      .slice(0, 4000);
     if (!text) return { ok: false, error: 'Nothing to add.' };
     st.notes = st.notes ? `${st.notes.trimEnd()}\n${text}` : text;
     state.flush();
@@ -888,7 +1198,14 @@ ipcMain.handle('task:get', (e, id) => {
   const t = findTask(id);
   if (!t) return null;
   const c = planner.cached(t);
-  return { task: decorate(t), plan: c ? c.plan : null, planOk: c ? c.ok : null, st: state.task(id), mode: config.get().mode, resultsTo: resultsKind(t) };
+  return {
+    task: decorate(t),
+    plan: c ? c.plan : null,
+    planOk: c ? c.ok : null,
+    st: state.task(id),
+    mode: config.get().mode,
+    resultsTo: resultsKind(t),
+  };
 });
 // Where this task's Done notes go: 'factory' (FROM_NICK.md), 'file' (the project's file) or 'app'.
 function resultsKind(t) {
@@ -908,7 +1225,11 @@ ipcMain.handle('task:paste', (e, id, key, label, value) => {
   state.flush();
   return true;
 });
-ipcMain.handle('task:notes', (e, id, notes) => { state.update(id, { notes }); state.flush(); return true; });
+ipcMain.handle('task:notes', (e, id, notes) => {
+  state.update(id, { notes });
+  state.flush();
+  return true;
+});
 // Used when a window closes mid-typing: blocks until the text is on disk.
 ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
   try {
@@ -916,10 +1237,14 @@ ipcMain.on('task:saveSync', (e, id, kind, value, key, label) => {
     else state.task(id).pastes[key] = { label, value };
     state.flush();
     e.returnValue = true;
-  } catch { e.returnValue = false; }
+  } catch {
+    e.returnValue = false;
+  }
 });
 const senderScope = (e) => scopeOf(BrowserWindow.fromWebContents(e.sender));
-ipcMain.on('look:get', (e) => { e.returnValue = lookOut(senderScope(e)); });
+ipcMain.on('look:get', (e) => {
+  e.returnValue = lookOut(senderScope(e));
+});
 // Changes go to the project's own look when the window shows such a project, else to the desk's.
 ipcMain.handle('look:set', (e, patch) => {
   const scope = senderScope(e);
@@ -937,27 +1262,43 @@ ipcMain.handle('look:own', (e, on) => {
   applyLook();
   return lookOut(scope);
 });
-ipcMain.handle('look:newOwn', (e, on) => { config.set({ newProjectsOwnLook: !!on }); applyLook(); return lookOut(senderScope(e)); });
+ipcMain.handle('look:newOwn', (e, on) => {
+  config.set({ newProjectsOwnLook: !!on });
+  applyLook();
+  return lookOut(senderScope(e));
+});
 ipcMain.handle('look:picture', (e) => pickFramePicture(senderScope(e)));
 // The box's size lock, and the corner grip that stretches it while unlocked.
-ipcMain.handle('box:lock', (e, locked) => { setBoxLocked(!!locked); return !!locked; });
+ipcMain.handle('box:lock', (e, locked) => {
+  setBoxLocked(!!locked);
+  return !!locked;
+});
 // The renderer only says start / move / end; the size comes from where the mouse
 // is on screen, so it stays right at any text size or screen scaling.
 let grab = null;
 ipcMain.handle('box:resize', (e, phase) => {
   if (!box || box.isDestroyed() || config.get().boxLocked !== false || config.get().collapsed) return null;
   const cur = screen.getCursorScreenPoint();
-  if (phase === 'start') { grab = { cur, b: box.getBounds() }; return null; }
+  if (phase === 'start') {
+    grab = { cur, b: box.getBounds() };
+    return null;
+  }
   if (!grab) return null;
   const { b } = grab;
   const wa = screen.getDisplayMatching(b).workArea;
   const width = Math.round(Math.max(BOX_MIN_W, Math.min(BOX_MAX_W, wa.x + wa.width - b.x, b.width + cur.x - grab.cur.x)));
   const height = Math.round(Math.max(BOX_MIN_H, Math.min(wa.y + wa.height - b.y, b.height + cur.y - grab.cur.y)));
   box.setBounds({ x: b.x, y: b.y, width, height });
-  if (phase === 'end') { grab = null; box.saveBounds(); }
+  if (phase === 'end') {
+    grab = null;
+    box.saveBounds();
+  }
   return { width, height };
 });
-ipcMain.handle('task:replan', (e, id) => { const t = findTask(id); if (t) planner.regenerate(t); });
+ipcMain.handle('task:replan', (e, id) => {
+  const t = findTask(id);
+  if (t) planner.regenerate(t);
+});
 ipcMain.handle('task:snooze', (e, id, when) => {
   const d = new Date();
   d.setDate(d.getDate() + (when === 'week' ? 7 : 1));
@@ -974,7 +1315,11 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
   const steps = c ? c.plan.steps.length : 0;
   const ticked = c ? c.plan.steps.filter((_, i) => st.ticks['s' + i]).length : 0;
   const results = Object.values(st.pastes).filter((p) => p && p.value && String(p.value).trim());
-  if (c) c.plan.steps.forEach((s, i) => { const n = (st.stepNotes || {})['s' + i]; if (n) results.push({ label: `Step ${i + 1} comment (${s.text.slice(0, 60)})`, value: n }); });
+  if (c)
+    c.plan.steps.forEach((s, i) => {
+      const n = (st.stepNotes || {})['s' + i];
+      if (n) results.push({ label: `Step ${i + 1} comment (${s.text.slice(0, 60)})`, value: n });
+    });
   const entry = { lane: t.lane, text: t.text, status, notes, results, ticked: steps ? `${ticked}/${steps}` : '' };
   const p = projects.get(t.project);
   let file;
@@ -987,7 +1332,10 @@ ipcMain.handle('task:finish', (e, id, status, notes, goNext) => {
   const next = goNext ? payload().tasks.find((x) => x.id !== id) : null;
   broadcast();
   const w = taskWins.get(id);
-  setTimeout(() => { if (w && !w.isDestroyed()) w.close(); if (next) openTask(next.id); }, 650);
+  setTimeout(() => {
+    if (w && !w.isDestroyed()) w.close();
+    if (next) openTask(next.id);
+  }, 650);
   return { ok: true, file, resultsTo: resultsKind(t) };
 });
 
@@ -1011,9 +1359,13 @@ ipcMain.handle('project:remove', (e, id) => {
   const p = projects.get(id);
   if (!p) return false;
   const r = dialog.showMessageBoxSync(winOf(e), {
-    type: 'question', buttons: ['Remove project', 'Cancel'], defaultId: 1, cancelId: 1,
+    type: 'question',
+    buttons: ['Remove project', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
     message: `Remove "${p.name}" from Task Desk?`,
-    detail: 'Its tasks leave the box. Nothing in the project folder is touched, and your notes and results stay in the app data folder in case you add it back.',
+    detail:
+      'Its tasks leave the box. Nothing in the project folder is touched, and your notes and results stay in the app data folder in case you add it back.',
   });
   if (r !== 0) return false;
   for (const [id2, w] of [...taskWins]) if (state.projectOf(id2) === id) w.close();
@@ -1025,19 +1377,35 @@ ipcMain.handle('project:remove', (e, id) => {
 ipcMain.handle('project:preview', (e, draft) => projects.preview(draft));
 ipcMain.handle('project:suggest', (e, folder) => projects.suggest(folder));
 ipcMain.handle('project:pick', async (e, kind, from) => {
-  const r = await dialog.showOpenDialog(winOf(e), kind === 'folder'
-    ? { title: 'Choose the project folder', defaultPath: from || 'C:\\MrC', properties: ['openDirectory'] }
-    : { title: 'Choose the checklist file', defaultPath: from || undefined, properties: ['openFile'], filters: [{ name: 'Checklists', extensions: ['md', 'txt'] }, { name: 'All files', extensions: ['*'] }] });
+  const r = await dialog.showOpenDialog(
+    winOf(e),
+    kind === 'folder'
+      ? { title: 'Choose the project folder', defaultPath: from || 'C:\\MrC', properties: ['openDirectory'] }
+      : {
+          title: 'Choose the checklist file',
+          defaultPath: from || undefined,
+          properties: ['openFile'],
+          filters: [
+            { name: 'Checklists', extensions: ['md', 'txt'] },
+            { name: 'All files', extensions: ['*'] },
+          ],
+        }
+  );
   return r.canceled ? null : r.filePaths[0];
 });
-ipcMain.handle('project:open', (e, p) => { if (p && fs.existsSync(p)) shell.openPath(p); else return { ok: false, error: 'Nothing there yet: it appears after your first Done.' }; });
+ipcMain.handle('project:open', (e, p) => {
+  if (p && fs.existsSync(p)) shell.openPath(p);
+  else return { ok: false, error: 'Nothing there yet: it appears after your first Done.' };
+});
 ipcMain.handle('task:add', (e, pid, text) => {
   const id = projects.addTask(pid, text);
   if (id) refresh();
   return id;
 });
 
-ipcMain.handle('act:url', (e, url) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); });
+ipcMain.handle('act:url', (e, url) => {
+  if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+});
 ipcMain.handle('act:copy', (e, text) => clipboard.writeText(String(text)));
 ipcMain.handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
   const u = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1051,13 +1419,19 @@ ipcMain.handle('act:file', async (e, p) => {
 });
 ipcMain.handle('act:folder', async (e, p) => {
   let f = resolvePath(p, e);
-  if (f && fs.existsSync(f) && fs.statSync(f).isFile()) { shell.showItemInFolder(f); return { ok: true }; }
+  if (f && fs.existsSync(f) && fs.statSync(f).isFile()) {
+    shell.showItemInFolder(f);
+    return { ok: true };
+  }
   while (f && !fs.existsSync(f) && path.dirname(f) !== f) f = path.dirname(f);
   if (!f) return { ok: false };
   await shell.openPath(f);
   return { ok: true, path: f };
 });
-ipcMain.handle('act:exists', (e, p) => { const f = resolvePath(p, e); return !!f && fs.existsSync(f); });
+ipcMain.handle('act:exists', (e, p) => {
+  const f = resolvePath(p, e);
+  return !!f && fs.existsSync(f);
+});
 ipcMain.handle('act:emails', (e, p) => {
   const f = resolvePath(p, e);
   try {
@@ -1071,12 +1445,20 @@ ipcMain.handle('act:env', (e, id, envPath, name, value) => {
   const f = resolvePath(envPath, e);
   const inFactory = config.inFactory(f);
   const r = dialog.showMessageBoxSync(winOf(e), {
-    type: 'warning', buttons: ['Write the key', 'Cancel'], defaultId: 1, cancelId: 1,
+    type: 'warning',
+    buttons: ['Write the key', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
     message: `Write ${name} into this .env file?`,
     detail: `${f}${inFactory ? `\n\nThis file is inside ${config.factoryName()}.` : ''}\n\nThe key is not saved anywhere else (not in app data, logs or git).`,
   });
   if (r !== 0) return { ok: false, cancelled: true };
-  try { writeEnv(f, name, value); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
+  try {
+    writeEnv(f, name, value);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
@@ -1084,10 +1466,15 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
   const w = winOf(e);
   if (!t || !w) return;
   const c = planner.cached(t);
-  const send = (ch, ...a) => { if (!w.isDestroyed()) w.webContents.send(ch, ...a); };
+  const send = (ch, ...a) => {
+    if (!w.isDestroyed()) w.webContents.send(ch, ...a);
+  };
   const handlers = {
     onData: (d) => send('chat:data', id, d),
-    onExit: (code) => { send('chat:exit', id, code); broadcast(); },
+    onExit: (code) => {
+      send('chat:exit', id, code);
+      broadcast();
+    },
     onInfo: (info) => send('chat:info', id, info),
   };
   // 'attach': a refreshed window reconnects to its running chat (else starts it as usual).
@@ -1108,14 +1495,23 @@ ipcMain.handle('chat:start', (e, id, mode, cols, rows) => {
 // Your name (and an optional line about you) for the AI and the greeting.
 ipcMain.handle('me:get', () => ({ name: config.userName(), about: config.get().userAbout || '' }));
 ipcMain.handle('me:set', (e, me) => {
-  const name = String((me && me.name) || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-  const about = String((me && me.about) || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const name = String((me && me.name) || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40);
+  const about = String((me && me.about) || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
   config.set({ userName: name, userAbout: about, userNameAsked: true });
   refresh();
   return { name, about };
 });
 ipcMain.handle('ai:choices', (e, id) => ai.choices(id ? findTask(id) : null));
-ipcMain.handle('ai:setDefault', (e, id) => { if (ai.PROVIDERS[id]) setAI(id); return ai.choices(null); });
+ipcMain.handle('ai:setDefault', (e, id) => {
+  if (ai.PROVIDERS[id]) setAI(id);
+  return ai.choices(null);
+});
 ipcMain.handle('chat:switchAI', (e, id, to) => {
   const t = findTask(id);
   if (!t) return null;
@@ -1127,11 +1523,17 @@ ipcMain.handle('chat:switchAI', (e, id, to) => {
 ipcMain.handle('chat:write', (e, id, d) => chat.write(id, d));
 ipcMain.handle('chat:send', (e, id, text) => chat.send(id, text));
 ipcMain.handle('chat:resize', (e, id, c, r) => chat.resize(id, c, r));
-ipcMain.handle('chat:stop', (e, id) => { chat.stop(id); broadcast(); });
+ipcMain.handle('chat:stop', (e, id) => {
+  chat.stop(id);
+  broadcast();
+});
 
 ipcMain.handle('win:close', (e) => winOf(e) && winOf(e).close());
 ipcMain.handle('win:min', (e) => winOf(e) && winOf(e).minimize());
-ipcMain.handle('win:max', (e) => { const w = winOf(e); if (w) w.isMaximized() ? w.unmaximize() : w.maximize(); });
+ipcMain.handle('win:max', (e) => {
+  const w = winOf(e);
+  if (w) w.isMaximized() ? w.unmaximize() : w.maximize();
+});
 ipcMain.handle('win:hide', () => tuckAway());
 ipcMain.handle('win:collapse', (e, c) => setCollapsed(c));
 ipcMain.handle('app:menu', (e) => menu().popup({ window: winOf(e) }));
@@ -1142,10 +1544,19 @@ ipcMain.handle('tray:badge', (e, dataUrl) => {
 // ---------- lifecycle ----------
 
 // Starting it again (the taskbar pin, Start menu or desktop icon) brings the box up.
-app.on('second-instance', () => { if (box) { if (box.isMinimized()) box.restore(); box.show(); box.focus(); } });
+app.on('second-instance', () => {
+  if (box) {
+    if (box.isMinimized()) box.restore();
+    box.show();
+    box.focus();
+  }
+});
 app.on('window-all-closed', () => {});
 app.on('before-quit', () => {
-  app.isQuitting = true; chat.stopAll(); state.flush(); releaseLock();
+  app.isQuitting = true;
+  chat.stopAll();
+  state.flush();
+  releaseLock();
   // A waiting update installs when you quit; it's there next time the desk opens.
   if (pendingUpdate && !installing) installUpdate(false);
 });
@@ -1154,14 +1565,22 @@ app.on('will-quit', () => globalShortcut.unregisterAll());
 app.whenReady().then(async () => {
   if (config.dataMissing) {
     dialog.showMessageBoxSync({
-      type: 'warning', buttons: ['OK'],
-      message: 'Can\'t find your OneDrive data folder',
+      type: 'warning',
+      buttons: ['OK'],
+      message: "Can't find your OneDrive data folder",
       detail: `${config.wantedDataDir}\n\nTask Desk is using this computer's own data for now. Check that OneDrive is running and signed in, then restart Task Desk.`,
     });
   }
-  if (!takeLock()) { app.isQuitting = true; app.quit(); return; }
+  if (!takeLock()) {
+    app.isQuitting = true;
+    app.quit();
+    return;
+  }
   await bridge.start(chatTool).catch((e) => console.warn('chat tools unavailable:', e.message));
-  if (!fs.existsSync(ICON_PNG)) { fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true }); fs.writeFileSync(ICON_PNG, icon.png(256)); }
+  if (!fs.existsSync(ICON_PNG)) {
+    fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true });
+    fs.writeFileSync(ICON_PNG, icon.png(256));
+  }
   if (!fs.existsSync(ICON_ICO)) fs.writeFileSync(ICON_ICO, icon.ico());
   nativeTheme.themeSource = themeSource(config.get().look.appearance);
   createTray();
@@ -1173,7 +1592,19 @@ app.whenReady().then(async () => {
   scheduleUpdates();
   reopenWindows();
   // Tests (their own data folder only) drive the update steps directly.
-  if (process.env.TASKDESK_LOCAL_DATA) global.__update = { refreshWindows, rememberWindows, quietNow, setLastInput: (t) => { lastInput = t; }, planPrompt: planner.prompt };
+  if (process.env.TASKDESK_LOCAL_DATA)
+    global.__update = {
+      refreshWindows,
+      rememberWindows,
+      quietNow,
+      setLastInput: (t) => {
+        lastInput = t;
+      },
+      planPrompt: planner.prompt,
+    };
   const note = config.get().updatedNote;
-  if (note) { config.set({ updatedNote: '' }); say('Task Desk was updated', note); }
+  if (note) {
+    config.set({ updatedNote: '' });
+    say('Task Desk was updated', note);
+  }
 });

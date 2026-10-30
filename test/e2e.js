@@ -12,7 +12,10 @@ const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
 const NEEDS = path.join(ROOT, 'test-fixtures', 'ops', 'NEEDS_NICK.md');
 let mainLog = '';
 const results = [];
-const ok = (name, cond, extra = '') => { results.push([cond ? 'PASS' : 'FAIL', name, extra]); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
+const ok = (name, cond, extra = '') => {
+  results.push([cond ? 'PASS' : 'FAIL', name, extra]);
+  console.log(cond ? 'PASS' : 'FAIL', name, extra);
+};
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, name + '.png') });
 
 async function launch() {
@@ -20,9 +23,16 @@ async function launch() {
   app.process().stdout.on('data', (d) => (mainLog += d));
   await app.evaluate(({ shell, clipboard }) => {
     global.__opened = [];
-    shell.openExternal = async (u) => { global.__opened.push(['url', u]); };
-    shell.openPath = async (p) => { global.__opened.push(['path', p]); return ''; };
-    shell.showItemInFolder = (p) => { global.__opened.push(['show', p]); };
+    shell.openExternal = async (u) => {
+      global.__opened.push(['url', u]);
+    };
+    shell.openPath = async (p) => {
+      global.__opened.push(['path', p]);
+      return '';
+    };
+    shell.showItemInFolder = (p) => {
+      global.__opened.push(['show', p]);
+    };
   });
   const box = await app.firstWindow();
   box.on('pageerror', (e) => ok('no box page errors', false, e.message));
@@ -51,7 +61,14 @@ async function waitTerm(win, re, ms = 90000) {
   while (Date.now() < end) {
     const t = await termText(win);
     // First run in the test-fixtures folder: claude asks to trust it ("No, exit" is the default).
-    if (/I trust this folder/i.test(t) && !win.__trusted) { win.__trusted = true; await win.locator('.term').click(); await win.keyboard.press('ArrowDown'); await win.waitForTimeout(300); await win.keyboard.press('Enter'); await win.waitForTimeout(2500); }
+    if (/I trust this folder/i.test(t) && !win.__trusted) {
+      win.__trusted = true;
+      await win.locator('.term').click();
+      await win.keyboard.press('ArrowDown');
+      await win.waitForTimeout(300);
+      await win.keyboard.press('Enter');
+      await win.waitForTimeout(2500);
+    }
     if (re.test(t)) return t;
     await win.waitForTimeout(1000);
   }
@@ -59,8 +76,12 @@ async function waitTerm(win, re, ms = 90000) {
 }
 
 (async () => {
-  try { fs.unlinkSync(FROM_NICK); } catch {}
-  try { fs.unlinkSync(path.join(DATA, 'state.test.json')); } catch {} // test-mode memory only; start clean
+  try {
+    fs.unlinkSync(FROM_NICK);
+  } catch {}
+  try {
+    fs.unlinkSync(path.join(DATA, 'state.test.json'));
+  } catch {} // test-mode memory only; start clean
   // Always test against the copies, then put the previous mode back.
   useTestSettings();
   const needsBefore = fs.readFileSync(NEEDS, 'utf8');
@@ -71,7 +92,10 @@ async function waitTerm(win, re, ms = 90000) {
   // ---- Screen 1 ----
   const n = await box.locator('.card').count();
   ok('box lists tasks', n >= 10, `${n} cards`);
-  ok('summary shows count + minutes', /tasks/.test(await box.locator('#count').innerText()) && /~/.test(await box.locator('#mins').innerText()));
+  ok(
+    'summary shows count + minutes',
+    /tasks/.test(await box.locator('#count').innerText()) && /~/.test(await box.locator('#mins').innerText())
+  );
   const first = await box.locator('.card').first().getAttribute('class');
   ok('urgent tasks sort first', /urgent/.test(first));
   const last = await box.locator('.card').last().getAttribute('class');
@@ -112,7 +136,14 @@ async function waitTerm(win, re, ms = 90000) {
     await win.waitForTimeout(250);
     const o = await opened(app);
     const c = await clip(app);
-    ok(`step button "${label}" does something`, o.length > 0 || c.length > 0 || /Saved|Opened|Copied|Sent/.test(await b.innerText()), o.map((x) => x.join(':')).join(' ').slice(0, 120) || (c ? 'clipboard ' + c.slice(0, 40).replace(/\n/g, ' ') : ''));
+    ok(
+      `step button "${label}" does something`,
+      o.length > 0 || c.length > 0 || /Saved|Opened|Copied|Sent/.test(await b.innerText()),
+      o
+        .map((x) => x.join(':'))
+        .join(' ')
+        .slice(0, 120) || (c ? 'clipboard ' + c.slice(0, 40).replace(/\n/g, ' ') : '')
+    );
     await app.evaluate(({ clipboard }) => clipboard.writeText(''));
   }
   const opts = win.locator('.opt');
@@ -151,7 +182,10 @@ async function waitTerm(win, re, ms = 90000) {
   win = await openTaskByTitle(app, box, /Open Recipes Project/);
   ok('ticks persist after reopen', /done/.test(await win.locator('.step').first().getAttribute('class')));
   ok('notes persist after reopen', (await win.locator('#notes').inputValue()) === 'Test note from e2e.');
-  const statText = await (async () => { await win.waitForTimeout(3000); return win.locator('#cstatText').innerText(); })();
+  const statText = await (async () => {
+    await win.waitForTimeout(3000);
+    return win.locator('#cstatText').innerText();
+  })();
   ok('reopen resumes the same chat', /resuming this task/i.test(statText), statText);
   await waitTerm(win, /About step 2|step 2|Open Recipes/i, 60000);
   await shot(win, '05-task-resumed');
@@ -165,7 +199,11 @@ async function waitTerm(win, re, ms = 90000) {
   await win.locator('#cfresh').click();
   await win.waitForTimeout(4000);
   const st3 = JSON.parse(fs.readFileSync(path.join(DATA, 'state.test.json'), 'utf8'));
-  ok('Fresh chat gets a new session id', st3.tasks[tid].chatSessionId && st3.tasks[tid].chatSessionId !== firstSid, st3.tasks[tid].chatSessionId);
+  ok(
+    'Fresh chat gets a new session id',
+    st3.tasks[tid].chatSessionId && st3.tasks[tid].chatSessionId !== firstSid,
+    st3.tasks[tid].chatSessionId
+  );
   ok('Fresh chat status label', /fresh/i.test(await win.locator('#cstatText').innerText()));
 
   // DONE -> FROM_NICK.md
@@ -183,7 +221,10 @@ async function waitTerm(win, re, ms = 90000) {
   if (rows) {
     await win.locator('.erow .ebtns .btn', { hasText: 'Gmail' }).first().click();
     const o = await opened(app);
-    ok('Gmail draft opens a compose URL', o.some(([k, u]) => k === 'url' && /mail\.google\.com\/mail\/\?view=cm/.test(u) && /su=/.test(u)));
+    ok(
+      'Gmail draft opens a compose URL',
+      o.some(([k, u]) => k === 'url' && /mail\.google\.com\/mail\/\?view=cm/.test(u) && /su=/.test(u))
+    );
     await win.locator('.erow .ebtns .btn[title^="Copy"]').first().click();
     ok('copy email puts subject+body on clipboard', /^Subject:/.test(await clip(app)));
     await win.locator('.erow').nth(1).locator('.check').click();
@@ -205,7 +246,13 @@ async function waitTerm(win, re, ms = 90000) {
     ok('copy keyword queries', lines >= 20, `${lines} queries on clipboard`);
   } else ok('keyword task has Copy queries button', false);
   const kp = win.locator('.btn', { hasText: 'Open Keyword Planner' });
-  if (await kp.count()) { await kp.first().click(); ok('Open Keyword Planner', (await opened(app)).some(([, u]) => /keywordplanner/.test(u))); }
+  if (await kp.count()) {
+    await kp.first().click();
+    ok(
+      'Open Keyword Planner',
+      (await opened(app)).some(([, u]) => /keywordplanner/.test(u))
+    );
+  }
   // SNOOZE
   await win.locator('#bsnooze').click();
   await win.locator('.popmenu button', { hasText: 'Tomorrow' }).click();
@@ -219,10 +266,17 @@ async function waitTerm(win, re, ms = 90000) {
   ok('decision task shows options', (await dopts.count()) >= 2, `${await dopts.count()} options`);
   const [nextWin] = await Promise.all([app.waitForEvent('window', { timeout: 10000 }).catch(() => null), win.locator('#bnext').click()]);
   ok('Done & next opens the next task', !!nextWin);
-  if (nextWin) { await nextWin.waitForSelector('h1'); await shot(nextWin, '09-next-task'); await nextWin.close(); }
+  if (nextWin) {
+    await nextWin.waitForSelector('h1');
+    await shot(nextWin, '09-next-task');
+    await nextWin.close();
+  }
 
   // ---- new urgent task -> notification + appears in box ----
-  fs.writeFileSync(NEEDS, needsBefore.replace(/## menu-boards\r?\n/, (m) => m + '\n- [ ] **E2E urgent test item** (2026-10-24): added by the test.\n'));
+  fs.writeFileSync(
+    NEEDS,
+    needsBefore.replace(/## menu-boards\r?\n/, (m) => m + '\n- [ ] **E2E urgent test item** (2026-10-24): added by the test.\n')
+  );
   await box.waitForSelector('.card:has-text("E2E urgent test item")', { timeout: 15000 }).catch(() => {});
   ok('new task appears without restart', (await box.locator('.card', { hasText: 'E2E urgent test item' }).count()) === 1);
   await box.waitForTimeout(500);
@@ -233,4 +287,7 @@ async function waitTerm(win, re, ms = 90000) {
   const fails = results.filter((r) => r[0] === 'FAIL');
   console.log(`\n${results.length - fails.length}/${results.length} passed`);
   process.exit(fails.length ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(2); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(2);
+});

@@ -4,42 +4,86 @@ let lane = 'all'; // the chip filter: a lane inside one project, or a project in
 let updatedAt = Date.now();
 let lastKey = '';
 const store = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {}
+  },
 };
 
 // ---------- project switcher ----------
 $('#pchev').innerHTML = icon('chevDown');
-$('#switch').onclick = (e) => { e.stopPropagation(); if (data && data.collapsed) desk.collapse(false); projectMenu($('#switch')); };
+$('#switch').onclick = (e) => {
+  e.stopPropagation();
+  if (data && data.collapsed) desk.collapse(false);
+  projectMenu($('#switch'));
+};
 const many = () => data && data.projects.length > 1;
 const viewName = () => {
   if (!data) return 'Task Desk';
   if (data.view === 'all') return many() ? 'All projects' : (data.projects[0] || {}).name || 'Task Desk';
   return (data.projects.find((p) => p.id === data.view) || {}).name || 'Task Desk';
 };
-const userProject = () => data && data.view !== 'all' && data.view !== 'factory' ? data.projects.find((p) => p.id === data.view) : null;
+const userProject = () => (data && data.view !== 'all' && data.view !== 'factory' ? data.projects.find((p) => p.id === data.view) : null);
 
 function projectMenu(anchor) {
   const m = h('div', { class: 'popmenu projects' });
-  const row = (on, dot, name, count, run, extra = '') => h('button', {
-    class: on ? 'on' : '',
-    onclick: () => { m.remove(); run(); },
-    html: `${dot}<span class="nm"></span>${extra}<span class="cnt">${count}</span>`,
-  });
-  const set = (v) => { desk.setView(v); lane = 'all'; };
+  const row = (on, dot, name, count, run, extra = '') =>
+    h('button', {
+      class: on ? 'on' : '',
+      onclick: () => {
+        m.remove();
+        run();
+      },
+      html: `${dot}<span class="nm"></span>${extra}<span class="cnt">${count}</span>`,
+    });
+  const set = (v) => {
+    desk.setView(v);
+    lane = 'all';
+  };
   const all = row(data.view === 'all', icon('check'), 'All projects', data.totalOpen, () => set('all'));
   all.querySelector('.nm').textContent = 'All projects';
   const items = data.projects.map((p) => {
-    const b = row(data.view === p.id, `<span class="dot" style="background:${p.color}"></span>`, p.name, p.open, () => set(p.id),
-      p.missing ? '<span class="warnico" title="Folder not found on this computer">!</span>' : '');
+    const b = row(
+      data.view === p.id,
+      `<span class="dot" style="background:${p.color}"></span>`,
+      p.name,
+      p.open,
+      () => set(p.id),
+      p.missing ? '<span class="warnico" title="Folder not found on this computer">!</span>' : ''
+    );
     b.querySelector('.nm').textContent = p.name;
     return b;
   });
   const up = userProject();
   m.append(
-    h('div', { class: 'head' }, 'Projects'), all, ...items, h('hr'),
-    h('button', { onclick: () => { m.remove(); desk.editProject(null); }, html: `${icon('plus')}<span class="nm">Add a project…</span>` }),
-    up ? h('button', { onclick: () => { m.remove(); desk.editProject(up.id); }, html: `${icon('more')}<span class="nm">Edit this project…</span>` }) : null,
+    h('div', { class: 'head' }, 'Projects'),
+    all,
+    ...items,
+    h('hr'),
+    h('button', {
+      onclick: () => {
+        m.remove();
+        desk.editProject(null);
+      },
+      html: `${icon('plus')}<span class="nm">Add a project…</span>`,
+    }),
+    up
+      ? h('button', {
+          onclick: () => {
+            m.remove();
+            desk.editProject(up.id);
+          },
+          html: `${icon('more')}<span class="nm">Edit this project…</span>`,
+        })
+      : null
   );
   placePopup(anchor, m);
 }
@@ -52,7 +96,10 @@ $('#quickadd').onsubmit = async (e) => {
   const text = $('#qtext').value.trim();
   if (!text || !userProject()) return;
   const id = await desk.addTask(data.view, text);
-  if (!id) { toast('Couldn\'t add that'); return; }
+  if (!id) {
+    toast("Couldn't add that");
+    return;
+  }
   $('#qtext').value = '';
   store.set('qdraft:' + data.view, '');
   toast('Added. Claude is drafting a plan for it.');
@@ -63,8 +110,15 @@ $('#hide').innerHTML = icon('x');
 $('#hide').onclick = () => desk.hide();
 $('#menu').onclick = () => desk.menu();
 $('#look').innerHTML = icon('palette');
-$('#look').onclick = (e) => { e.stopPropagation(); if (data && data.collapsed) desk.collapse(false); lookPanel($('#look')); };
-desk.onLookOpen(() => { if (data && data.collapsed) desk.collapse(false); setTimeout(() => lookPanel($('#look')), 250); });
+$('#look').onclick = (e) => {
+  e.stopPropagation();
+  if (data && data.collapsed) desk.collapse(false);
+  lookPanel($('#look'));
+};
+desk.onLookOpen(() => {
+  if (data && data.collapsed) desk.collapse(false);
+  setTimeout(() => lookPanel($('#look')), 250);
+});
 $('#collapse').onclick = () => desk.collapse(!data.collapsed);
 
 function greeting() {
@@ -81,11 +135,16 @@ function ring(done, total) {
 function render() {
   if (!data) return;
   const { tasks, counts } = data;
-  if (data.view !== render.view) { lane = 'all'; render.view = data.view; }
+  if (data.view !== render.view) {
+    lane = 'all';
+    render.view = data.view;
+  }
   document.body.classList.toggle('bar-mode', !!data.collapsed);
   document.body.classList.toggle('unlocked', !data.locked);
   $('#lockbtn').innerHTML = icon(data.locked ? 'lock' : 'unlock');
-  $('#lockbtn').title = data.locked ? 'Size is locked. Click to unlock and stretch the box.' : 'Size is unlocked. Drag the corner to stretch the box, or click to lock it.';
+  $('#lockbtn').title = data.locked
+    ? 'Size is locked. Click to unlock and stretch the box.'
+    : 'Size is unlocked. Drag the corner to stretch the box, or click to lock it.';
   $('#collapse').innerHTML = icon(data.collapsed ? 'chevDown' : 'chevUp');
   $('#mode').hidden = data.mode !== 'test' || !data.factory; // test mode is the workspace's sample copy
   $('#hello').textContent = greeting();
@@ -101,7 +160,7 @@ function render() {
   const up = userProject();
   $('#warn').hidden = !(up && up.missing);
   if (up && up.missing) {
-    $('#warn').innerHTML = 'This project\'s folder isn\'t on this computer. <button>Fix the folder</button>';
+    $('#warn').innerHTML = "This project's folder isn't on this computer. <button>Fix the folder</button>";
     $('#warn').querySelector('button').onclick = () => desk.editProject(up.id);
   }
   $('#quickadd').hidden = !up;
@@ -127,20 +186,33 @@ function render() {
     ...order.map((k) => {
       const p = byProject && data.projects.find((x) => x.id === k);
       return chipEl(k, p ? p.name : laneName(k), groups[k], p ? p.color : laneColor(k), !!p);
-    }),
+    })
   );
 
   const shown = tasks.filter((t) => lane === 'all' || keyOf(t) === lane);
   const list = $('#list');
   if (!data.projects.length) {
     // A new desk: nothing to read yet.
-    list.replaceChildren(h('div', { class: 'empty welcome' },
-      h('div', { class: 'tile', html: icon('sparkle') }),
-      h('b', {}, 'Welcome to Task Desk'),
-      'Add a project: a folder with a to-do list (any - [ ] checklist), or just a list you type here. Every task gets a plan and an AI chat.',
-      h('button', { class: 'btn primary', onclick: () => desk.editProject(null), html: `${icon('plus')}<span>Add your first project</span>` })));
+    list.replaceChildren(
+      h(
+        'div',
+        { class: 'empty welcome' },
+        h('div', { class: 'tile', html: icon('sparkle') }),
+        h('b', {}, 'Welcome to Task Desk'),
+        'Add a project: a folder with a to-do list (any - [ ] checklist), or just a list you type here. Every task gets a plan and an AI chat.',
+        h('button', {
+          class: 'btn primary',
+          onclick: () => desk.editProject(null),
+          html: `${icon('plus')}<span>Add your first project</span>`,
+        })
+      )
+    );
   } else if (!shown.length) {
-    const hint = up ? (up.kind === 'file' ? 'Nothing open in its checklist. Type a task above to add one.' : 'Type a task above to add one.') : 'Nothing needs you right now.';
+    const hint = up
+      ? up.kind === 'file'
+        ? 'Nothing open in its checklist. Type a task above to add one.'
+        : 'Type a task above to add one.'
+      : 'Nothing needs you right now.';
     list.replaceChildren(h('div', { class: 'empty', html: `<div class="tile">${icon('check')}</div><b>All clear</b>${hint}` }));
   } else {
     // Only play the entry animation when the set of tasks changes, not on every refresh.
@@ -151,7 +223,10 @@ function render() {
   }
   drawBadge(data.totalOpen);
   drawAIPick();
-  if (data.me && !data.me.asked && !render.askedOnce) { render.askedOnce = true; askName(); }
+  if (data.me && !data.me.asked && !render.askedOnce) {
+    render.askedOnce = true;
+    askName();
+  }
 }
 
 function chipEl(key, label, n, color, plain) {
@@ -159,7 +234,10 @@ function chipEl(key, label, n, color, plain) {
   const b = h('button', {
     class: 'chip' + (lane === key ? ' on' : ''),
     html: `${dot}<span class="cl"></span> <em>${n}</em>`,
-    onclick: () => { lane = key; render(); },
+    onclick: () => {
+      lane = key;
+      render();
+    },
   });
   b.querySelector('.cl').textContent = label;
   if (plain) b.style.textTransform = 'none';
@@ -169,7 +247,8 @@ function chipEl(key, label, n, color, plain) {
 function card(t, i) {
   let right = '';
   if (t.chatLive) right = '<span class="live" title="Chat open"></span>';
-  else if (t.planStatus === 'drafting' || t.planStatus === 'queued') right = `<span class="drafting" title="Claude is drafting the plan">${icon('sparkle')}</span>`;
+  else if (t.planStatus === 'drafting' || t.planStatus === 'queued')
+    right = `<span class="drafting" title="Claude is drafting the plan">${icon('sparkle')}</span>`;
   else if (t.ticked && t.steps) right = ring(t.ticked, t.steps);
   const quick = t.minutes && t.minutes <= 10 ? `<span class="quick" title="Quick win">${icon('bolt')}</span>` : '';
   // In "All projects" the card names its project; inside a project it names the lane.
@@ -201,7 +280,10 @@ const badgeImg = new Image();
 badgeImg.src = '../../assets/icon.png';
 let lastBadge = null;
 function drawBadge(n) {
-  if (!badgeImg.complete) { badgeImg.onload = () => drawBadge(n); return; }
+  if (!badgeImg.complete) {
+    badgeImg.onload = () => drawBadge(n);
+    return;
+  }
   if (lastBadge === n) return;
   lastBadge = n;
   const c = $('#badge');
@@ -234,24 +316,33 @@ setInterval(tickUpdated, 5000);
 // Ready-to-paste text that tells another Claude Code (or Codex, Gemini…) chat
 // how to work with Task Desk: where to put the tasks it needs you to do, and
 // where your Done notes come back. Filled in for the project on show.
-const FORM = '1 Name · 2 Folder · 3 Where its tasks come from · 4 When I press Done, my notes go to · 5 The chat (may it change files?) · 6 Anything the AI should know (optional) · 7 Color · 8 Look (optional) · 9 Which AI (optional)';
-const CHECKLIST_RULES = 'one task per line as "- [ ] what to do", grouped under "## Section" headings. Write each task so it can be done without this chat: what to do, where (links, file paths), and what "done" looks like. Only list things I have to do myself (send, sign up, decide, pay, check). Never tick my tasks yourself: I finish them in Task Desk.';
+const FORM =
+  '1 Name · 2 Folder · 3 Where its tasks come from · 4 When I press Done, my notes go to · 5 The chat (may it change files?) · 6 Anything the AI should know (optional) · 7 Color · 8 Look (optional) · 9 Which AI (optional)';
+const CHECKLIST_RULES =
+  'one task per line as "- [ ] what to do", grouped under "## Section" headings. Write each task so it can be done without this chat: what to do, where (links, file paths), and what "done" looks like. Only list things I have to do myself (send, sign up, decide, pay, check). Never tick my tasks yourself: I finish them in Task Desk.';
 function setupText() {
   return [
     'I use Task Desk, a desktop app, for the hands-on tasks my projects need from me. Please set this project up for it:',
     '',
     `1. Keep a checklist of everything you need me to do in TODO.md in this project's folder (create it if it's missing): ${CHECKLIST_RULES}`,
-    '2. When I finish or skip a task, Task Desk adds my notes and results to TASK_RESULTS.md in this folder. Read it at the start of every session and act on the entries you haven\'t handled yet. Don\'t edit or reorder it.',
+    "2. When I finish or skip a task, Task Desk adds my notes and results to TASK_RESULTS.md in this folder. Read it at the start of every session and act on the entries you haven't handled yet. Don't edit or reorder it.",
     `3. Then tell me how to add this project to Task Desk. Its "Add a project" form has numbered boxes: ${FORM}. Give me the exact text to type or option to pick for each box, by number. For 3 that's "A checklist file" (TODO.md), and for 4 it's "A file in the project folder" (TASK_RESULTS.md).`,
   ].join('\n');
 }
 function projectText(p) {
   const where = p.folder ? ` (folder: ${p.folder})` : '';
   const lines = [`I track the hands-on tasks for this project, "${p.name}"${where}, in Task Desk, a desktop app.`, ''];
-  if (p.source === 'file' && p.tasksPath) lines.push(`- Tasks for me: Task Desk reads ${p.tasksPath}. When you need me to do something, add it there: ${CHECKLIST_RULES}`);
-  else lines.push('- Tasks for me: this project\'s tasks live inside Task Desk (no file). When you need me to do something, tell me in one line and I\'ll add it there.');
-  if (p.results === 'file' && p.resultsPath) lines.push(`- My results: when I finish or skip a task, Task Desk appends my notes and anything I pasted to ${p.resultsPath}. Read it at the start of every session and act on the new entries. Don't edit or reorder it.`);
-  else lines.push('- My results: Task Desk keeps my notes. I\'ll paste anything you need from them.');
+  if (p.source === 'file' && p.tasksPath)
+    lines.push(`- Tasks for me: Task Desk reads ${p.tasksPath}. When you need me to do something, add it there: ${CHECKLIST_RULES}`);
+  else
+    lines.push(
+      "- Tasks for me: this project's tasks live inside Task Desk (no file). When you need me to do something, tell me in one line and I'll add it there."
+    );
+  if (p.results === 'file' && p.resultsPath)
+    lines.push(
+      `- My results: when I finish or skip a task, Task Desk appends my notes and anything I pasted to ${p.resultsPath}. Read it at the start of every session and act on the new entries. Don't edit or reorder it.`
+    );
+  else lines.push("- My results: Task Desk keeps my notes. I'll paste anything you need from them.");
   lines.push(`- If I ask how to change the project's settings in Task Desk, answer by its form's numbered boxes: ${FORM}.`);
   return lines.join('\n');
 }
@@ -264,11 +355,37 @@ $('#copyfor').onclick = async (e) => {
   e.stopPropagation();
   const up = userProject();
   const p = up ? await desk.getProject(up.id) : null;
-  const copy = (text, what) => { desk.copy(text); toast(`Copied ${what}. Paste it into the other chat.`); };
+  const copy = (text, what) => {
+    desk.copy(text);
+    toast(`Copied ${what}. Paste it into the other chat.`);
+  };
   const items = [
-    ...(p ? [{ label: `How "${p.name}" works with Task Desk`, icon: 'copy', hint: 'for its AI', run: () => copy(projectText(p), `the "${p.name}" instructions`) }] : []),
-    { label: 'Set up a new project for Task Desk', icon: 'plus', hint: 'any AI chat', run: () => copy(setupText(), 'the setup instructions') },
-    ...(data.factory ? [{ label: `${data.factory.name}: read my results`, icon: 'copy', hint: 'workspace', run: () => copy(workspaceText(), 'the workspace note') }] : []),
+    ...(p
+      ? [
+          {
+            label: `How "${p.name}" works with Task Desk`,
+            icon: 'copy',
+            hint: 'for its AI',
+            run: () => copy(projectText(p), `the "${p.name}" instructions`),
+          },
+        ]
+      : []),
+    {
+      label: 'Set up a new project for Task Desk',
+      icon: 'plus',
+      hint: 'any AI chat',
+      run: () => copy(setupText(), 'the setup instructions'),
+    },
+    ...(data.factory
+      ? [
+          {
+            label: `${data.factory.name}: read my results`,
+            icon: 'copy',
+            hint: 'workspace',
+            run: () => copy(workspaceText(), 'the workspace note'),
+          },
+        ]
+      : []),
   ];
   popMenu($('#copyfor'), items, {
     head: 'Copy for another AI chat',
@@ -283,23 +400,46 @@ function askName() {
   if ($('#me')) return;
   const cur = (data && data.me) || {};
   const name = h('input', { class: 'box', id: 'meName', maxlength: 40, placeholder: 'Your first name', value: cur.name || '' });
-  const about = h('input', { class: 'box', id: 'meAbout', maxlength: 200, placeholder: 'Optional: a line about you, e.g. "a solo builder who doesn\'t write code"', value: cur.about || '' });
+  const about = h('input', {
+    class: 'box',
+    id: 'meAbout',
+    maxlength: 200,
+    placeholder: 'Optional: a line about you, e.g. "a solo builder who doesn\'t write code"',
+    value: cur.about || '',
+  });
   const done = async (save) => {
     const r = await desk.setMe(save ? { name: name.value, about: about.value } : { name: cur.name || '', about: cur.about || '' });
     $('#me').remove();
     if (save) toast(r.name ? `Hi, ${r.name}.` : 'Saved.');
   };
-  const card = h('form', { class: 'mecard', id: 'me', onsubmit: (e) => { e.preventDefault(); done(true); } },
+  const card = h(
+    'form',
+    {
+      class: 'mecard',
+      id: 'me',
+      onsubmit: (e) => {
+        e.preventDefault();
+        done(true);
+      },
+    },
     h('b', {}, 'What should Task Desk call you?'),
     h('span', { class: 'hint' }, 'The AI uses it, and it lets a project show only the lines that mention you.'),
-    name, about,
-    h('div', { class: 'row' },
+    name,
+    about,
+    h(
+      'div',
+      { class: 'row' },
       h('button', { class: 'btn', type: 'button', onclick: () => done(false) }, cur.asked ? 'Cancel' : 'Skip'),
-      h('button', { class: 'btn primary', type: 'submit' }, 'Save')));
+      h('button', { class: 'btn primary', type: 'submit' }, 'Save')
+    )
+  );
   $('#warn').after(card);
   setTimeout(() => name.focus(), 50);
 }
-desk.onAskMe(() => { if (data && data.collapsed) desk.collapse(false); askName(); });
+desk.onAskMe(() => {
+  if (data && data.collapsed) desk.collapse(false);
+  askName();
+});
 
 // ---------- default AI ----------
 // The footer pill shows the AI new task chats start with; click it to change.
@@ -316,8 +456,14 @@ $('#aipick').onclick = (e) => {
   const a = data.ai;
   const proj = a.project && data.projects.find((p) => p.id === data.view);
   const items = a.list.map((x) => ({
-    label: `${x.name} (${x.app})`, icon: x.id === a.desk ? 'check' : 'sparkle', hint: x.installed ? '' : 'not installed',
-    run: async () => { data.ai = { ...(await desk.setDefaultAI(x.id)), project: a.project }; drawAIPick(); toast(`New task chats use ${x.name}.`); },
+    label: `${x.name} (${x.app})`,
+    icon: x.id === a.desk ? 'check' : 'sparkle',
+    hint: x.installed ? '' : 'not installed',
+    run: async () => {
+      data.ai = { ...(await desk.setDefaultAI(x.id)), project: a.project };
+      drawAIPick();
+      toast(`New task chats use ${x.name}.`);
+    },
   }));
   popMenu($('#aipick'), items, {
     head: 'Default AI for task chats',
@@ -333,7 +479,8 @@ $('#aipick').onclick = (e) => {
 // Unlocked, a grip appears next to it: drag it to make the box wider or taller.
 {
   const corner = $('#corner');
-  let arm = null, hideT = null;
+  let arm = null,
+    hideT = null;
   // The corner lets clicks through to the footer (the AI button sits there), so
   // the hover is worked out from the mouse position instead of the element.
   let over = false;
@@ -341,7 +488,10 @@ $('#aipick').onclick = (e) => {
     clearTimeout(hideT);
     if (corner.classList.contains('show')) return;
     corner.classList.add('arming');
-    arm = setTimeout(() => { corner.classList.remove('arming'); corner.classList.add('show'); }, 3000);
+    arm = setTimeout(() => {
+      corner.classList.remove('arming');
+      corner.classList.add('show');
+    }, 3000);
   };
   const leave = () => {
     clearTimeout(arm);
@@ -351,14 +501,23 @@ $('#aipick').onclick = (e) => {
   document.addEventListener('mousemove', (e) => {
     const r = corner.getBoundingClientRect();
     const inside = e.clientX >= r.left && e.clientY >= r.top;
-    if (inside !== over) { over = inside; (inside ? enter : leave)(); }
+    if (inside !== over) {
+      over = inside;
+      (inside ? enter : leave)();
+    }
   });
-  document.documentElement.addEventListener('mouseleave', () => { if (over) { over = false; leave(); } });
+  document.documentElement.addEventListener('mouseleave', () => {
+    if (over) {
+      over = false;
+      leave();
+    }
+  });
   // Over remote desktop the hover may not register, so three quick right-clicks
   // near either bottom corner show the lock too, and keep it up for 8 seconds.
   // The corner zone reaches the window's very edge (past the frame).
   const nearCorner = (e) => e.clientY > innerHeight - 90 && (e.clientX > innerWidth - 120 || e.clientX < 120);
-  let rights = [], keepUntil = 0;
+  let rights = [],
+    keepUntil = 0;
   document.addEventListener('contextmenu', (e) => {
     if (!nearCorner(e) || document.body.classList.contains('bar-mode')) return;
     e.preventDefault();
@@ -366,11 +525,14 @@ $('#aipick').onclick = (e) => {
     rights = rights.filter((t) => now - t < 1500).concat(now);
     if (rights.length < 3) return;
     rights = [];
-    clearTimeout(arm); clearTimeout(hideT);
+    clearTimeout(arm);
+    clearTimeout(hideT);
     keepUntil = now + 8000;
     corner.classList.remove('arming');
     corner.classList.add('show');
-    hideT = setTimeout(() => { if (!over) corner.classList.remove('show'); }, 8000);
+    hideT = setTimeout(() => {
+      if (!over) corner.classList.remove('show');
+    }, 8000);
   });
   $('#lockbtn').onclick = async () => {
     const locked = await desk.lockBox(!data.locked);
@@ -382,12 +544,19 @@ $('#aipick').onclick = (e) => {
     e.preventDefault();
     grip.setPointerCapture(e.pointerId);
     desk.resizeBox('start');
-    const move = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; desk.resizeBox('move'); }); };
+    const move = () => {
+      if (!raf)
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          desk.resizeBox('move');
+        });
+    };
     const up = () => {
       grip.removeEventListener('pointermove', move);
       grip.removeEventListener('pointerup', up);
       grip.removeEventListener('lostpointercapture', up);
-      cancelAnimationFrame(raf); raf = 0;
+      cancelAnimationFrame(raf);
+      raf = 0;
       desk.resizeBox('end');
     };
     grip.addEventListener('pointermove', move);
@@ -396,5 +565,14 @@ $('#aipick').onclick = (e) => {
   });
 }
 
-desk.onTasks((p) => { data = p; updatedAt = Date.now(); render(); tickUpdated(); });
-desk.listTasks().then((p) => { data = p; render(); tickUpdated(); });
+desk.onTasks((p) => {
+  data = p;
+  updatedAt = Date.now();
+  render();
+  tickUpdated();
+});
+desk.listTasks().then((p) => {
+  data = p;
+  render();
+  tickUpdated();
+});

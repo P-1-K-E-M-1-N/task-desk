@@ -15,18 +15,37 @@ let port = 0;
 
 function start(handle) {
   const server = http.createServer((req, res) => {
-    const reply = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+    const reply = (code, obj) => {
+      res.writeHead(code, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(obj));
+    };
     if (req.method !== 'POST' || req.url !== '/call') return reply(404, { ok: false, error: 'Not found' });
     let body = '';
-    req.on('data', (d) => { body += d; if (body.length > 1e6) req.destroy(); });
+    req.on('data', (d) => {
+      body += d;
+      if (body.length > 1e6) req.destroy();
+    });
     req.on('end', async () => {
       let msg;
-      try { msg = JSON.parse(body); } catch { return reply(400, { ok: false, error: 'Bad request' }); }
+      try {
+        msg = JSON.parse(body);
+      } catch {
+        return reply(400, { ok: false, error: 'Bad request' });
+      }
       if (msg.token !== TOKEN) return reply(403, { ok: false, error: 'Not allowed' });
-      try { reply(200, await handle(msg.task, msg.tool, msg.args || {})); } catch (e) { reply(200, { ok: false, error: e.message }); }
+      try {
+        reply(200, await handle(msg.task, msg.tool, msg.args || {}));
+      } catch (e) {
+        reply(200, { ok: false, error: e.message });
+      }
     });
   });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => { port = server.address().port; resolve(port); }));
+  return new Promise((resolve) =>
+    server.listen(0, '127.0.0.1', () => {
+      port = server.address().port;
+      resolve(port);
+    })
+  );
 }
 
 // How to start the tools for one task's chat (any AI app that speaks MCP).

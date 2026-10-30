@@ -17,7 +17,17 @@ const FACTORY_COLOR = '#9a9184';
 // The results file a project's Done notes go to, unless you name another.
 const DEFAULT_RESULTS = 'TASK_RESULTS.md';
 // Files that usually hold a to-do list, checked in this order when a folder is picked.
-const CANDIDATES = ['NEEDS_NICK.md', 'ops/NEEDS_NICK.md', 'TODO.md', 'todo.md', 'TASKS.md', 'tasks.md', 'CHECKLIST.md', 'docs/TODO.md', 'README.md'];
+const CANDIDATES = [
+  'NEEDS_NICK.md',
+  'ops/NEEDS_NICK.md',
+  'TODO.md',
+  'todo.md',
+  'TASKS.md',
+  'tasks.md',
+  'CHECKLIST.md',
+  'docs/TODO.md',
+  'README.md',
+];
 
 const list = () => config.get().projects || [];
 const get = (id) => list().find((p) => p.id === id) || null;
@@ -56,15 +66,23 @@ function read(p) {
   if (f) raw.push(...readChecklist(f, p.onlyMine));
   for (const a of state.store(p.id).added || []) raw.push({ id: a.id, lane: 'my-list', text: a.text });
   const extra = {
-    project: p.id, projectName: p.name, planNotes: p.notes || '', allowEdits: !!p.allowEdits, ai: p.ai || '',
-    sourceFile: f, projectFolder: p.folder || '',
+    project: p.id,
+    projectName: p.name,
+    planNotes: p.notes || '',
+    allowEdits: !!p.allowEdits,
+    ai: p.ai || '',
+    sourceFile: f,
+    projectFolder: p.folder || '',
   };
   return toTasks(raw, () => ({ laneDir: dir, workDir: dir }), p.id + '_').map((t) => ({ ...t, ...extra }));
 }
 
 // "Quick add": a task typed into the box, kept in the project's own state file.
 function addTask(pid, text) {
-  const clean = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+  const clean = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 1000);
   if (!clean || !get(pid)) return null;
   const st = state.store(pid);
   const id = `${pid}_q${crypto.randomBytes(4).toString('hex')}`;
@@ -77,7 +95,9 @@ function addTask(pid, text) {
 function clean(d) {
   const p = {
     id: d.id && get(d.id) ? d.id : 'p' + crypto.randomBytes(3).toString('hex'),
-    name: String(d.name || '').trim().slice(0, 40),
+    name: String(d.name || '')
+      .trim()
+      .slice(0, 40),
     folder: d.folder ? path.resolve(String(d.folder).trim()) : '',
     source: d.source === 'file' ? 'file' : 'list',
     tasksFile: String(d.tasksFile || '').trim(),
@@ -95,17 +115,23 @@ function clean(d) {
   };
   if (p.ownLook && !p.look) p.look = { accent: p.color };
   if (!p.name) return { ok: false, error: 'Give the project a name.', field: 'name' };
-  if (p.folder && !(fs.existsSync(p.folder) && fs.statSync(p.folder).isDirectory())) return { ok: false, error: 'That folder doesn\'t exist on this computer.', field: 'folder' };
+  if (p.folder && !(fs.existsSync(p.folder) && fs.statSync(p.folder).isDirectory()))
+    return { ok: false, error: "That folder doesn't exist on this computer.", field: 'folder' };
   if (p.source === 'file') {
     if (!p.tasksFile) return { ok: false, error: 'Pick the checklist file, or choose "Only tasks I add here".', field: 'tasksFile' };
     const f = path.isAbsolute(p.tasksFile) ? p.tasksFile : path.join(p.folder, p.tasksFile);
-    if (!fs.existsSync(f) || !fs.statSync(f).isFile()) return { ok: false, error: 'Can\'t find that checklist file.', field: 'tasksFile' };
+    if (!fs.existsSync(f) || !fs.statSync(f).isFile()) return { ok: false, error: "Can't find that checklist file.", field: 'tasksFile' };
     // Keep it relative to the folder when it lives there, so the folder can move.
     if (p.folder && inside(f, p.folder)) p.tasksFile = path.relative(p.folder, f);
   }
   if (p.results === 'file') {
     if (!p.folder) return { ok: false, error: 'Pick the project folder first, or keep the notes in Task Desk.', field: 'results' };
-    if (isFactoryPath(p.folder)) return { ok: false, error: `The ${config.factoryName()} folder is read-only. Keep the notes in Task Desk instead.`, field: 'results' };
+    if (isFactoryPath(p.folder))
+      return {
+        ok: false,
+        error: `The ${config.factoryName()} folder is read-only. Keep the notes in Task Desk instead.`,
+        field: 'results',
+      };
     const f = path.resolve(p.folder, p.resultsFile);
     if (!inside(f, p.folder)) return { ok: false, error: 'The results file has to be inside the project folder.', field: 'resultsFile' };
     if (!/\.(md|txt)$/i.test(f)) return { ok: false, error: 'The results file should be a .md or .txt file.', field: 'resultsFile' };
@@ -161,10 +187,22 @@ function preview(d) {
 
 // After a folder is picked: a name and the likeliest checklist file.
 function suggest(folder) {
-  const out = { name: path.basename(folder || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), tasksFile: '', factory: !!folder && isFactoryPath(folder) };
+  const out = {
+    name: path
+      .basename(folder || '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+    tasksFile: '',
+    factory: !!folder && isFactoryPath(folder),
+  };
   for (const c of CANDIDATES) {
     const f = path.join(folder, c);
-    try { if (fs.statSync(f).isFile() && /^\s*[-*]\s+\[ \]/m.test(fs.readFileSync(f, 'utf8'))) { out.tasksFile = c; break; } } catch {}
+    try {
+      if (fs.statSync(f).isFile() && /^\s*[-*]\s+\[ \]/m.test(fs.readFileSync(f, 'utf8'))) {
+        out.tasksFile = c;
+        break;
+      }
+    } catch {}
   }
   return out;
 }
@@ -179,4 +217,22 @@ function summary() {
 
 const colorOf = (id) => (id === 'factory' ? FACTORY_COLOR : (get(id) || {}).color || FACTORY_COLOR);
 
-module.exports = { COLORS, list, get, read, addTask, save, setLook, setOwnLook, remove, preview, suggest, summary, colorOf, tasksFile, resultsFile, missing, isFactoryPath };
+module.exports = {
+  COLORS,
+  list,
+  get,
+  read,
+  addTask,
+  save,
+  setLook,
+  setOwnLook,
+  remove,
+  preview,
+  suggest,
+  summary,
+  colorOf,
+  tasksFile,
+  resultsFile,
+  missing,
+  isFactoryPath,
+};

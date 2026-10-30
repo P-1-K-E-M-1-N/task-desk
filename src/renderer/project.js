@@ -15,16 +15,33 @@ $('#pickFile').innerHTML = `${icon('file')}<span>Choose…</span>`;
 // ---------- form ----------
 const radio = (name) => (document.querySelector(`input[name=${name}]:checked`) || {}).value;
 function setRadio(name, value) {
-  document.querySelectorAll(`input[name=${name}]`).forEach((r) => { r.checked = r.value === value; });
+  document.querySelectorAll(`input[name=${name}]`).forEach((r) => {
+    r.checked = r.value === value;
+  });
   document.querySelectorAll(`.choice[data-name=${name}]`).forEach((c) => c.classList.toggle('on', c.dataset.value === value));
 }
-document.querySelectorAll('input[type=radio]').forEach((r) => r.addEventListener('change', () => { setRadio(r.name, r.value); changed(); }));
+document.querySelectorAll('input[type=radio]').forEach((r) =>
+  r.addEventListener('change', () => {
+    setRadio(r.name, r.value);
+    changed();
+  })
+);
 
 function drawColors() {
-  $('#colors').replaceChildren(...COLORS.map((c) => h('button', {
-    class: c === color ? 'on' : '', style: `background:${c}`, title: 'Use this color',
-    onclick: () => { color = c; drawColors(); changed(); },
-  })));
+  $('#colors').replaceChildren(
+    ...COLORS.map((c) =>
+      h('button', {
+        class: c === color ? 'on' : '',
+        style: `background:${c}`,
+        title: 'Use this color',
+        onclick: () => {
+          color = c;
+          drawColors();
+          changed();
+        },
+      })
+    )
+  );
 }
 
 const draft = () => ({
@@ -47,7 +64,9 @@ function showError(r) {
   document.querySelectorAll('.err').forEach((e) => e.remove());
   document.querySelectorAll('.bad').forEach((e) => e.classList.remove('bad'));
   if (!r || r.ok) return;
-  const field = { name: '#f-name', folder: '#f-folder', tasksFile: '#f-tasksFile', results: '#f-results', resultsFile: '#f-results' }[r.field] || '#f-name';
+  const field =
+    { name: '#f-name', folder: '#f-folder', tasksFile: '#f-tasksFile', results: '#f-results', resultsFile: '#f-results' }[r.field] ||
+    '#f-name';
   const f = $(field);
   f.classList.add('bad');
   f.append(h('div', { class: 'err' }, r.error));
@@ -59,12 +78,19 @@ function preview() {
   clearTimeout(previewTimer);
   previewTimer = setTimeout(async () => {
     const d = draft();
-    if (d.source !== 'file' || !d.tasksFile) { $('#found').hidden = true; return; }
+    if (d.source !== 'file' || !d.tasksFile) {
+      $('#found').hidden = true;
+      return;
+    }
     const r = await desk.previewProject({ ...d, name: d.name || 'x' });
     const f = $('#found');
     f.hidden = false;
     f.className = 'found' + (r.ok && r.count ? '' : ' warn');
-    if (!r.ok) { f.innerHTML = `${icon('x')}<span></span>`; f.querySelector('span').textContent = r.error; return; }
+    if (!r.ok) {
+      f.innerHTML = `${icon('x')}<span></span>`;
+      f.querySelector('span').textContent = r.error;
+      return;
+    }
     f.innerHTML = `${icon(r.count ? 'check' : 'x')}<span></span>`;
     f.querySelector('span').textContent = r.count
       ? `Found ${r.count} open task${r.count === 1 ? '' : 's'}: ${r.titles.join(' · ')}${r.count > 3 ? ' …' : ''}`
@@ -77,12 +103,22 @@ async function useFolder(folder) {
   $('#folder').value = folder;
   const s = await desk.suggestProject(folder);
   if (!$('#name').value.trim() && s.name) $('#name').value = s.name;
-  if (s.tasksFile && !$('#tasksFile').value.trim()) { $('#tasksFile').value = s.tasksFile; setRadio('source', 'file'); }
-  if (s.factory) { setRadio('results', 'app'); toast('That\'s inside your lanes workspace: it stays read-only.'); }
+  if (s.tasksFile && !$('#tasksFile').value.trim()) {
+    $('#tasksFile').value = s.tasksFile;
+    setRadio('source', 'file');
+  }
+  if (s.factory) {
+    setRadio('results', 'app');
+    toast("That's inside your lanes workspace: it stays read-only.");
+  }
   preview();
   changed();
 }
-$('#pickFolder').onclick = async (e) => { e.preventDefault(); const f = await desk.pick('folder', $('#folder').value.trim()); if (f) useFolder(f); };
+$('#pickFolder').onclick = async (e) => {
+  e.preventDefault();
+  const f = await desk.pick('folder', $('#folder').value.trim());
+  if (f) useFolder(f);
+};
 $('#pickFile').onclick = async (e) => {
   e.preventDefault();
   const f = await desk.pick('file', $('#tasksFile').value.trim() || $('#folder').value.trim());
@@ -93,7 +129,9 @@ $('#pickFile').onclick = async (e) => {
   preview();
   changed();
 };
-$('#folder').addEventListener('change', () => { if ($('#folder').value.trim()) useFolder($('#folder').value.trim()); });
+$('#folder').addEventListener('change', () => {
+  if ($('#folder').value.trim()) useFolder($('#folder').value.trim());
+});
 ['#tasksFile', '#onlyMine'].forEach((s) => $(s).addEventListener('input', preview));
 document.querySelectorAll('input.box, textarea.box, input[type=checkbox]').forEach((el) => el.addEventListener('input', changed));
 
@@ -108,7 +146,10 @@ const mark = (s, text) => {
   el.innerHTML = s === 'saving' ? 'Saving…' : s === 'saved' ? `${icon('check')}Saved` : text;
 };
 function changed() {
-  if (!ID) { showError(null); return; }
+  if (!ID) {
+    showError(null);
+    return;
+  }
   dirty = true;
   mark('saving');
   clearTimeout(saveTimer);
@@ -120,25 +161,40 @@ async function saveNow() {
   dirty = false;
   const r = await desk.saveProject(draft());
   showError(r);
-  if (!r.ok) { mark('error', 'Not saved yet: fix the note below'); return false; }
+  if (!r.ok) {
+    mark('error', 'Not saved yet: fix the note below');
+    return false;
+  }
   resultsPath = r.resultsPath;
   mark('saved');
   return true;
 }
-document.addEventListener('focusout', () => { if (dirty) saveNow(); });
+document.addEventListener('focusout', () => {
+  if (dirty) saveNow();
+});
 
 $('#add').onclick = async () => {
   const r = await desk.saveProject(draft());
   showError(r);
-  if (!r.ok) { $(`.bad`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+  if (!r.ok) {
+    $(`.bad`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
   document.body.append(h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon('check')}</div>Project added` })));
   setTimeout(() => desk.close(), 700);
 };
-const closeWin = async () => { if (await saveNow()) desk.close(); };
+const closeWin = async () => {
+  if (await saveNow()) desk.close();
+};
 $('#cancel').onclick = closeWin;
 $('#wclose').onclick = closeWin;
-$('#remove').onclick = async () => { if (await desk.removeProject(ID)) desk.close(); };
-$('#openResults').onclick = async () => { const r = await desk.openResults(resultsPath); if (r && r.ok === false) toast(r.error); };
+$('#remove').onclick = async () => {
+  if (await desk.removeProject(ID)) desk.close();
+};
+$('#openResults').onclick = async () => {
+  const r = await desk.openResults(resultsPath);
+  if (r && r.ok === false) toast(r.error);
+};
 
 // ---------- start ----------
 async function init() {
@@ -149,9 +205,16 @@ async function init() {
   const me = await desk.getMe();
   $('#myName').textContent = me.name ? `(${me.name})` : '(set your name first: ⋯ menu, Your name…)';
   $('#onlyMine').disabled = !me.name && !$('#onlyMine').checked;
-  if (!ID) { $('#ownLook').checked = !!LOOK.newOwn; $('#name').focus(); return; }
+  if (!ID) {
+    $('#ownLook').checked = !!LOOK.newOwn;
+    $('#name').focus();
+    return;
+  }
   const p = await desk.getProject(ID);
-  if (!p) { $('.scroll').innerHTML = '<p class="lead">This project was removed. You can close this window.</p>'; return; }
+  if (!p) {
+    $('.scroll').innerHTML = '<p class="lead">This project was removed. You can close this window.</p>';
+    return;
+  }
   document.title = `Edit ${p.name}`;
   $('#tname').textContent = `Edit project · ${p.name}`;
   $('#title').textContent = p.name;
@@ -174,7 +237,8 @@ async function init() {
   $('#remove').hidden = false;
   $('#openResults').hidden = false;
   mark('saved');
-  if (p.missing) showError({ ok: false, field: 'folder', error: 'This folder isn\'t on this computer. Choose where the project lives here.' });
+  if (p.missing)
+    showError({ ok: false, field: 'folder', error: "This folder isn't on this computer. Choose where the project lives here." });
   preview();
 }
 init();
