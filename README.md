@@ -45,6 +45,10 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 
 `npm run hidden` starts it straight to the tray without showing the box.
 
+**Hooking up another AI chat.** The clipboard button at the top of the box copies ready-made instructions to paste into Claude Code, Codex or any other AI chat:
+- **"Set up a new project for Task Desk"** tells that chat to keep your to-do items in `TODO.md`, read your results from `TASK_RESULTS.md`, and walk you through the Add a project form box by box.
+- **With a project showing,** it also offers that project's own version, with its real file paths filled in.
+
 **Where tasks come from.** Each project you add reads one of two things:
 - **A checklist file in its folder.** Every unchecked `- [ ] ...` line is a task, and `## Headings` become groups. The app only reads this file.
 - **Only the tasks you type into the box.**

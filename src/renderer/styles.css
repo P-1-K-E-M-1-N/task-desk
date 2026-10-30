@@ -305,6 +305,21 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   from { background-position: 0 0, 0 0, 0 0, 0 0; }
   to { background-position: 0 240px, 0 480px, 0 -240px, 0 0; }
 }
+/* Day & night sky: drawn live (liveframe.js) from your clock. The preview tile
+   is a sketch of the whole day: night, sunrise, blue sky with a sun, sunset. */
+[data-material=sky] {
+  --frame-w: 16px; --frame: transparent; --frame-anim: none;
+  --bar: var(--bg-2); --bar-ink: var(--ink-2); --app-r: 10px;
+  --frame-glow: 0 0 0 1px rgba(40,80,140,.3);
+}
+.mat[data-material=sky] {
+  --frame: radial-gradient(circle 5px at 60% 22%, #fff4c8 70%, rgba(255,244,200,0) 100%),
+           radial-gradient(ellipse 9px 4px at 30% 70%, rgba(255,255,255,.9) 80%, transparent),
+           linear-gradient(90deg, #0d1430 0%, #c76a6a 22%, #3f93e6 40%, #8fc9ff 62%, #ffb070 80%, #2b2a5e 100%);
+  background-size: 100% 100%, 100% 100%, 300% 100%;
+  --frame-anim: frameSky 16s linear infinite alternate;
+}
+@keyframes frameSky { from { background-position: 0 0, 0 0, 0% 0; } to { background-position: 0 0, 0 0, 100% 0; } }
 /* Lava lamp: drawn live too. The preview tile gets a CSS sketch. */
 [data-material=lavalamp] {
   --frame-w: 18px; --frame: transparent; --frame-anim: none;

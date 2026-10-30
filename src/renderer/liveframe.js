@@ -5,6 +5,8 @@
 //    air bubbles wobble their way up.
 //  - the lava lamp: soft blobs of wax warm up in the glow at the bottom, rise,
 //    cool off at the top and sink again, stretching and merging as they pass.
+//  - the day & night sky: the sky at this time of day on your clock, with the
+//    sun or moon travelling around the frame.
 // The canvas sits behind the window's frame, which is see-through for these
 // materials; the window's content covers the middle.
 (() => {
@@ -34,6 +36,9 @@
     else if (newKind) { sim = null; layout(); }
     else if (changed) { E.cache(); if (!raf) loop(); }
   }
+
+  // The sky follows the clock, so even with motion off it's redrawn every minute.
+  setInterval(() => { if (kind === 'sky' && cv && !raf) loop(); }, 60 * 1000);
 
   function start() {
     host = document.querySelector('.panel') || document.body;
@@ -505,9 +510,191 @@
     api.frames++;
   }
 
+  // ---------- day & night sky ----------
+  // The frame is the sky at this time of day, on your clock. The sun rises up
+  // the left side, crosses the top and sets down the right side; the moon does
+  // the same at night. Clouds drift around the frame by day, stars twinkle by
+  // night (with the odd shooting star), and dawn and dusk glow orange and pink.
+  // api.hour overrides the clock (tests and screenshots).
+  const SKY = [ // hour, color at the top, color at the bottom
+    [0, '#070b1f', '#141c3d'], [4.6, '#070b1f', '#141c3d'], [5.6, '#2a2350', '#c76a6a'], [6.6, '#5c7fc4', '#ffb37a'],
+    [8, '#3f93e6', '#bfe3ff'], [16.2, '#3f93e6', '#bfe3ff'], [18, '#3c6fb8', '#ffb070'], [19.2, '#2b2a5e', '#e0607a'],
+    [20.4, '#0d1430', '#29305e'], [24, '#070b1f', '#141c3d'],
+  ];
+  const RISE = 6, SET = 19.5; // the sun is up from 6:00 to 19:30
+  const mixRGB = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f));
+  const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const hourNow = () => (api.hour != null ? api.hour : (() => { const d = new Date(); return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600; })());
+  function skyAt(hr) {
+    let i = 0;
+    while (i < SKY.length - 2 && SKY[i + 1][0] <= hr) i++;
+    const [h0, t0, b0] = SKY[i], [h1, t1, b1] = SKY[i + 1];
+    const f = clamp((hr - h0) / (h1 - h0 || 1), 0, 1);
+    return { top: mixRGB(hex(t0), hex(t1), f), bottom: mixRGB(hex(b0), hex(b1), f) };
+  }
+  // 1 in full night, 0 in full day, in between at dawn and dusk.
+  const nightness = (hr) => (hr < 4.8 || hr > 20.6 ? 1 : hr < 7 ? clamp((7 - hr) / 2.2, 0, 1) : hr > 18.2 ? clamp((hr - 18.2) / 2.4, 0, 1) : 0);
+  // A point along the frame's path: up the left side, across the top, down the right.
+  function along(p) {
+    const { w, h, t } = G;
+    const side = h * 0.55, top = w;
+    const total = side * 2 + top;
+    let d = clamp(p, 0, 1) * total;
+    if (d < side) return [t * 0.5, h * 0.62 - d];
+    d -= side;
+    if (d < top) return [clamp(d, t * 0.5, w - t * 0.5), t * 0.5];
+    d -= top;
+    return [w - t * 0.5, h * 0.07 + d];
+  }
+
+  let skyBg = null, skyHour = -1;
+  function skyCache() {
+    const hr = hourNow();
+    skyHour = hr;
+    const { w, h, t } = G;
+    const s = skyAt(hr);
+    let x;
+    [skyBg, x] = offscreen();
+    const g = x.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, rgb(s.top));
+    g.addColorStop(1, rgb(s.bottom));
+    x.fillStyle = g;
+    x.fillRect(0, 0, w, h);
+    // A low glow along the bottom at dawn and dusk.
+    const warm = (hr > 5 && hr < 8) || (hr > 17 && hr < 20.5) ? 0.35 : 0;
+    if (warm) {
+      const gl = x.createLinearGradient(0, h, 0, h - t * 3);
+      gl.addColorStop(0, `rgba(255,150,90,${warm})`);
+      gl.addColorStop(1, 'rgba(255,150,90,0)');
+      x.fillStyle = gl;
+      x.fillRect(0, h - t * 3, w, t * 3);
+    }
+    bg = skyBg;
+    [gloss, x] = offscreen();
+    x.strokeStyle = 'rgba(255,255,255,.18)';
+    x.lineWidth = 1;
+    x.strokeRect(t - 0.5, t - 0.5, w - 2 * t + 1, h - 2 * t + 1);
+  }
+
+  function skySim() {
+    const { w, h, t } = G;
+    const ring = () => { // a random point inside the frame's band
+      const per = 2 * (w + h);
+      let d = Math.random() * per;
+      if (d < w) return [d, rand(1, t - 1)];
+      d -= w;
+      if (d < h) return [w - rand(1, t - 1), d];
+      d -= h;
+      if (d < w) return [d, h - rand(1, t - 1)];
+      return [rand(1, t - 1), d - w];
+    };
+    const stars = Array.from({ length: Math.round((w + h) / 9) }, () => { const [x, y] = ring(); return { x, y, r: rand(0.35, 1.1), ph: rand(0, 6), sp: rand(0.8, 2.4) }; });
+    const clouds = Array.from({ length: Math.max(4, Math.round((w + h) / 120)) }, () => ({ d: Math.random(), sp: rand(0.004, 0.009), s: rand(0.75, 1.15), puffs: Math.round(rand(3, 5)) }));
+    sim = { stars, clouds, shoot: null, nextShoot: rand(6, 16), time: 0 };
+  }
+
+  function skyStep(dt) {
+    const S = sim;
+    S.time += dt;
+    for (const c of S.clouds) c.d = (c.d + c.sp * dt) % 1;
+    if (S.shoot) { S.shoot.life -= dt; if (S.shoot.life <= 0) S.shoot = null; }
+    S.nextShoot -= dt;
+    if (S.nextShoot <= 0 && nightness(hourNow()) > 0.7) {
+      const { w, t } = G;
+      S.shoot = { x: rand(w * 0.15, w * 0.75), y: rand(t * 0.2, t * 0.6), life: 0.9, len: rand(40, 80) };
+      S.nextShoot = rand(9, 22);
+    }
+    api.drops = S.clouds.length;
+  }
+
+  // Where along the frame a cloud is (its position around the whole loop).
+  function ringPoint(d) {
+    const { w, h, t } = G;
+    const per = 2 * (w + h);
+    let x = d * per;
+    if (x < w) return [x, t * 0.5];
+    x -= w;
+    if (x < h) return [w - t * 0.5, x];
+    x -= h;
+    if (x < w) return [w - x, h - t * 0.5];
+    return [t * 0.5, h - (x - w)];
+  }
+
+  function skyDraw() {
+    const { w, h, t } = G;
+    const hr = hourNow();
+    if (Math.abs(hr - skyHour) > 0.02) skyCache(); // the colors move on about once a minute
+    const S = sim;
+    const night = nightness(hr);
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.rect(t, t, w - 2 * t, h - 2 * t);
+    ctx.clip('evenodd');
+    ctx.drawImage(skyBg, 0, 0, w, h);
+
+    // Stars, fading in at dusk.
+    if (night > 0.05) {
+      for (const s of S.stars) {
+        const a = night * (0.45 + 0.55 * Math.abs(Math.sin(S.time * s.sp + s.ph)));
+        ctx.fillStyle = `rgba(255,255,240,${a})`;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      }
+      if (S.shoot) {
+        const k = S.shoot.life / 0.9, x0 = S.shoot.x + (1 - k) * S.shoot.len * 2, y0 = S.shoot.y + (1 - k) * 6;
+        const g = ctx.createLinearGradient(x0, y0, x0 - S.shoot.len, y0 - 6);
+        g.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 - S.shoot.len, y0 - 6); ctx.stroke();
+      }
+    }
+
+    // The sun by day, the moon by night, travelling along the frame.
+    const up = hr >= RISE && hr <= SET;
+    const p = up ? (hr - RISE) / (SET - RISE) : ((hr < RISE ? hr + 24 : hr) - SET) / (24 - SET + RISE);
+    const [bx, by] = along(p);
+    const R = t * 0.62;
+    if (up) {
+      const low = Math.min(1, Math.abs(p - 0.5) * 2); // redder near sunrise and sunset
+      const core = mixRGB([255, 244, 200], [255, 160, 90], low * low);
+      const halo = ctx.createRadialGradient(bx, by, R * 0.4, bx, by, R * 4.2);
+      halo.addColorStop(0, rgb(core, 0.75)); halo.addColorStop(1, rgb(core, 0));
+      ctx.fillStyle = halo; ctx.fillRect(bx - R * 4.2, by - R * 4.2, R * 8.4, R * 8.4);
+      ctx.fillStyle = rgb(core);
+      ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const halo = ctx.createRadialGradient(bx, by, R * 0.5, bx, by, R * 3.4);
+      halo.addColorStop(0, 'rgba(220,230,255,.35)'); halo.addColorStop(1, 'rgba(220,230,255,0)');
+      ctx.fillStyle = halo; ctx.fillRect(bx - R * 3.4, by - R * 3.4, R * 6.8, R * 6.8);
+      ctx.fillStyle = '#eef2ff';
+      ctx.beginPath(); ctx.arc(bx, by, R * 0.85, 0, Math.PI * 2); ctx.fill();
+      // The shadowed part makes it a crescent.
+      ctx.fillStyle = rgb(skyAt(hr).top);
+      ctx.beginPath(); ctx.arc(bx + R * 0.62, by - R * 0.22, R * 0.68, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Clouds drifting around the frame, pink-tinged at dawn and dusk, faint at night.
+    const tint = mixRGB([255, 255, 255], skyAt(hr).bottom, 0.35 * Math.min(1, night * 2));
+    const ca = 0.88 - night * 0.7;
+    for (const c of S.clouds) {
+      const [cx, cy] = ringPoint(c.d);
+      const r = t * 0.42 * c.s;
+      ctx.fillStyle = rgb(tint, ca);
+      for (let i = 0; i < c.puffs; i++) {
+        const ox = (i - (c.puffs - 1) / 2) * r * 0.95, oy = Math.sin(i * 2.1) * r * 0.25;
+        ctx.beginPath(); ctx.arc(cx + ox, cy + oy, r * (i % 2 ? 0.85 : 1.05), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.drawImage(gloss, 0, 0, w, h);
+    ctx.restore();
+    api.frames++;
+  }
+
   const ENGINES = {
     bubbler: { cache, newSim, step, draw },
     lavalamp: { cache: lavaCache, newSim: lavaSim, step: lavaStep, draw: lavaDraw },
+    sky: { cache: skyCache, newSim: skySim, step: skyStep, draw: skyDraw },
   };
 
   function loop(now) {

@@ -66,7 +66,7 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   // ---- look panel ----
   await win.locator('#wlook').click();
   ok('look panel opens', await win.locator('.lookpanel').isVisible());
-  ok('6 themes and 14 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 14);
+  ok('6 themes and 15 frames offered', (await win.locator('.lookpanel .swatch').count()) === 6 && (await win.locator('.lookpanel .mat').count()) === 15);
   await win.locator('.lookpanel .grid button', { hasText: 'Ocean' }).click();
   ok('panel stays open while choosing', await win.locator('.lookpanel').isVisible());
   await win.waitForTimeout(300);
@@ -124,6 +124,27 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   ok('lava lamp is drawn live', (await frames(box)) > l1 && await box.locator('canvas.liveframe').count() === 1);
   await box.screenshot({ path: path.join(SHOTS, 'look-box-lavalamp-dark.png') });
   await win.screenshot({ path: path.join(SHOTS, 'look-lavalamp-dark.png') });
+
+  // Day & night: the sky frame follows the clock, and so does light/dark.
+  await win.evaluate(() => desk.setLook({ material: 'sky', appearance: 'cycle' }));
+  await win.waitForTimeout(1200);
+  const k1 = await frames(box);
+  await box.waitForTimeout(500);
+  ok('the day & night sky is drawn live', (await frames(box)) > k1 && await box.locator('canvas.liveframe').count() === 1);
+  const hr = new Date().getHours();
+  ok('"Day & night" is dark at night and light by day', (await box.evaluate(() => document.documentElement.classList.contains('dark'))) === (hr < 7 || hr >= 19), `hour ${hr}`);
+  for (const h of [1, 12, 18.6]) {
+    await box.evaluate((x) => { window.liveFrame.hour = x; }, h);
+    await box.waitForTimeout(400);
+    await box.screenshot({ path: path.join(SHOTS, `look-box-sky-${h}.png`) });
+  }
+  await box.evaluate(() => { window.liveFrame.hour = null; });
+
+  // Copy instructions for another AI chat.
+  await box.locator('#copyfor').click();
+  await box.locator('.popmenu button', { hasText: 'Set up a new project' }).click();
+  const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+  ok('copies setup instructions for another AI chat', /TODO\.md/.test(copied) && /TASK_RESULTS\.md/.test(copied) && /1 Name/.test(copied));
 
   // Your own colors: pink task cards, an accent, a background tint, round corners.
   await win.evaluate(() => desk.setLook({ material: 'wood', appearance: 'light', card: '#ff5fa8', cardMix: 45, accent: '#8f74ff', bg: '#ffc94d', bgMix: 20, round: 'extra' }));

@@ -81,12 +81,20 @@ There's no Save button to remember. Every box (your notes, every paste box, the 
 Click the **palette** button (top of the task box, or the top bar of any task window), or choose **Customize look…** in the ⋯ menu.
 - **Theme:** Clay, Sage, Ocean, Plum, Honey or Graphite. This sets the colors and the accent used for buttons.
 - **Frame:** what the window's border is made of. Paper (plain), Glass, Linen, Wood, Leather (with stitching), Brushed metal or Neon, plus the moving frames below.
-- **Light or dark:** Auto (follows Windows), Light or Dark.
+- **Light or dark:**
+  - **Day & night** (the default on a new desk): light from 7 AM to 7 PM, dark the rest of the time, switching on the hour by itself.
+  - **Like Windows:** follows Windows' own light/dark setting.
+  - **Light** or **Dark:** always that.
 - **Text size:** Small, Normal, Large or Larger.
 
 - **Moving frames:** Aurora, Magma, Stars and Rainbow drift slowly.
   - **Bubbler:** drawn live like a liquid motion bubbler. Colored drops form at the top corners, fall through clear oil (bigger drops fall faster and sometimes merge) and land in a pool with a ripple, while little air bubbles wobble up.
   - **Lava lamp:** wax blobs warm up in the glow at the bottom, rise, cool off at the top and sink again.
+  - **Day & night sky:** the sky outside right now, by your clock.
+    - **By day:** blue, with clouds drifting around the frame. The sun rises up the left side, crosses the top and sets down the right side.
+    - **Dawn and dusk:** orange and pink.
+    - **At night:** a crescent moon makes the same trip, the stars twinkle, and now and then a shooting star goes by.
+    - **With Day & night light/dark:** the frame and the windows change together.
   - **My picture:** any picture, or a GIF to make it move. Task Desk keeps a copy in its data folder.
   - **Motion → Keep still** freezes every moving frame. They also hold still when Windows' animation effects are off.
 - **Your colors:** pick an **Accent** (buttons and highlights), a color for the **Task cards** (pink task boxes, for example), and a **Background** tint. Each has preset colors and a picker for any color, and Task cards and Background have a **Strength** slider. **Theme** puts the theme's own color back.

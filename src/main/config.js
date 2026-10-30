@@ -38,7 +38,8 @@ const DEFAULTS = {
   boxBounds: null,
   collapsed: false,
   // How the windows look: color theme, frame material, light/dark, text size.
-  look: { theme: 'clay', material: 'paper', appearance: 'system', size: 'm', motion: 'on', picture: '' },
+  // appearance 'cycle' = "Day & night": light from 7:00 to 19:00, dark the rest.
+  look: { theme: 'ocean', material: 'paper', appearance: 'cycle', size: 'm', motion: 'on', picture: '' },
   // Projects besides the lanes workspace (see projects.js), and which one the box shows.
   projects: [],
   view: 'all',
