@@ -41,7 +41,11 @@ if (!app.requestSingleInstanceLock()) {
 // Electron's icon); ensureShortcuts() moves the shortcuts over. Tests use their
 // own id, so a test copy can't leave Windows a shortcut with Electron's icon for
 // the real one.
-const APP_ID = process.env.TASKDESK_LOCAL_DATA ? 'com.taskdesk.desk.test' : 'com.taskdesk.desk';
+// TASKDESK_TEST is set by every test (test/env.js), even the one that runs the
+// app in its normal data mode, so tests never touch this computer's shortcuts,
+// taskbar id or updates.
+const TESTING = !!(process.env.TASKDESK_LOCAL_DATA || process.env.TASKDESK_TEST);
+const APP_ID = TESTING ? 'com.taskdesk.desk.test' : 'com.taskdesk.desk';
 app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
@@ -591,40 +595,39 @@ function setAutostart(on) {
   config.set({ autostart: on });
 }
 function ensureShortcuts() {
-  // Tests leave this computer's shortcuts alone.
-  if (!process.env.TASKDESK_LOCAL_DATA) {
-    // The Start menu entry is checked every start. When the app id or icon changes,
-    // the existing shortcuts are rewritten so pins and the taskbar pick it up.
-    const LINKS = `${APP_ID}/${LINK_NAME}`;
-    const stale = config.get().linksFor !== LINKS;
-    if (stale || !fs.existsSync(startMenuLink()))
-      try {
-        writeLink(startMenuLink(), false);
-      } catch {}
-    // Stray shortcuts with our id (see oldLinks) are removed every start.
-    for (const f of oldLinks(path.dirname(startMenuLink())))
-      try {
-        fs.unlinkSync(f);
-      } catch {}
-    if (stale) {
-      // Rename older shortcuts, and rewrite the current ones for the new id and icon.
-      for (const [link, hidden] of [
-        [desktopLink(), false],
-        [startupLink(), true],
-        [startMenuLink(), false],
-      ]) {
-        const old = oldLinks(path.dirname(link));
-        for (const f of old)
-          try {
-            fs.unlinkSync(f);
-          } catch {}
-        if (old.length || fs.existsSync(link))
-          try {
-            writeLink(link, hidden);
-          } catch {}
-      }
-      config.set({ linksFor: LINKS });
+  // Tests leave this computer's shortcuts alone, including the first-start ones.
+  if (TESTING) return;
+  // The Start menu entry is checked every start. When the app id or icon changes,
+  // the existing shortcuts are rewritten so pins and the taskbar pick it up.
+  const LINKS = `${APP_ID}/${LINK_NAME}`;
+  const stale = config.get().linksFor !== LINKS;
+  if (stale || !fs.existsSync(startMenuLink()))
+    try {
+      writeLink(startMenuLink(), false);
+    } catch {}
+  // Stray shortcuts with our id (see oldLinks) are removed every start.
+  for (const f of oldLinks(path.dirname(startMenuLink())))
+    try {
+      fs.unlinkSync(f);
+    } catch {}
+  if (stale) {
+    // Rename older shortcuts, and rewrite the current ones for the new id and icon.
+    for (const [link, hidden] of [
+      [desktopLink(), false],
+      [startupLink(), true],
+      [startMenuLink(), false],
+    ]) {
+      const old = oldLinks(path.dirname(link));
+      for (const f of old)
+        try {
+          fs.unlinkSync(f);
+        } catch {}
+      if (old.length || fs.existsSync(link))
+        try {
+          writeLink(link, hidden);
+        } catch {}
     }
+    config.set({ linksFor: LINKS });
   }
   if (config.get().shortcutsDone) return;
   try {
@@ -859,7 +862,7 @@ let pendingUpdate = null,
   idleTimer = null,
   installing = false;
 // Tests run their own copy and never update.
-const autoUpdateOn = () => config.get().autoUpdate !== false && !process.env.TASKDESK_LOCAL_DATA && !process.env.TASKDESK_NO_UPDATE;
+const autoUpdateOn = () => config.get().autoUpdate !== false && !TESTING && !process.env.TASKDESK_NO_UPDATE;
 const logUpdate = (msg) => {
   try {
     fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`);
