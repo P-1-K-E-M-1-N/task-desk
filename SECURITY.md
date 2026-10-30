@@ -28,6 +28,11 @@ Knowing the boundaries makes it clear what counts as a bug.
   every request needs a token made fresh at each start, and the token names one
   task, so a chat can only change the task it was opened for. The server never
   listens on the network.
+- **The windows.** The three pages run in Chromium's sandbox with context isolation
+  and a strict content security policy (no inline scripts, nothing loaded from the
+  network). They reach the app only through the small `desk` API in
+  `src/preload.js`, and the app answers only messages whose sender is one of its
+  own pages. **Open** buttons open documents and folders, never programs.
 - **Secrets.** The only secret the app handles is an API key a task asks the user
   to paste. It goes straight into the `.env` file the task names, after a
   confirmation dialog, and is never stored, logged or synced.
