@@ -2,17 +2,34 @@
   "name": "task-desk",
   "version": "1.0.0",
   "description": "A floating Windows task box that turns your projects' to-do lists into step-by-step plans with an AI chat for every task.",
+  "private": true,
+  "license": "MIT",
+  "author": "Nick (https://github.com/P-1-K-E-M-1-N)",
+  "homepage": "https://github.com/P-1-K-E-M-1-N/task-desk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/P-1-K-E-M-1-N/task-desk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/P-1-K-E-M-1-N/task-desk/issues"
+  },
   "main": "src/main/main.js",
+  "type": "commonjs",
+  "productName": "Task Desk",
+  "engines": {
+    "node": ">=22"
+  },
+  "os": [
+    "win32"
+  ],
   "scripts": {
     "start": "electron .",
-    "hidden": "electron . --hidden"
-  },
-  "author": "",
-  "license": "UNLICENSED",
-  "type": "commonjs",
-  "devDependencies": {
-    "electron": "^45.0.0",
-    "playwright-core": "^1.64.1"
+    "hidden": "electron . --hidden",
+    "test": "node test/run.js",
+    "test:all": "node test/run.js --all",
+    "test:plans": "node test/gen-plans.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
@@ -21,6 +38,11 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0"
   },
-  "productName": "Task Desk",
-  "private": true
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "electron": "^45.0.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "playwright-core": "^1.64.1"
+  }
 }

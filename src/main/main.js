@@ -601,7 +601,6 @@ const UPDATE_LOG = path.join(config.LOCAL_DIR, 'update.log');
 let pendingUpdate = null, updateTimer = null, idleTimer = null, installing = false;
 // Tests run their own copy and never update.
 const autoUpdateOn = () => config.get().autoUpdate !== false && !process.env.TASKDESK_LOCAL_DATA && !process.env.TASKDESK_NO_UPDATE;
-const windowsOpen = () => [...taskWins.values(), ...projectWins.values()].filter((w) => w && !w.isDestroyed()).length;
 const logUpdate = (msg) => { try { fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`); } catch {} };
 const say = (title, body) => { try { new Notification({ title, body, icon: ICON_PNG }).show(); } catch {} };
 

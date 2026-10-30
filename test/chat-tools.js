@@ -4,10 +4,9 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
+const { useTestSettings, launchOpts, DATA } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
-const SETTINGS = path.join(DATA, 'settings.json');
 const STATE = path.join(DATA, 'state.test.json');
 const FROM_NICK = path.join(ROOT, 'test-fixtures', 'ops', 'FROM_NICK.md');
 const results = [];
