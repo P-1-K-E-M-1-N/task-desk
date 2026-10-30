@@ -41,7 +41,11 @@ if (!app.requestSingleInstanceLock()) {
 // Electron's icon); ensureShortcuts() moves the shortcuts over. Tests use their
 // own id, so a test copy can't leave Windows a shortcut with Electron's icon for
 // the real one.
-const APP_ID = process.env.TASKDESK_LOCAL_DATA ? 'com.taskdesk.desk.test' : 'com.taskdesk.desk';
+// TASKDESK_TEST is set by every test (test/env.js), even the one that runs the
+// app in its normal data mode, so tests never touch this computer's shortcuts,
+// taskbar id or updates.
+const TESTING = !!(process.env.TASKDESK_LOCAL_DATA || process.env.TASKDESK_TEST);
+const APP_ID = TESTING ? 'com.taskdesk.desk.test' : 'com.taskdesk.desk';
 app.setAppUserModelId(APP_ID);
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
@@ -591,9 +595,8 @@ function setAutostart(on) {
   config.set({ autostart: on });
 }
 function ensureShortcuts() {
-  // Tests leave this computer's shortcuts alone, including the first-start ones
-  // (a test that moves the data folder starts with a fresh machine.json).
-  if (process.env.TASKDESK_LOCAL_DATA) return;
+  // Tests leave this computer's shortcuts alone, including the first-start ones.
+  if (TESTING) return;
   // The Start menu entry is checked every start. When the app id or icon changes,
   // the existing shortcuts are rewritten so pins and the taskbar pick it up.
   const LINKS = `${APP_ID}/${LINK_NAME}`;
@@ -859,7 +862,7 @@ let pendingUpdate = null,
   idleTimer = null,
   installing = false;
 // Tests run their own copy and never update.
-const autoUpdateOn = () => config.get().autoUpdate !== false && !process.env.TASKDESK_LOCAL_DATA && !process.env.TASKDESK_NO_UPDATE;
+const autoUpdateOn = () => config.get().autoUpdate !== false && !TESTING && !process.env.TASKDESK_NO_UPDATE;
 const logUpdate = (msg) => {
   try {
     fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`);
