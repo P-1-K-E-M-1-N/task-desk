@@ -8,7 +8,9 @@ console.log(`mode=${config.get().mode} tasks=${tasks.length} to-generate=${left}
 planner.events.on('ready', (id) => {
   const t = tasks.find((x) => x.id === id);
   const c = planner.cached(t);
-  console.log(`${c.ok ? 'OK  ' : 'FAIL'} ${t.lane} · ${t.title} (${c.plan.steps.length} steps, ${c.plan.type}, ${c.plan.est_minutes}m)${c.ok ? '' : ' ' + c.plan.error}`);
+  console.log(
+    `${c.ok ? 'OK  ' : 'FAIL'} ${t.lane} · ${t.title} (${c.plan.steps.length} steps, ${c.plan.type}, ${c.plan.est_minutes}m)${c.ok ? '' : ' ' + c.plan.error}`
+  );
   if (--left <= 0) process.exit(0);
 });
 if (!left) process.exit(0);

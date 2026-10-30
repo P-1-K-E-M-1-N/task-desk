@@ -13,7 +13,10 @@ $('#wmin').onclick = () => desk.minimize();
 $('#wmax').onclick = () => desk.maximize();
 $('#wclose').onclick = () => desk.close();
 $('#wlook').innerHTML = icon('palette');
-$('#wlook').onclick = (e) => { e.stopPropagation(); lookPanel($('#wlook')); };
+$('#wlook').onclick = (e) => {
+  e.stopPropagation();
+  lookPanel($('#wlook'));
+};
 saveStatus();
 $('#avatar').innerHTML = icon('sparkle');
 $('#bdone').innerHTML = `${icon('check')}<span>Done</span>`;
@@ -24,8 +27,11 @@ $('#cclear').innerHTML = `${icon('eraser')}<span>Clear</span>`;
 $('#cfresh').innerHTML = `${icon('plus')}<span>Fresh chat</span>`;
 $('#cmore').innerHTML = icon('more');
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const rich = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const rich = (s) =>
+  esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const base = (p) => String(p).split(/[\\/]/).filter(Boolean).pop();
 const isFactory = () => !T || T.project === 'factory';
 let RESULTS_TO = 'factory';
@@ -34,10 +40,14 @@ let RESULTS_TO = 'factory';
 async function load() {
   const r = await desk.getTask(ID);
   if (!r) {
-    $('#scroll').innerHTML = '<div class="warn">This task is no longer on its list (it may have been finished or removed). You can close this window.</div>';
+    $('#scroll').innerHTML =
+      '<div class="warn">This task is no longer on its list (it may have been finished or removed). You can close this window.</div>';
     return;
   }
-  T = r.task; P = r.plan; ST = r.st; RESULTS_TO = r.resultsTo;
+  T = r.task;
+  P = r.plan;
+  ST = r.st;
+  RESULTS_TO = r.resultsTo;
   document.title = T.title;
   $('#aiName').textContent = T.aiName || 'Claude Code';
   $('#ttile').className = `tile t-${T.type}`;
@@ -48,11 +58,15 @@ async function load() {
     $('#notes').placeholder = `Notes and results for ${T.projectName}: what you did, replies you got, anything it should know…`;
   } else {
     $('#notesHead').textContent = 'Notes and results';
-    $('#notes').placeholder = RESULTS_TO === 'file'
-      ? 'What you did, replies you got, anything the project should know… (goes to its results file when you press Done)'
-      : 'What you did, replies you got, anything worth keeping… (kept in Task Desk when you press Done)';
+    $('#notes').placeholder =
+      RESULTS_TO === 'file'
+        ? 'What you did, replies you got, anything the project should know… (goes to its results file when you press Done)'
+        : 'What you did, replies you got, anything worth keeping… (kept in Task Desk when you press Done)';
   }
-  if (document.activeElement !== $('#notes')) { $('#notes').value = ST.notes || ''; if (ST.notes) notesSaved.markSaved(); }
+  if (document.activeElement !== $('#notes')) {
+    $('#notes').value = ST.notes || '';
+    if (ST.notes) notesSaved.markSaved();
+  }
   renderPlan(r.planOk);
   // 'attach' reconnects to a chat that is still running (the window was refreshed by an update).
   if (!chatStarted && (P || T.planStatus === 'ready' || T.chatLive)) startChat('attach');
@@ -62,33 +76,77 @@ function renderPlan(planOk) {
   const s = $('#scroll');
   const top = s.scrollTop;
   s.replaceChildren();
-  const eyebrow = h('div', { class: 'eyebrow' },
+  const eyebrow = h(
+    'div',
+    { class: 'eyebrow' },
     h('span', { class: 'pill', html: `${icon(T.type)}${TYPE_LABEL[T.type] || T.type}`, style: `color:var(--t-${T.type})` }),
-    isFactory() ? null : h('span', { class: 'pill', html: `<span class="dot" style="background:${T.projectColor}"></span>${esc(T.projectName)}` }),
-    isFactory() || T.lane !== 'general' ? h('span', { class: 'pill lane', html: `<span class="dot" style="background:${laneColor(T.lane)}"></span>${esc(laneName(T.lane))}` }) : null,
+    isFactory()
+      ? null
+      : h('span', { class: 'pill', html: `<span class="dot" style="background:${T.projectColor}"></span>${esc(T.projectName)}` }),
+    isFactory() || T.lane !== 'general'
+      ? h('span', { class: 'pill lane', html: `<span class="dot" style="background:${laneColor(T.lane)}"></span>${esc(laneName(T.lane))}` })
+      : null,
     h('span', { class: 'pill', html: `${icon('clock')}~${fmtMin(T.minutes)}` }),
-    T.date ? h('span', { class: 'pill' }, T.date) : null,
+    T.date ? h('span', { class: 'pill' }, T.date) : null
   );
   s.append(eyebrow, h('h1', {}, T.title));
 
   if (!P) {
     s.append(
       h('p', { class: 'summary', html: rich(T.text) }),
-      h('div', { class: 'drafting-note', html: `${icon('sparkle')}Claude is reading the ${isFactory() ? 'lane' : 'project'} and drafting your plan. About 30 seconds.` }),
-      h('div', { class: 'skel' }, [0, 1, 2, 3].map(() => h('div', { class: 'shimmer' }))),
-      h('div', { class: 'sect' }, h('button', { class: 'link', html: `${icon('chat')}Start the chat now without a plan`, onclick: () => startChat('auto') })),
+      h('div', {
+        class: 'drafting-note',
+        html: `${icon('sparkle')}Claude is reading the ${isFactory() ? 'lane' : 'project'} and drafting your plan. About 30 seconds.`,
+      }),
+      h(
+        'div',
+        { class: 'skel' },
+        [0, 1, 2, 3].map(() => h('div', { class: 'shimmer' }))
+      ),
+      h(
+        'div',
+        { class: 'sect' },
+        h('button', { class: 'link', html: `${icon('chat')}Start the chat now without a plan`, onclick: () => startChat('auto') })
+      )
     );
     return;
   }
 
-  if (planOk === false) s.append(h('div', { class: 'warn' }, 'Claude couldn\'t build a plan for this one, so here\'s the raw task. Ask in the chat, or try regenerating.'));
+  if (planOk === false)
+    s.append(
+      h(
+        'div',
+        { class: 'warn' },
+        "Claude couldn't build a plan for this one, so here's the raw task. Ask in the chat, or try regenerating."
+      )
+    );
   s.append(h('p', { class: 'summary', html: rich(P.summary) }));
 
   const done = P.steps.filter((_, i) => ST.ticks['s' + i]).length;
-  s.append(h('div', { class: 'progress', html: `<div class="bar"><i style="width:${(done / P.steps.length) * 100}%"></i></div><span>${done} of ${P.steps.length} steps</span>` }));
+  s.append(
+    h('div', {
+      class: 'progress',
+      html: `<div class="bar"><i style="width:${(done / P.steps.length) * 100}%"></i></div><span>${done} of ${P.steps.length} steps</span>`,
+    })
+  );
 
-  s.append(h('div', { class: 'sect' }, 'The plan', h('span', { class: 'sp' }),
-    h('button', { class: 'link', html: `${icon('refresh')}Regenerate`, onclick: async () => { await desk.replan(ID); P = null; renderPlan(); } })));
+  s.append(
+    h(
+      'div',
+      { class: 'sect' },
+      'The plan',
+      h('span', { class: 'sp' }),
+      h('button', {
+        class: 'link',
+        html: `${icon('refresh')}Regenerate`,
+        onclick: async () => {
+          await desk.replan(ID);
+          P = null;
+          renderPlan();
+        },
+      })
+    )
+  );
   const list = h('div', { class: 'steps' });
   P.steps.forEach((step, i) => list.append(stepEl(step, i)));
   s.append(list);
@@ -97,7 +155,17 @@ function renderPlan(planOk) {
   const files = [...new Set([...(P.files || []), extra].filter(Boolean))];
   if (files.length) {
     s.append(h('div', { class: 'sect' }, 'Files'));
-    s.append(h('div', { class: 'files' }, files.map((f) => actBtn(base(f), /\.\w+$/.test(f) ? 'file' : 'folder', () => (/\.\w+$/.test(f) ? desk.openFile(f) : desk.openFolder(f)), { done: 'Opened' }))));
+    s.append(
+      h(
+        'div',
+        { class: 'files' },
+        files.map((f) =>
+          actBtn(base(f), /\.\w+$/.test(f) ? 'file' : 'folder', () => (/\.\w+$/.test(f) ? desk.openFile(f) : desk.openFolder(f)), {
+            done: 'Opened',
+          })
+        )
+      )
+    );
   }
   s.append(h('details', { class: 'raw' }, h('summary', {}, 'Original task text'), h('p', { html: rich(T.rawText) })));
   s.scrollTop = top;
@@ -113,10 +181,12 @@ function stepEl(step, i) {
     await desk.tick(ID, key, ST.ticks[key]);
     updateProgress();
   };
-  const body = h('div', {},
+  const body = h(
+    'div',
+    {},
     h('div', { class: 'stext', html: `<span class="num">${i + 1}</span>${rich(step.text)}` }),
     commentEl(key),
-    actions(step, i),
+    actions(step, i)
   );
   const ask = h('button', { class: 'iconbtn ask', title: 'Send this step to the chat', html: icon('chat') });
   ask.onclick = () => sendToChat(`About step ${i + 1} of my plan: "${step.text}" How do I do this? Keep it short.`);
@@ -134,7 +204,12 @@ function updateProgress() {
 // Comment Claude left on a step (through the chat's taskdesk tools).
 function commentEl(key) {
   const text = (ST.stepNotes || {})[key];
-  return h('div', { class: 'scomment', hidden: !text }, h('span', { class: 'who', html: `${icon('sparkle')}Claude` }), h('span', { class: 'ctext' }, text || ''));
+  return h(
+    'div',
+    { class: 'scomment', hidden: !text },
+    h('span', { class: 'who', html: `${icon('sparkle')}Claude` }),
+    h('span', { class: 'ctext' }, text || '')
+  );
 }
 
 // The chat updated this task: tick/untick a step, comment on it, or add to the notes.
@@ -143,15 +218,27 @@ desk.onTaskChanged((id, ch) => {
   if (ch.kind === 'step') {
     const el = document.querySelector(`.step[data-key="${ch.key}"]`);
     const n = Number(ch.key.slice(1)) + 1;
-    if (typeof ch.done === 'boolean') { ST.ticks[ch.key] = ch.done; if (el) el.classList.toggle('done', ch.done); }
+    if (typeof ch.done === 'boolean') {
+      ST.ticks[ch.key] = ch.done;
+      if (el) el.classList.toggle('done', ch.done);
+    }
     if (typeof ch.comment === 'string') {
       ST.stepNotes = { ...(ST.stepNotes || {}), [ch.key]: ch.comment };
       const c = el && el.querySelector('.scomment');
-      if (c) { c.hidden = !ch.comment; c.querySelector('.ctext').textContent = ch.comment; }
+      if (c) {
+        c.hidden = !ch.comment;
+        c.querySelector('.ctext').textContent = ch.comment;
+      }
     }
-    if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+    if (el) {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+    }
     updateProgress();
-    toast(ch.done === true ? `Claude ticked step ${n}` : ch.done === false ? `Claude un-ticked step ${n}` : `Claude commented on step ${n}`);
+    toast(
+      ch.done === true ? `Claude ticked step ${n}` : ch.done === false ? `Claude un-ticked step ${n}` : `Claude commented on step ${n}`
+    );
   }
   if (ch.kind === 'note') {
     const ta = $('#notes');
@@ -168,9 +255,14 @@ function pasteBox(key, label, placeholder) {
   const saved = ST.pastes[key];
   const ta = h('textarea', { class: 'box', rows: 3, placeholder: placeholder || 'Paste here…' });
   ta.value = saved ? saved.value : '';
-  const note = autosave(ta,
-    (v) => { ST.pastes[key] = { label, value: v }; return desk.paste(ID, key, label, v); },
-    (v) => desk.saveSync(ID, 'paste', v, key, label));
+  const note = autosave(
+    ta,
+    (v) => {
+      ST.pastes[key] = { label, value: v };
+      return desk.paste(ID, key, label, v);
+    },
+    (v) => desk.saveSync(ID, 'paste', v, key, label)
+  );
   return [h('div', { class: 'field-head' }, h('div', { class: 'field-label' }, label), note), ta];
 }
 
@@ -206,7 +298,9 @@ function actions(step, i) {
     case 'keyword_planner': {
       const qs = Array.isArray(d.queries) ? d.queries : [];
       if (qs.length) add(actBtn(`Copy ${qs.length} queries`, 'copy', () => desk.copy(qs.join('\n')), { done: 'Copied' }));
-      add(actBtn('Open Keyword Planner', 'external', () => desk.openUrl('https://ads.google.com/aw/keywordplanner/home'), { done: 'Opened' }));
+      add(
+        actBtn('Open Keyword Planner', 'external', () => desk.openUrl('https://ads.google.com/aw/keywordplanner/home'), { done: 'Opened' })
+      );
       add(pasteBox('kw' + i, 'Keyword Planner results', 'Paste the results table (or a summary of the volumes) here…'));
       break;
     }
@@ -235,13 +329,25 @@ function actions(step, i) {
       if (d.signup_url) add(actBtn('Open signup page', 'external', () => desk.openUrl(d.signup_url), { done: 'Opened' }));
       if (d.env_path && d.var_name) {
         const inp = h('input', { class: 'box', type: 'password', placeholder: `Paste ${d.var_name} here` });
-        add(h('div', { class: 'field-label' }, `Goes only into ${d.env_path} as ${d.var_name}, after you confirm. The app never stores it anywhere else, so this box isn't auto-saved.`), inp,
-          actBtn('Save key to .env', 'key', async () => {
-            if (!inp.value.trim()) return { ok: false, error: 'Paste the key first' };
-            const r = await desk.writeEnv(ID, d.env_path, d.var_name, inp.value);
-            if (r.ok) inp.value = '';
-            return r.cancelled ? { ok: false, error: 'Not saved' } : r;
-          }, { done: 'Saved' }));
+        add(
+          h(
+            'div',
+            { class: 'field-label' },
+            `Goes only into ${d.env_path} as ${d.var_name}, after you confirm. The app never stores it anywhere else, so this box isn't auto-saved.`
+          ),
+          inp,
+          actBtn(
+            'Save key to .env',
+            'key',
+            async () => {
+              if (!inp.value.trim()) return { ok: false, error: 'Paste the key first' };
+              const r = await desk.writeEnv(ID, d.env_path, d.var_name, inp.value);
+              if (r.ok) inp.value = '';
+              return r.cancelled ? { ok: false, error: 'Not saved' } : r;
+            },
+            { done: 'Saved' }
+          )
+        );
       }
       break;
     }
@@ -256,34 +362,67 @@ function actions(step, i) {
 }
 
 function hostOf(u) {
-  try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'page'; }
+  try {
+    return new URL(u).hostname.replace(/^www\./, '');
+  } catch {
+    return 'page';
+  }
 }
 
 function emailList(file) {
   const wrap = h('div', { class: 'emails' }, h('div', { class: 'ehead' }, h('b', {}, 'Loading drafts…')));
   desk.emails(file).then((r) => {
-    if (!r.emails || !r.emails.length) { wrap.replaceChildren(h('div', { class: 'ehead' }, h('b', {}, 'No drafts found in ' + base(file)))); return; }
+    if (!r.emails || !r.emails.length) {
+      wrap.replaceChildren(h('div', { class: 'ehead' }, h('b', {}, 'No drafts found in ' + base(file))));
+      return;
+    }
     const count = () => r.emails.filter((_, j) => ST.ticks['e' + j]).length;
     const label = h('b', {});
     const setLabel = () => (label.textContent = `${count()} of ${r.emails.length} sent`);
     setLabel();
-    const head = h('div', { class: 'ehead' }, label,
+    const head = h(
+      'div',
+      { class: 'ehead' },
+      label,
       r.attachPath ? actBtn('Attachment folder', 'folder', () => desk.openFolder(r.attachPath), { done: 'Opened' }) : null,
-      actBtn(base(r.file), 'file', () => desk.openFile(r.file), { done: 'Opened' }));
+      actBtn(base(r.file), 'file', () => desk.openFile(r.file), { done: 'Opened' })
+    );
     wrap.replaceChildren(head);
-    if (r.attach) wrap.append(h('div', { class: 'erow', style: 'grid-template-columns:1fr' }, h('span', { class: 'muted-note' }, `Attach ${base(r.attach)} to each one. Tick a row once it's sent.`)));
+    if (r.attach)
+      wrap.append(
+        h(
+          'div',
+          { class: 'erow', style: 'grid-template-columns:1fr' },
+          h('span', { class: 'muted-note' }, `Attach ${base(r.attach)} to each one. Tick a row once it's sent.`)
+        )
+      );
     r.emails.forEach((m, j) => {
       const k = 'e' + j;
       const row = h('div', { class: 'erow' + (ST.ticks[k] ? ' done' : '') });
       const c = h('button', { class: 'check', html: icon('check'), title: 'Mark as sent' });
-      c.onclick = async () => { ST.ticks[k] = !ST.ticks[k]; row.classList.toggle('done', ST.ticks[k]); await desk.tick(ID, k, ST.ticks[k]); setLabel(); };
+      c.onclick = async () => {
+        ST.ticks[k] = !ST.ticks[k];
+        row.classList.toggle('done', ST.ticks[k]);
+        await desk.tick(ID, k, ST.ticks[k]);
+        setLabel();
+      };
       const [nm, ...rest] = m.name.split(' (');
-      row.append(c,
-        h('div', { class: 'ename', title: m.name }, nm, h('small', {}, rest.length ? rest.join(' (').replace(/\)$/, '') : hostOf(m.contact))),
-        h('div', { class: 'ebtns' },
+      row.append(
+        c,
+        h(
+          'div',
+          { class: 'ename', title: m.name },
+          nm,
+          h('small', {}, rest.length ? rest.join(' (').replace(/\)$/, '') : hostOf(m.contact))
+        ),
+        h(
+          'div',
+          { class: 'ebtns' },
           m.contact ? iconAct('external', 'Open their contact page', () => desk.openUrl(m.contact)) : null,
           iconAct('copy', 'Copy subject and message', () => desk.copy(`Subject: ${m.subject}\n\n${m.body}`)),
-          actBtn('Gmail', 'email', () => desk.gmail({ subject: m.subject, body: m.body }), { done: 'Opened' })));
+          actBtn('Gmail', 'email', () => desk.gmail({ subject: m.subject, body: m.body }), { done: 'Opened' })
+        )
+      );
       wrap.append(row);
     });
   });
@@ -298,31 +437,46 @@ function iconAct(ic, title, fn) {
     await fn();
     b.innerHTML = icon('check');
     b.classList.add('done-flash');
-    setTimeout(() => { b.innerHTML = icon(ic); b.classList.remove('done-flash'); }, 1200);
+    setTimeout(() => {
+      b.innerHTML = icon(ic);
+      b.classList.remove('done-flash');
+    }, 1200);
   };
   return b;
 }
 
 // ---------- finish ----------
-const notesSaved = autosave($('#notes'),
-  (v) => { if (ST) ST.notes = v; return desk.notes(ID, v); },
-  (v) => desk.saveSync(ID, 'notes', v));
+const notesSaved = autosave(
+  $('#notes'),
+  (v) => {
+    if (ST) ST.notes = v;
+    return desk.notes(ID, v);
+  },
+  (v) => desk.saveSync(ID, 'notes', v)
+);
 $('#notesSaved').replaceWith(notesSaved);
 
 async function finish(status, next) {
   const r = await desk.finish(ID, status, $('#notes').value, next);
-  if (!r.ok) { toast(r.error || 'Couldn\'t save'); return; }
-  const where = { factory: `Sent to ${T.projectName}.`, file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
+  if (!r.ok) {
+    toast(r.error || "Couldn't save");
+    return;
+  }
+  const where =
+    { factory: `Sent to ${T.projectName}.`, file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
   const msg = status === 'done' ? `Nice. ${where}` : r.resultsTo === 'factory' ? `Skipped. ${T.projectName} will know.` : 'Skipped.';
-  document.body.append(h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${msg}` })));
+  document.body.append(
+    h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${msg}` }))
+  );
 }
 $('#bdone').onclick = () => finish('done', false);
 $('#bnext').onclick = () => finish('done', true);
 $('#bskip').onclick = () => finish('skipped', false);
-$('#bsnooze').onclick = (e) => popMenu(e.currentTarget, [
-  { label: 'Tomorrow morning', icon: 'moon', run: () => snooze('tomorrow') },
-  { label: 'Next week', icon: 'clock', run: () => snooze('week') },
-]);
+$('#bsnooze').onclick = (e) =>
+  popMenu(e.currentTarget, [
+    { label: 'Tomorrow morning', icon: 'moon', run: () => snooze('tomorrow') },
+    { label: 'Next week', icon: 'clock', run: () => snooze('week') },
+  ]);
 async function snooze(when) {
   const until = await desk.snooze(ID, when);
   toast(`Snoozed until ${new Date(until).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`);
@@ -348,31 +502,79 @@ function termTheme() {
   const v = (n) => css.getPropertyValue(n).trim();
   const accent = v('--clay');
   const sel = accent.startsWith('#') ? accent + '40' : 'rgba(127,127,127,.3)';
-  return document.documentElement.classList.contains('dark') ? {
-    background: v('--term-bg'), foreground: v('--term-fg'), cursor: accent, cursorAccent: v('--term-bg'),
-    selectionBackground: sel,
-    black: '#3a362f', red: '#e5806e', green: '#9cc58f', yellow: '#e2b866', blue: '#8fb0e0', magenta: '#d39ad0', cyan: '#80c4bd', white: '#d9d1c5',
-    brightBlack: '#7d7468', brightRed: '#f09a87', brightGreen: '#b5d9a8', brightYellow: '#f0cd84', brightBlue: '#a9c5ee', brightMagenta: '#e3b2e0', brightCyan: '#9ad7d0', brightWhite: '#f6f1e9',
-  } : {
-    background: v('--term-bg'), foreground: v('--term-fg'), cursor: v('--clay'), cursorAccent: v('--term-bg'),
-    selectionBackground: sel,
-    black: '#2a2723', red: '#b8452f', green: '#4e7a3a', yellow: '#9a6a12', blue: '#3a5f9a', magenta: '#8a4a87', cyan: '#2f7a73', white: '#8a8276',
-    brightBlack: '#7a7266', brightRed: '#c9583f', brightGreen: '#5e8c48', brightYellow: '#b07d1c', brightBlue: '#4a70ad', brightMagenta: '#9d5a9a', brightCyan: '#3a8c84', brightWhite: '#2a2723',
-  };
+  return document.documentElement.classList.contains('dark')
+    ? {
+        background: v('--term-bg'),
+        foreground: v('--term-fg'),
+        cursor: accent,
+        cursorAccent: v('--term-bg'),
+        selectionBackground: sel,
+        black: '#3a362f',
+        red: '#e5806e',
+        green: '#9cc58f',
+        yellow: '#e2b866',
+        blue: '#8fb0e0',
+        magenta: '#d39ad0',
+        cyan: '#80c4bd',
+        white: '#d9d1c5',
+        brightBlack: '#7d7468',
+        brightRed: '#f09a87',
+        brightGreen: '#b5d9a8',
+        brightYellow: '#f0cd84',
+        brightBlue: '#a9c5ee',
+        brightMagenta: '#e3b2e0',
+        brightCyan: '#9ad7d0',
+        brightWhite: '#f6f1e9',
+      }
+    : {
+        background: v('--term-bg'),
+        foreground: v('--term-fg'),
+        cursor: v('--clay'),
+        cursorAccent: v('--term-bg'),
+        selectionBackground: sel,
+        black: '#2a2723',
+        red: '#b8452f',
+        green: '#4e7a3a',
+        yellow: '#9a6a12',
+        blue: '#3a5f9a',
+        magenta: '#8a4a87',
+        cyan: '#2f7a73',
+        white: '#8a8276',
+        brightBlack: '#7a7266',
+        brightRed: '#c9583f',
+        brightGreen: '#5e8c48',
+        brightYellow: '#b07d1c',
+        brightBlue: '#4a70ad',
+        brightMagenta: '#9d5a9a',
+        brightCyan: '#3a8c84',
+        brightWhite: '#2a2723',
+      };
 }
-document.addEventListener('lookchange', () => { term.options.theme = termTheme(); setTimeout(refit, 50); });
+document.addEventListener('lookchange', () => {
+  term.options.theme = termTheme();
+  setTimeout(refit, 50);
+});
 const fit = new FitAddon.FitAddon();
 term.loadAddon(fit);
 term.open($('#term'));
 // Ctrl+C copies when text is selected (otherwise it goes to Claude); Ctrl+V pastes.
 term.attachCustomKeyEventHandler((e) => {
   if (e.type !== 'keydown') return true;
-  if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && term.hasSelection()) { desk.copy(term.getSelection()); term.clearSelection(); return false; }
+  if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && term.hasSelection()) {
+    desk.copy(term.getSelection());
+    term.clearSelection();
+    return false;
+  }
   if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) return false;
   return true;
 });
 term.onData((d) => desk.chatWrite(ID, d));
-const refit = () => { try { fit.fit(); desk.chatResize(ID, term.cols, term.rows); } catch {} };
+const refit = () => {
+  try {
+    fit.fit();
+    desk.chatResize(ID, term.cols, term.rows);
+  } catch {}
+};
 new ResizeObserver(() => requestAnimationFrame(refit)).observe($('#term'));
 
 function setStat(kind, text) {
@@ -390,12 +592,16 @@ $('#aiSwitch').onclick = async (e) => {
   const base = c.project || c.desk;
   const baseName = (c.list.find((x) => x.id === base) || {}).name;
   const items = c.list.map((x) => ({
-    label: `${x.name} (${x.app})`, icon: x.id === cur ? 'check' : 'sparkle', hint: x.installed ? '' : 'not installed',
+    label: `${x.name} (${x.app})`,
+    icon: x.id === cur ? 'check' : 'sparkle',
+    hint: x.installed ? '' : 'not installed',
     run: () => switchTo(x.id === base ? '' : x.id, x),
   }));
   popMenu($('#aiSwitch'), items, {
     head: 'AI for this task',
-    notes: [`Default: ${baseName}${c.project ? ' (this project\'s choice)' : ' (set in the task box)'}. Switching hands over the plan and the recent conversation.`],
+    notes: [
+      `Default: ${baseName}${c.project ? " (this project's choice)" : ' (set in the task box)'}. Switching hands over the plan and the recent conversation.`,
+    ],
   });
 };
 async function switchTo(id, x) {
@@ -405,7 +611,11 @@ async function switchTo(id, x) {
   T.aiName = r.app;
   $('#aiName').textContent = r.app;
   startChat('auto');
-  toast(r.installed ? `Switched to ${r.name}. It got the plan and the recent conversation.` : `${r.app} isn't installed yet: see the chat panel.`);
+  toast(
+    r.installed
+      ? `Switched to ${r.name}. It got the plan and the recent conversation.`
+      : `${r.app} isn't installed yet: see the chat panel.`
+  );
 }
 
 function startChat(mode) {
@@ -416,19 +626,30 @@ function startChat(mode) {
   setStat('connecting', `Starting ${(T && T.aiName) || 'the chat'}…`);
   desk.chatStart(ID, mode, term.cols, term.rows);
   // Don't steal the keyboard from a notes or paste box you're typing in.
-  setTimeout(() => { const a = document.activeElement; if (!a || a === term.textarea || !/^(TEXTAREA|INPUT)$/.test(a.tagName)) term.focus(); }, 300);
+  setTimeout(() => {
+    const a = document.activeElement;
+    if (!a || a === term.textarea || !/^(TEXTAREA|INPUT)$/.test(a.tagName)) term.focus();
+  }, 300);
 }
 
 function sendToChat(text) {
   if (!chatStarted) startChat('auto');
-  desk.chatSend(ID, text).then((ok) => { if (ok) { toast('Sent to the chat'); term.focus(); } else toast('Chat isn\'t running yet. Try again in a moment.'); });
+  desk.chatSend(ID, text).then((ok) => {
+    if (ok) {
+      toast('Sent to the chat');
+      term.focus();
+    } else toast("Chat isn't running yet. Try again in a moment.");
+  });
 }
 
 let gotData = false;
 desk.onChatData((id, d) => {
   if (id !== ID) return;
   term.write(d);
-  if (!gotData) { gotData = true; setStat('live', $('#cstatText').dataset.label || 'Live'); }
+  if (!gotData) {
+    gotData = true;
+    setStat('live', $('#cstatText').dataset.label || 'Live');
+  }
 });
 desk.onChatInfo((id, info) => {
   if (id !== ID) return;
@@ -439,21 +660,34 @@ desk.onChatInfo((id, info) => {
 desk.onChatExit((id, code) => {
   if (id !== ID) return;
   // The AI app isn't installed: keep the how-to in the chat panel readable.
-  if (code === -2) { setStat('', 'Not installed: see below'); return; }
+  if (code === -2) {
+    setStat('', 'Not installed: see below');
+    return;
+  }
   showEnded('The chat ended');
 });
 function showEnded(title) {
   setStat('', title);
   const o = $('#overlay');
-  o.replaceChildren(h('div', { class: 'inner' },
-    h('b', {}, title),
-    'Pick up where you left off, or start clean for the next thing.',
-    h('div', { class: 'row' },
-      h('button', { class: 'btn primary', html: `${icon('play')}<span>Resume</span>`, onclick: () => startChat('auto') }),
-      h('button', { class: 'btn', html: `${icon('plus')}<span>Fresh chat</span>`, onclick: () => startChat('fresh') }))));
+  o.replaceChildren(
+    h(
+      'div',
+      { class: 'inner' },
+      h('b', {}, title),
+      'Pick up where you left off, or start clean for the next thing.',
+      h(
+        'div',
+        { class: 'row' },
+        h('button', { class: 'btn primary', html: `${icon('play')}<span>Resume</span>`, onclick: () => startChat('auto') }),
+        h('button', { class: 'btn', html: `${icon('plus')}<span>Fresh chat</span>`, onclick: () => startChat('fresh') })
+      )
+    )
+  );
   o.hidden = false;
 }
-desk.onChatReset((id) => { if (id === ID) startChat('fresh'); });
+desk.onChatReset((id) => {
+  if (id === ID) startChat('fresh');
+});
 
 $('#cclear').onclick = () => {
   if (!chatStarted) return;
@@ -463,19 +697,35 @@ $('#cclear').onclick = () => {
   term.focus();
 };
 $('#cfresh').onclick = () => startChat('fresh');
-$('#cmore').onclick = (e) => popMenu(e.currentTarget, [
-  { label: 'Fresh chat (clean slate)', icon: 'plus', run: () => startChat('fresh') },
-  { label: isFactory() ? `Restart from ${T.projectName}'s latest session` : 'Restart from project\'s latest session', icon: 'refresh', run: () => startChat('fork') },
-  { label: 'Re-send the task brief', icon: 'send', run: () => sendToChat(`Reminder of what we're doing. Task: ${T.text}${P ? ' Plan: ' + P.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : ''}`) },
-  { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
-]);
+$('#cmore').onclick = (e) =>
+  popMenu(e.currentTarget, [
+    { label: 'Fresh chat (clean slate)', icon: 'plus', run: () => startChat('fresh') },
+    {
+      label: isFactory() ? `Restart from ${T.projectName}'s latest session` : "Restart from project's latest session",
+      icon: 'refresh',
+      run: () => startChat('fork'),
+    },
+    {
+      label: 'Re-send the task brief',
+      icon: 'send',
+      run: () =>
+        sendToChat(
+          `Reminder of what we're doing. Task: ${T.text}${P ? ' Plan: ' + P.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : ''}`
+        ),
+    },
+    { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
+  ]);
 
 // ---------- live updates ----------
-desk.onPlan((id) => { if (id === ID) load(); });
+desk.onPlan((id) => {
+  if (id === ID) load();
+});
 desk.onTasks((p) => {
   const t = p.tasks.find((x) => x.id === ID);
   if (t && T && t.planStatus === 'ready' && !P) load();
 });
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.activeElement !== term.textarea) document.querySelectorAll('.popmenu').forEach((m) => m.remove()); });
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.activeElement !== term.textarea) document.querySelectorAll('.popmenu').forEach((m) => m.remove());
+});
 
 load();

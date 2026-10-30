@@ -8,7 +8,10 @@ const path = require('path');
 const { useTestSettings, launchOpts, SETTINGS } = require('./env');
 
 const results = [];
-const ok = (name, cond, extra = '') => { results.push(!!cond); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
+const ok = (name, cond, extra = '') => {
+  results.push(!!cond);
+  console.log(cond ? 'PASS' : 'FAIL', name, extra);
+};
 const settings = () => JSON.parse(fs.readFileSync(SETTINGS, 'utf8'));
 
 (async () => {
@@ -32,24 +35,46 @@ const settings = () => JSON.parse(fs.readFileSync(SETTINGS, 'utf8'));
   await box.locator('#meAbout').fill('a designer who runs a small studio');
   await box.locator('#me button[type=submit]').click();
   await box.waitForTimeout(400);
-  ok('your name is saved', settings().userName === 'Alex' && settings().userAbout === 'a designer who runs a small studio' && settings().userNameAsked === true);
+  ok(
+    'your name is saved',
+    settings().userName === 'Alex' && settings().userAbout === 'a designer who runs a small studio' && settings().userNameAsked === true
+  );
   ok('the greeting uses it', /, Alex$/.test(await box.locator('#hello').innerText()));
   ok('the card goes away', !(await box.locator('#me').count()));
 
   const menu = await app.evaluate(() => true);
   ok('the app starts', menu);
   const all = await box.evaluate(() => document.body.innerText);
-  ok('nothing on screen names the original owner or workspace', !/Nick|Idea Factory|factory/i.test(all), all.match(/Nick|Idea Factory|factory/i)?.[0]);
+  ok(
+    'nothing on screen names the original owner or workspace',
+    !/Nick|Idea Factory|factory/i.test(all),
+    all.match(/Nick|Idea Factory|factory/i)?.[0]
+  );
   const title = await app.evaluate(({ app: a }) => a.getName());
   ok('the app is called Task Desk', title === 'Task Desk', title);
 
   // The planner and the chat call you by your name.
-  const intro = await app.evaluate(() => {
-    return global.__update.planPrompt({ id: 'x', project: 'p1', projectName: 'Studio', projectFolder: '', rawText: 'Send the invoice', lane: 'my-list', text: 'Send the invoice' }).split('\n')[0];
-  }).catch((e) => String(e));
+  const intro = await app
+    .evaluate(() => {
+      return global.__update
+        .planPrompt({
+          id: 'x',
+          project: 'p1',
+          projectName: 'Studio',
+          projectFolder: '',
+          rawText: 'Send the invoice',
+          lane: 'my-list',
+          text: 'Send the invoice',
+        })
+        .split('\n')[0];
+    })
+    .catch((e) => String(e));
   ok('plans are written for you by name', /for Alex, a designer who runs a small studio\./.test(intro), intro);
 
   await app.close();
   console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);
   process.exit(results.every(Boolean) ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(2); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(2);
+});

@@ -19,7 +19,8 @@ function sessionFile(folder, id) {
 function newestSession(folder, exclude = new Set()) {
   try {
     const dir = projectDir(folder);
-    const files = fs.readdirSync(dir)
+    const files = fs
+      .readdirSync(dir)
       .filter((f) => f.endsWith('.jsonl') && !exclude.has(f.slice(0, -6)))
       .map((f) => ({ id: f.slice(0, -6), t: fs.statSync(path.join(dir, f)).mtimeMs }))
       .sort((a, b) => b.t - a.t);

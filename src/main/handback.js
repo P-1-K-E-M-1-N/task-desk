@@ -6,8 +6,10 @@ const path = require('path');
 const config = require('./config');
 
 const from = () => (config.userName() ? `From ${config.userName()}` : 'Task Desk results');
-const header = () => `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task. Newest at the bottom. The workspace's agents read this._\n\n`;
-const projectHeader = (name) => `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task in "${name}". Newest at the bottom._\n\n`;
+const header = () =>
+  `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task. Newest at the bottom. The workspace's agents read this._\n\n`;
+const projectHeader = (name) =>
+  `# ${from()}\n\n_Appended by Task Desk when ${config.who()} finishes or skips a task in "${name}". Newest at the bottom._\n\n`;
 
 // Safety net: inside the lanes workspace, only ops/FROM_NICK.md may ever be written.
 function guard(file) {
@@ -41,7 +43,11 @@ function appendResults(file, { lane, text, status, notes, results, ticked }, hea
   return file;
 }
 
-const indent = (s) => s.split(/\r?\n/).map((l) => '    ' + l).join('\n');
+const indent = (s) =>
+  s
+    .split(/\r?\n/)
+    .map((l) => '    ' + l)
+    .join('\n');
 
 // Sets VAR=value in the named .env file, replacing an existing line if present.
 function writeEnv(envPath, name, value) {
@@ -52,7 +58,9 @@ function writeEnv(envPath, name, value) {
   if (!/^[A-Z_][A-Z0-9_]*$/i.test(name)) throw new Error('Bad variable name');
   const clean = String(value).trim().replace(/\r?\n/g, '');
   let body = '';
-  try { body = fs.readFileSync(envPath, 'utf8'); } catch {}
+  try {
+    body = fs.readFileSync(envPath, 'utf8');
+  } catch {}
   const re = new RegExp(`^${name}=.*$`, 'm');
   body = re.test(body) ? body.replace(re, `${name}=${clean}`) : body + (body && !body.endsWith('\n') ? '\n' : '') + `${name}=${clean}\n`;
   fs.mkdirSync(path.dirname(envPath), { recursive: true });

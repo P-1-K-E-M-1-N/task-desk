@@ -26,7 +26,10 @@ function parseNeedsNick(md) {
   const items = [];
   let lane = 'factory';
   let cur = null;
-  const flush = () => { if (cur) items.push(cur); cur = null; };
+  const flush = () => {
+    if (cur) items.push(cur);
+    cur = null;
+  };
   for (const line of md.split(/\r?\n/)) {
     const h = line.match(/^##\s+(.+?)\s*$/);
     if (h) {
@@ -84,7 +87,10 @@ const LOW = /optional|no action needed|decide only if|only if we ever/i;
 function laneWorktrees(root) {
   try {
     const out = execFileSync('git', ['-C', root, 'worktree', 'list', '--porcelain'], { encoding: 'utf8', timeout: 5000 });
-    return out.split(/\r?\n/).filter((l) => l.startsWith('worktree ')).map((l) => path.normalize(l.slice(9)));
+    return out
+      .split(/\r?\n/)
+      .filter((l) => l.startsWith('worktree '))
+      .map((l) => path.normalize(l.slice(9)));
   } catch {
     return [];
   }
@@ -93,13 +99,24 @@ function laneWorktrees(root) {
 function readTasks(root) {
   const needs = path.join(root, 'ops', 'NEEDS_NICK.md');
   let raw = [];
-  try { raw = parseNeedsNick(fs.readFileSync(needs, 'utf8')); } catch { raw = []; }
+  try {
+    raw = parseNeedsNick(fs.readFileSync(needs, 'utf8'));
+  } catch {
+    raw = [];
+  }
 
   const lanesDir = path.join(root, 'lanes');
   let lanes = [];
-  try { lanes = fs.readdirSync(lanesDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch {}
+  try {
+    lanes = fs
+      .readdirSync(lanesDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
+  } catch {}
   for (const lane of lanes) {
-    try { raw.push(...parseLaneFlags(fs.readFileSync(path.join(lanesDir, lane, 'LANE.md'), 'utf8'), lane)); } catch {}
+    try {
+      raw.push(...parseLaneFlags(fs.readFileSync(path.join(lanesDir, lane, 'LANE.md'), 'utf8'), lane));
+    } catch {}
   }
 
   const worktrees = laneWorktrees(root);
@@ -114,7 +131,9 @@ function readTasks(root) {
 // The file is only read.
 function readChecklist(file, onlyMine) {
   let raw = [];
-  try { raw = parseNeedsNick(fs.readFileSync(file, 'utf8')); } catch {}
+  try {
+    raw = parseNeedsNick(fs.readFileSync(file, 'utf8'));
+  } catch {}
   if (onlyMine) raw = raw.filter((r) => mentionsMe(r.text));
   return raw.map((r) => ({ ...r, lane: r.lane === 'factory' ? 'general' : r.lane }));
 }

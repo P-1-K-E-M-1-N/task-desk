@@ -20,7 +20,10 @@ const live = new Map(); // taskId -> { proc, sessionId, label, buf, lastOut, cb 
 const KEEP = 400 * 1024; // recent chat output kept per task, so a refreshed window can redraw it
 
 function ownSessionIds() {
-  const ids = state.allTasks().map((t) => t.chatSessionId).filter(Boolean);
+  const ids = state
+    .allTasks()
+    .map((t) => t.chatSessionId)
+    .filter(Boolean);
   return new Set([...ids, ...(state.state.ownSessions || [])]);
 }
 
@@ -41,7 +44,7 @@ function firstMessage(task, plan) {
     const where = task.projectFolder ? ` (folder ${task.projectFolder})` : '';
     const edits = task.allowEdits
       ? 'You may change files in the project folder when a step needs it.'
-      : 'Don\'t change files in the project folder unless they explicitly ask: their results go back through the Done notes.';
+      : "Don't change files in the project folder unless they explicitly ask: their results go back through the Done notes.";
     msg = `${cap(config.who())} is working on this task from the project "${task.projectName}"${where}: ${task.text}. The plan they're following: ${steps} Help them finish it. ${edits} As steps get done, tick them in the plan with the Task Desk tools.`;
   } else {
     const lane = task.lane === 'factory' ? 'workspace-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
@@ -58,7 +61,7 @@ function systemNote(task) {
     `The taskdesk tools update THIS task's plan, which ${config.who()} sees next to this chat:`,
     'get_task shows the numbered steps, which are done, comments, and their notes. Call it when you start or resume, so you know what is already done.',
     `update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or ${config.who()} says they did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).`,
-    'add_note appends a line to the task\'s notes box (results, replies, dates). Do not repeat what is already there.',
+    "add_note appends a line to the task's notes box (results, replies, dates). Do not repeat what is already there.",
     'Never press Done/Skip for them; they finish the task themselves.',
   ].join(' ');
 }
@@ -66,7 +69,15 @@ function systemNote(task) {
 function withTools(task, args) {
   if (!bridge.ready()) return args;
   // These options take lists, so they go first: the next "--" option ends each list.
-  return ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk', '--append-system-prompt', systemNote(task), ...args];
+  return [
+    '--mcp-config',
+    bridge.configFor(task.id),
+    '--allowedTools',
+    'mcp__taskdesk',
+    '--append-system-prompt',
+    systemNote(task),
+    ...args,
+  ];
 }
 
 // Notes for the next AI when the user switches a task's AI mid-way (taskId -> text).
@@ -79,16 +90,24 @@ function attempts(task, plan, mode, note) {
   const list = [];
   const own = ai.sessionFor(st, 'claude');
   if (mode === 'auto' && own && fs.existsSync(sessionFile(task.workDir, own))) {
-    list.push({ label: 'Resuming this task\'s chat', sid: own, args: ['--resume', own, ...(note ? [note] : [])] });
+    list.push({ label: "Resuming this task's chat", sid: own, args: ['--resume', own, ...(note ? [note] : [])] });
   }
   if (mode !== 'fresh') {
     const base = newestSession(task.workDir, ownSessionIds());
     if (base) {
       const sid = crypto.randomUUID();
-      list.push({ label: isProject(task) ? 'Starting from this project\'s latest session' : 'Starting from the factory\'s latest session', sid, args: ['--resume', base, '--fork-session', '--session-id', sid, msg] });
+      list.push({
+        label: isProject(task) ? "Starting from this project's latest session" : "Starting from the factory's latest session",
+        sid,
+        args: ['--resume', base, '--fork-session', '--session-id', sid, msg],
+      });
     }
     const sid2 = crypto.randomUUID();
-    list.push({ label: 'Continuing the folder\'s last conversation', sid: sid2, args: ['--continue', '--fork-session', '--session-id', sid2, msg] });
+    list.push({
+      label: "Continuing the folder's last conversation",
+      sid: sid2,
+      args: ['--continue', '--fork-session', '--session-id', sid2, msg],
+    });
   }
   const sid3 = crypto.randomUUID();
   list.push({ label: 'Starting a fresh chat', sid: sid3, args: ['--session-id', sid3, msg] });
@@ -104,7 +123,11 @@ function otherAttempts(p, task, plan, mode, note) {
   const own = ai.sessionFor(st, p.id);
   const list = [];
   if (mode === 'auto' && own) {
-    list.push({ label: 'Resuming this task\'s chat', sid: own, args: ai.chatArgs(p, { resume: true, sessionId: own === 'latest' ? null : own, brief: note, edits }) });
+    list.push({
+      label: "Resuming this task's chat",
+      sid: own,
+      args: ai.chatArgs(p, { resume: true, sessionId: own === 'latest' ? null : own, brief: note, edits }),
+    });
   }
   const brief = `${systemNote(task)}\n\n${firstMessage(task, plan)}${note ? `\n\n${note}` : ''}`;
   list.push({ label: `Starting a fresh ${p.app} chat`, sid: null, fresh: true, args: ai.chatArgs(p, { brief, edits }) });
@@ -126,7 +149,8 @@ function switchAI(task, toId) {
   stop(task.id);
   state.update(task.id, { ai: toId || null });
   const to = ai.pick(task);
-  if (note && to.id !== from.id) handoffs.set(task.id, note); else handoffs.delete(task.id);
+  if (note && to.id !== from.id) handoffs.set(task.id, note);
+  else handoffs.delete(task.id);
   return to;
 }
 
@@ -138,7 +162,10 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
   const loc = ai.locate(p);
   if (!loc) {
     cb.onInfo && cb.onInfo({ label: `${p.app} isn't installed`, sessionId: null, ai: p.id });
-    setTimeout(() => { cb.onData && cb.onData(ai.missingText(p) + '\r\n'); cb.onExit && cb.onExit(-2); }, 50); // -2: not installed
+    setTimeout(() => {
+      cb.onData && cb.onData(ai.missingText(p) + '\r\n');
+      cb.onExit && cb.onExit(-2);
+    }, 50); // -2: not installed
     return;
   }
   const note = handoffs.get(task.id) || '';
@@ -152,7 +179,10 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
     const startedAt = Date.now();
     const args = claude ? withTools(task, a.args) : [...tools.args, ...a.args];
     const proc = pty.spawn(loc.exe, [...loc.pre, ...args], {
-      name: 'xterm-256color', cols, rows, cwd: task.workDir,
+      name: 'xterm-256color',
+      cols,
+      rows,
+      cwd: task.workDir,
       env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env, ...tools.env }),
     });
     const entry = { proc, sessionId: a.sid, label: a.label, stopped: false, buf: '', lastOut: Date.now(), cb };
@@ -165,11 +195,15 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
       // this one once it's saved, so Resume reopens it.
       saveSession(task.id, p.id, p.id === 'gemini' ? 'latest' : null);
       if (p.id === 'codex') {
-        const look = (n) => setTimeout(() => {
-          if (entry.stopped || live.get(task.id) !== entry) return;
-          const sid = ai.findCodexSession(task.workDir, startedAt);
-          if (sid) { entry.sessionId = sid; saveSession(task.id, 'codex', sid); } else if (n > 0) look(n - 1);
-        }, 3000);
+        const look = (n) =>
+          setTimeout(() => {
+            if (entry.stopped || live.get(task.id) !== entry) return;
+            const sid = ai.findCodexSession(task.workDir, startedAt);
+            if (sid) {
+              entry.sessionId = sid;
+              saveSession(task.id, 'codex', sid);
+            } else if (n > 0) look(n - 1);
+          }, 3000);
         look(40);
       }
     } else {
@@ -212,7 +246,10 @@ function send(id, text) {
 
 function resize(id, cols, rows) {
   const e = live.get(id);
-  if (e && cols > 0 && rows > 0) try { e.proc.resize(cols, rows); } catch {}
+  if (e && cols > 0 && rows > 0)
+    try {
+      e.proc.resize(cols, rows);
+    } catch {}
 }
 
 function stop(id) {
@@ -220,7 +257,9 @@ function stop(id) {
   if (!e) return;
   e.stopped = true;
   live.delete(id);
-  try { e.proc.kill(); } catch {}
+  try {
+    e.proc.kill();
+  } catch {}
 }
 
 function stopAll() {

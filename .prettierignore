@@ -1,0 +1,8 @@
+node_modules/
+data/
+test/shots/
+test-fixtures/
+package-lock.json
+# Prose and pages are formatted by hand: Prettier would reflow README tables and the HTML.
+*.md
+*.html

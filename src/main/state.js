@@ -14,7 +14,9 @@ const api = { state: null }; // the lanes workspace's memory
 
 function load(file) {
   let data = { tasks: {}, everScanned: false };
-  try { data = { ...data, ...JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch {}
+  try {
+    data = { ...data, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
+  } catch {}
   return { file, data, written: JSON.stringify(data, null, 2) };
 }
 
@@ -68,11 +70,27 @@ function isOpen(id) {
   const t = store(projectOf(id)).tasks[id];
   if (!t || t.status === 'open') return true;
   if (t.status === 'snoozed') {
-    if (new Date(t.snoozeUntil) <= new Date()) { t.status = 'open'; save(); return true; }
+    if (new Date(t.snoozeUntil) <= new Date()) {
+      t.status = 'open';
+      save();
+      return true;
+    }
     return false;
   }
   return false;
 }
 
 use(config.get().mode);
-module.exports = Object.assign(api, { use, store, projectOf, task, has, allTasks, update, isOpen, save, flush, file: () => stores.get('factory').file });
+module.exports = Object.assign(api, {
+  use,
+  store,
+  projectOf,
+  task,
+  has,
+  allTasks,
+  update,
+  isOpen,
+  save,
+  flush,
+  file: () => stores.get('factory').file,
+});
