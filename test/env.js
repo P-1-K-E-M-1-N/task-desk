@@ -30,10 +30,20 @@ function useTestSettings(extra = {}) {
     ready = true;
   }
   let real = {};
-  try { real = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'settings.json'), 'utf8')); } catch {}
+  try {
+    real = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'settings.json'), 'utf8'));
+  } catch {}
   const s = {
-    look: real.look, mode: 'test', projects: [], view: 'all', hotkey: HOTKEY,
-    factory: true, factoryName: 'Workshop', livePath: WORKSPACE, userName: 'Sam', userNameAsked: true,
+    look: real.look,
+    mode: 'test',
+    projects: [],
+    view: 'all',
+    hotkey: HOTKEY,
+    factory: true,
+    factoryName: 'Workshop',
+    livePath: WORKSPACE,
+    userName: 'Sam',
+    userNameAsked: true,
     ...extra,
   };
   fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2));
@@ -41,7 +51,9 @@ function useTestSettings(extra = {}) {
 }
 
 const launchOpts = (env = {}) => ({
-  executablePath: require('electron'), args: [ROOT], cwd: ROOT,
+  executablePath: require('electron'),
+  args: [ROOT],
+  cwd: ROOT,
   env: { ...process.env, TASKDESK_LOCAL_DIR: DATA, TASKDESK_LOCAL_DATA: '1', TASKDESK_USERDATA: PROFILE, ...env },
 });
 

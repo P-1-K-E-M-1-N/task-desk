@@ -10,8 +10,20 @@ const config = require('./config');
 const { cleanEnv } = require('./sessions');
 const ai = require('./ai');
 
-const ACTIONS = ['gmail_draft', 'open_folder', 'copy_text', 'open_url', 'paste_box', 'decision', 'open_file',
-  'keyword_planner', 'email_list', 'env_key', 'ask_claude', 'none'];
+const ACTIONS = [
+  'gmail_draft',
+  'open_folder',
+  'copy_text',
+  'open_url',
+  'paste_box',
+  'decision',
+  'open_file',
+  'keyword_planner',
+  'email_list',
+  'env_key',
+  'ask_claude',
+  'none',
+];
 const TYPES = ['email', 'keywords', 'decision', 'signup', 'review', 'question'];
 
 const SCHEMA = {
@@ -23,9 +35,13 @@ const SCHEMA = {
     type: { type: 'string', enum: TYPES },
     est_minutes: { type: 'integer' },
     steps: {
-      type: 'array', minItems: 1, maxItems: 8,
+      type: 'array',
+      minItems: 1,
+      maxItems: 8,
       items: {
-        type: 'object', additionalProperties: false, required: ['text'],
+        type: 'object',
+        additionalProperties: false,
+        required: ['text'],
         properties: { text: { type: 'string' }, action: { type: 'string', enum: ACTIONS }, data: { type: 'object' } },
       },
     },
@@ -68,7 +84,9 @@ function ensure(tasks) {
 }
 
 function regenerate(task) {
-  try { fs.unlinkSync(file(task)); } catch {}
+  try {
+    fs.unlinkSync(file(task));
+  } catch {}
   if (!running.has(task.id) && !queue.some((t) => t.id === task.id)) queue.unshift(task);
   pump();
 }
@@ -90,11 +108,17 @@ function listFiles(laneDir) {
   const out = [];
   const walk = (d, depth) => {
     let ents = [];
-    try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    try {
+      ents = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const e of ents) {
       if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === '__pycache__') continue;
       const p = path.join(d, e.name);
-      if (e.isDirectory()) { if (depth < 1 && e.name !== 'data') walk(p, depth + 1); } else out.push(p);
+      if (e.isDirectory()) {
+        if (depth < 1 && e.name !== 'data') walk(p, depth + 1);
+      } else out.push(p);
     }
   };
   walk(laneDir, 0);
@@ -110,7 +134,9 @@ const intro = () => {
 function prompt(task) {
   if (isProject(task)) return projectPrompt(task);
   let laneMd = '';
-  try { laneMd = fs.readFileSync(path.join(task.laneDir, 'LANE.md'), 'utf8').slice(0, 15000); } catch {}
+  try {
+    laneMd = fs.readFileSync(path.join(task.laneDir, 'LANE.md'), 'utf8').slice(0, 15000);
+  } catch {}
   return `${intro()}
 
 TASK (from the ${config.factoryName()} workspace's ops/NEEDS_NICK.md, lane: ${task.lane}):
@@ -133,9 +159,16 @@ function projectPrompt(task) {
   const folder = task.projectFolder;
   let readme = '';
   for (const f of ['CLAUDE.md', 'README.md']) {
-    try { readme = fs.readFileSync(path.join(folder, f), 'utf8').slice(0, 8000); if (readme) { readme = `${f}:\n${readme}`; break; } } catch {}
+    try {
+      readme = fs.readFileSync(path.join(folder, f), 'utf8').slice(0, 8000);
+      if (readme) {
+        readme = `${f}:\n${readme}`;
+        break;
+      }
+    } catch {}
   }
-  const from = task.lane === 'my-list' ? 'typed into Task Desk' : `from ${task.sourceFile}${task.lane !== 'general' ? `, section: ${task.lane}` : ''}`;
+  const from =
+    task.lane === 'my-list' ? 'typed into Task Desk' : `from ${task.sourceFile}${task.lane !== 'general' ? `, section: ${task.lane}` : ''}`;
   return `${intro()}
 
 TASK (project "${task.projectName}", ${from}):
@@ -178,8 +211,18 @@ function runAI(task) {
   if (!loc) return Promise.resolve({ error: `${p.app} (${p.name}) isn't installed on this computer` });
   if (p.id !== 'claude') return runOther(p, loc, task);
   return new Promise((resolve) => {
-    const args = ['-p', '--output-format', 'json', '--json-schema', JSON.stringify(SCHEMA),
-      '--tools', 'Read', 'Glob', 'Grep', '--no-session-persistence'];
+    const args = [
+      '-p',
+      '--output-format',
+      'json',
+      '--json-schema',
+      JSON.stringify(SCHEMA),
+      '--tools',
+      'Read',
+      'Glob',
+      'Grep',
+      '--no-session-persistence',
+    ];
     if (config.get().plannerModel) args.push('--model', config.get().plannerModel);
     let out = '';
     let err = '';
@@ -187,7 +230,10 @@ function runAI(task) {
     const kill = setTimeout(() => p.kill(), 5 * 60 * 1000);
     p.stdout.on('data', (d) => (out += d));
     p.stderr.on('data', (d) => (err += d));
-    p.on('error', (e) => { clearTimeout(kill); resolve({ error: e.message }); });
+    p.on('error', (e) => {
+      clearTimeout(kill);
+      resolve({ error: e.message });
+    });
     p.on('close', () => {
       clearTimeout(kill);
       try {
@@ -205,18 +251,25 @@ function runOther(p, loc, task) {
   return new Promise((resolve) => {
     const outFile = path.join(config.LOCAL_DIR, 'mcp', `plan-${task.id}.txt`);
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
-    try { fs.unlinkSync(outFile); } catch {}
+    try {
+      fs.unlinkSync(outFile);
+    } catch {}
     let out = '';
     let err = '';
     const proc = spawn(loc.exe, [...loc.pre, ...ai.planArgs(p, outFile)], { cwd: task.laneDir, windowsHide: true, env: cleanEnv(loc.env) });
     const kill = setTimeout(() => proc.kill(), 5 * 60 * 1000);
     proc.stdout.on('data', (d) => (out += d));
     proc.stderr.on('data', (d) => (err += d));
-    proc.on('error', (e) => { clearTimeout(kill); resolve({ error: e.message }); });
+    proc.on('error', (e) => {
+      clearTimeout(kill);
+      resolve({ error: e.message });
+    });
     proc.on('close', () => {
       clearTimeout(kill);
       const plan = ai.readPlan(p, out, outFile);
-      try { fs.unlinkSync(outFile); } catch {}
+      try {
+        fs.unlinkSync(outFile);
+      } catch {}
       resolve(plan ? { plan } : { error: (err || out).slice(0, 500) || 'no output' });
     });
     proc.stdin.end(prompt(task) + ai.PLAN_TAIL(SCHEMA));
@@ -264,7 +317,13 @@ async function make(task) {
     plan = validate(r.plan);
     if (!plan) error = r.error || 'invalid plan JSON';
   }
-  const rec = { id: task.id, textHash: task.textHash, generatedAt: new Date().toISOString(), ok: !!plan, plan: plan || fallback(task, error) };
+  const rec = {
+    id: task.id,
+    textHash: task.textHash,
+    generatedAt: new Date().toISOString(),
+    ok: !!plan,
+    plan: plan || fallback(task, error),
+  };
   fs.writeFileSync(file(task), JSON.stringify(rec, null, 2));
   events.emit('ready', task.id);
 }

@@ -9,6 +9,7 @@ Changes a user would notice, newest first. The format follows
 ### Added
 - `npm test` runs the tests that need no AI app; `npm run test:all` runs every test.
 - ESLint (`npm run lint`), an `.editorconfig`, and CI on GitHub Actions that lints and tests every pull request on Windows.
+- Prettier (`npm run format`), checked in CI alongside ESLint.
 - An MIT license, a contributing guide, a security policy, a code of conduct, issue and pull request templates, Dependabot.
 
 ### Changed

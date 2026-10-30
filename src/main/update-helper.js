@@ -9,9 +9,23 @@ const fs = require('fs');
 const { execFileSync, spawn } = require('child_process');
 
 const [root, pid, relaunch, electron, logFile] = process.argv.slice(2);
-const log = (msg) => { try { fs.appendFileSync(logFile, `${new Date().toISOString()} ${msg}\n`); } catch {} };
-const run = (cmd, args) => execFileSync(cmd, args, { cwd: root, timeout: 10 * 60 * 1000, windowsHide: true, shell: cmd === 'npm' }).toString().trim();
-const alive = (p) => { try { process.kill(Number(p), 0); return true; } catch { return false; } };
+const log = (msg) => {
+  try {
+    fs.appendFileSync(logFile, `${new Date().toISOString()} ${msg}\n`);
+  } catch {}
+};
+const run = (cmd, args) =>
+  execFileSync(cmd, args, { cwd: root, timeout: 10 * 60 * 1000, windowsHide: true, shell: cmd === 'npm' })
+    .toString()
+    .trim();
+const alive = (p) => {
+  try {
+    process.kill(Number(p), 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 (async () => {
   for (let i = 0; i < 120 && alive(pid); i++) await new Promise((r) => setTimeout(r, 500));
@@ -28,7 +42,9 @@ const alive = (p) => { try { process.kill(Number(p), 0); return true; } catch { 
       } catch (e) {
         log(`npm install failed, going back to ${before.slice(0, 7)}: ${String(e.message).split('\n')[0]}`);
         run('git', ['reset', '--hard', before]);
-        try { run('npm', ['install', '--no-audit', '--no-fund']); } catch {}
+        try {
+          run('npm', ['install', '--no-audit', '--no-fund']);
+        } catch {}
       }
     }
   } catch (e) {

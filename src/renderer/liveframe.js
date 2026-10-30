@@ -14,12 +14,19 @@
   window.liveFrame = api;
 
   const LIQUID = ['#1590ff', '#10bfae']; // left side, right side
-  let kind = null, dark = false, moving = true;
-  let E = null;          // the engine for the current kind (bubbler or lava)
-  let cv = null, ctx = null, host = null, ro = null, raf = 0, lastT = 0;
-  let G = null;          // geometry: x, y, w, h, t (frame thickness), rad
-  let bg = null;         // cached oil + glass background
-  let gloss = null;      // cached glass highlights on top
+  let kind = null,
+    dark = false,
+    moving = true;
+  let E = null; // the engine for the current kind (bubbler or lava)
+  let cv = null,
+    ctx = null,
+    host = null,
+    ro = null,
+    raf = 0,
+    lastT = 0;
+  let G = null; // geometry: x, y, w, h, t (frame thickness), rad
+  let bg = null; // cached oil + glass background
+  let gloss = null; // cached glass highlights on top
   let sim = null;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -29,16 +36,25 @@
     want = ENGINES[want] ? want : null;
     const newKind = want !== kind;
     const changed = newKind || isDark !== dark || isMoving !== moving;
-    kind = want; dark = isDark; moving = isMoving;
+    kind = want;
+    dark = isDark;
+    moving = isMoving;
     if (!kind) return stop();
     E = ENGINES[kind];
     if (!cv) start();
-    else if (newKind) { sim = null; layout(); }
-    else if (changed) { E.cache(); if (!raf) loop(); }
+    else if (newKind) {
+      sim = null;
+      layout();
+    } else if (changed) {
+      E.cache();
+      if (!raf) loop();
+    }
   }
 
   // The sky follows the clock, so even with motion off it's redrawn every minute.
-  setInterval(() => { if (kind === 'sky' && cv && !raf) loop(); }, 60 * 1000);
+  setInterval(() => {
+    if (kind === 'sky' && cv && !raf) loop();
+  }, 60 * 1000);
 
   function start() {
     host = document.querySelector('.panel') || document.body;
@@ -55,7 +71,8 @@
   }
 
   function stop() {
-    cancelAnimationFrame(raf); raf = 0;
+    cancelAnimationFrame(raf);
+    raf = 0;
     if (ro) ro.disconnect();
     removeEventListener('resize', layout);
     if (cv) cv.remove();
@@ -80,14 +97,16 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!sim || !old || Math.abs(old.w - G.w) > 1 || Math.abs(old.h - G.h) > 1 || old.t !== G.t) E.newSim();
     E.cache();
-    cancelAnimationFrame(raf); raf = 0;
+    cancelAnimationFrame(raf);
+    raf = 0;
     loop();
   }
 
   const offscreen = () => {
     const c = document.createElement('canvas');
     const dpr = devicePixelRatio || 1;
-    c.width = cv.width; c.height = cv.height;
+    c.width = cv.width;
+    c.height = cv.height;
     const x = c.getContext('2d');
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
     return [c, x];
@@ -103,7 +122,9 @@
     x.fillStyle = oil[1];
     x.fillRect(0, 0, w, h);
     const side = (x0, y0, ww, hh, horiz, flip) => {
-      const g = horiz ? x.createLinearGradient(0, flip ? y0 + hh : y0, 0, flip ? y0 : y0 + hh) : x.createLinearGradient(flip ? x0 + ww : x0, 0, flip ? x0 : x0 + ww, 0);
+      const g = horiz
+        ? x.createLinearGradient(0, flip ? y0 + hh : y0, 0, flip ? y0 : y0 + hh)
+        : x.createLinearGradient(flip ? x0 + ww : x0, 0, flip ? x0 : x0 + ww, 0);
       g.addColorStop(0, oil[0]);
       g.addColorStop(0.45, oil[1]);
       g.addColorStop(0.62, oil[1]);
@@ -132,8 +153,13 @@
   function newSim() {
     const { w, t } = G;
     const lane = (side) => ({
-      side, x: side ? w - t * 0.5 : t * 0.5, color: LIQUID[side],
-      y0: Math.max(t * 0.45, G.rad * 0.5), grow: 0, target: rand(0.18, 0.32) * t, wait: rand(0, 0.3),
+      side,
+      x: side ? w - t * 0.5 : t * 0.5,
+      color: LIQUID[side],
+      y0: Math.max(t * 0.45, G.rad * 0.5),
+      grow: 0,
+      target: rand(0.18, 0.32) * t,
+      wait: rand(0, 0.3),
     });
     sim = { lanes: [lane(0), lane(1)], drops: [], bubbles: [], ripples: [], time: 0, poolH: t * 0.42 };
     // Run it for a while first, so the frame never starts empty.
@@ -151,12 +177,25 @@
 
     // Drops forming at the nozzles grow, then let go.
     for (const L of S.lanes) {
-      if (L.wait > 0) { L.wait -= dt; continue; }
+      if (L.wait > 0) {
+        L.wait -= dt;
+        continue;
+      }
       L.grow += dt * L.target * rand(3, 5);
       if (L.grow >= L.target) {
         S.drops.push({ x: L.x + rand(-0.4, 0.4), y: L.y0 + L.grow, r: L.grow, v: 4, wob: 1, ph: 0, color: L.color, side: L.side });
         // Sometimes the neck leaves a tiny satellite drop behind.
-        if (Math.random() < 0.35) S.drops.push({ x: L.x, y: L.y0 + 0.3 * L.grow, r: L.grow * rand(0.18, 0.3), v: 2, wob: 0.6, ph: 1, color: L.color, side: L.side });
+        if (Math.random() < 0.35)
+          S.drops.push({
+            x: L.x,
+            y: L.y0 + 0.3 * L.grow,
+            r: L.grow * rand(0.18, 0.3),
+            v: 2,
+            wob: 0.6,
+            ph: 1,
+            color: L.color,
+            side: L.side,
+          });
         L.grow = 0;
         L.target = rand(0.18, 0.32) * t;
         // Mostly a steady chain, now and then a pause.
@@ -186,7 +225,14 @@
         if (Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 0.92) {
           const vol = a.r ** 3 + b.r ** 3;
           const r = Math.cbrt(vol);
-          Object.assign(a, { x: (a.x * a.r ** 3 + b.x * b.r ** 3) / vol, y: (a.y * a.r ** 3 + b.y * b.r ** 3) / vol, v: Math.max(a.v, b.v), r: Math.min(r, t * 0.42), wob: 1.4, ph: 0 });
+          Object.assign(a, {
+            x: (a.x * a.r ** 3 + b.x * b.r ** 3) / vol,
+            y: (a.y * a.r ** 3 + b.y * b.r ** 3) / vol,
+            v: Math.max(a.v, b.v),
+            r: Math.min(r, t * 0.42),
+            wob: 1.4,
+            ph: 0,
+          });
           b.dead = true;
         }
       }
@@ -206,8 +252,11 @@
       const where = Math.random();
       const side = where < 0.5 ? 0 : 1;
       S.bubbles.push({
-        x: side ? w - t * rand(0.2, 0.8) : t * rand(0.2, 0.8), y: surface - rand(0, 30), r: rand(0.8, Math.max(1, t * 0.13)),
-        ph: rand(0, 6), side,
+        x: side ? w - t * rand(0.2, 0.8) : t * rand(0.2, 0.8),
+        y: surface - rand(0, 30),
+        r: rand(0.8, Math.max(1, t * 0.13)),
+        ph: rand(0, 6),
+        side,
       });
     }
     for (const b of S.bubbles) {
@@ -223,7 +272,10 @@
 
   // ---------- drawing ----------
   const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
-  const mix = (c, to, k) => { const a = hex(c); return `rgb(${a.map((v) => Math.round(v + (to - v) * k)).join(',')})`; };
+  const mix = (c, to, k) => {
+    const a = hex(c);
+    return `rgb(${a.map((v) => Math.round(v + (to - v) * k)).join(',')})`;
+  };
 
   // One drop: lit from the upper left, with a bright highlight on top and the
   // light it focuses showing as a glow near the bottom.
@@ -376,10 +428,13 @@
   // touch and melt into each other. It's worked out on a half-size grid, only
   // inside the frame ring, then scaled up smoothly.
   const LAVA = {
-    cool: [196, 20, 92], hot: [255, 178, 72],                      // wax
-    top: [38, 10, 58], bottom: [120, 26, 92], glow: [255, 120, 60], // liquid and lamp
+    cool: [196, 20, 92],
+    hot: [255, 178, 72], // wax
+    top: [38, 10, 58],
+    bottom: [120, 26, 92],
+    glow: [255, 120, 60], // liquid and lamp
   };
-  let lavaBuf = null;    // { c, x, img, u32, w, h }
+  let lavaBuf = null; // { c, x, img, u32, w, h }
 
   function lavaCache() {
     const { w, h, t } = G;
@@ -403,9 +458,11 @@
     x.fillStyle = glow;
     x.fillRect(0, h * 0.55, w, h * 0.45);
     const S = 0.5;
-    const bw = Math.max(1, Math.ceil(w * S)), bh = Math.max(1, Math.ceil(h * S));
+    const bw = Math.max(1, Math.ceil(w * S)),
+      bh = Math.max(1, Math.ceil(h * S));
     const c = document.createElement('canvas');
-    c.width = bw; c.height = bh;
+    c.width = bw;
+    c.height = bh;
     const cx = c.getContext('2d');
     const img = cx.createImageData(bw, bh);
     lavaBuf = { c, x: cx, img, u32: new Uint32Array(img.data.buffer), w: bw, h: bh, S };
@@ -414,15 +471,24 @@
   function lavaSim() {
     const { w, h, t } = G;
     const blobs = [];
-    const add = (side, y) => blobs.push({
-      side, x: side ? w - t * 0.5 : t * 0.5, y, r: rand(0.42, 0.72) * t, v: 0, T: Math.random(), ph: rand(0, 6), sq: rand(1.1, 1.6),
-    });
+    const add = (side, y) =>
+      blobs.push({
+        side,
+        x: side ? w - t * 0.5 : t * 0.5,
+        y,
+        r: rand(0.42, 0.72) * t,
+        v: 0,
+        T: Math.random(),
+        ph: rand(0, 6),
+        sq: rand(1.1, 1.6),
+      });
     const per = Math.max(3, Math.round(h / 95));
     for (let side = 0; side < 2; side++) for (let i = 0; i < per; i++) add(side, rand(t, h - t));
     // Wax resting along the bottom and clinging along the top.
     const pool = [];
     for (let x = 0; x < w + t; x += t * 1.05) pool.push({ x, y: h + t * 0.25, r: rand(0.8, 1.05) * t, ph: rand(0, 6), bottom: true });
-    for (let x = t * rand(3, 6); x < w - t * 3; x += t * rand(7, 13)) pool.push({ x, y: -t * 0.15, r: rand(0.45, 0.62) * t, ph: rand(0, 6), bottom: false });
+    for (let x = t * rand(3, 6); x < w - t * 3; x += t * rand(7, 13))
+      pool.push({ x, y: -t * 0.15, r: rand(0.45, 0.62) * t, ph: rand(0, 6), bottom: false });
     sim = { blobs, pool, time: 0 };
     for (let i = 0; i < 240; i++) lavaStep(1 / 20);
   }
@@ -441,8 +507,15 @@
       b.v *= Math.exp(-dt * 0.9);
       b.v = clamp(b.v, -26, 26);
       b.y += b.v * dt;
-      if (b.y < t * 0.4) { b.y = t * 0.4; b.v = Math.abs(b.v) * 0.2; b.T = Math.min(b.T, 0.35); }
-      if (b.y > h - t * 0.3) { b.y = h - t * 0.3; b.v = -Math.abs(b.v) * 0.2; }
+      if (b.y < t * 0.4) {
+        b.y = t * 0.4;
+        b.v = Math.abs(b.v) * 0.2;
+        b.T = Math.min(b.T, 0.35);
+      }
+      if (b.y > h - t * 0.3) {
+        b.y = h - t * 0.3;
+        b.v = -Math.abs(b.v) * 0.2;
+      }
       b.ph += dt * 0.7;
       b.x = (b.side ? w - t * 0.5 : t * 0.5) + Math.sin(b.ph) * t * 0.08;
       // Rising or sinking fast, a blob stretches into a taller shape.
@@ -454,17 +527,30 @@
 
   function lavaDraw() {
     const { w, h, t } = G;
-    const B = lavaBuf, S = sim;
+    const B = lavaBuf,
+      S = sim;
     const k = B.S;
     const u32 = B.u32;
     const T0 = Math.ceil(t * k) + 1;
     const blobs = S.blobs.map((b) => ({ x: b.x * k, y: b.y * k, r2: (b.r * k) ** 2, sy: 1 / b.sq, T: b.T }));
-    const pool = S.pool.map((p) => ({ x: p.x * k, y: (p.y + Math.sin(p.ph) * t * 0.12) * k, r2: ((p.r * (1 + 0.12 * Math.sin(p.ph * 1.7))) * k) ** 2, sy: 1, T: p.bottom ? 0.9 : 0.2 }));
+    const pool = S.pool.map((p) => ({
+      x: p.x * k,
+      y: (p.y + Math.sin(p.ph) * t * 0.12) * k,
+      r2: (p.r * (1 + 0.12 * Math.sin(p.ph * 1.7)) * k) ** 2,
+      sy: 1,
+      T: p.bottom ? 0.9 : 0.2,
+    }));
     const all = blobs.concat(pool);
-    const top = LAVA.top, bot = LAVA.bottom, cool = LAVA.cool, hot = LAVA.hot, glow = LAVA.glow;
-    const H = B.h, W = B.w;
+    const top = LAVA.top,
+      bot = LAVA.bottom,
+      cool = LAVA.cool,
+      hot = LAVA.hot,
+      glow = LAVA.glow;
+    const H = B.h,
+      W = B.w;
     const px = (x, y) => {
-      let f = 0, fT = 0;
+      let f = 0,
+        fT = 0;
       for (let i = 0; i < all.length; i++) {
         const b = all[i];
         const dy = (y - b.y) * b.sy;
@@ -472,26 +558,34 @@
         const d2 = dx * dx + dy * dy;
         if (d2 > b.r2 * 16) continue;
         const c = b.r2 / (d2 + 0.6);
-        f += c; fT += c * b.T;
+        f += c;
+        fT += c * b.T;
       }
       const ly = y / H;
-      let r = top[0] + (bot[0] - top[0]) * ly, g = top[1] + (bot[1] - top[1]) * ly, bl = top[2] + (bot[2] - top[2]) * ly;
+      let r = top[0] + (bot[0] - top[0]) * ly,
+        g = top[1] + (bot[1] - top[1]) * ly,
+        bl = top[2] + (bot[2] - top[2]) * ly;
       if (f >= 1) {
         const T = fT / f;
         const core = Math.min(1, (f - 1) / 1.6);
-        const lit = 0.72 + 0.34 * core;          // thicker wax glows brighter
+        const lit = 0.72 + 0.34 * core; // thicker wax glows brighter
         const rim = f < 1.18 ? 0.82 + (f - 1) : 1; // a slightly darker edge
         r = (cool[0] + (hot[0] - cool[0]) * T) * lit * rim;
         g = (cool[1] + (hot[1] - cool[1]) * T) * lit * rim;
         bl = (cool[2] + (hot[2] - cool[2]) * T) * lit * rim;
       } else if (f > 0.25) {
-        const a = (f - 0.25) / 0.75 * 0.42;        // warm light around the wax
-        r += (glow[0] - r) * a; g += (glow[1] - g) * a; bl += (glow[2] - bl) * a;
+        const a = ((f - 0.25) / 0.75) * 0.42; // warm light around the wax
+        r += (glow[0] - r) * a;
+        g += (glow[1] - g) * a;
+        bl += (glow[2] - bl) * a;
       }
       u32[y * W + x] = 0xff000000 | (Math.min(255, bl) << 16) | (Math.min(255, g) << 8) | Math.min(255, r);
     };
     for (let y = 0; y < H; y++) {
-      if (y < T0 || y >= H - T0) { for (let x = 0; x < W; x++) px(x, y); continue; }
+      if (y < T0 || y >= H - T0) {
+        for (let x = 0; x < W; x++) px(x, y);
+        continue;
+      }
       for (let x = 0; x < T0; x++) px(x, y);
       for (let x = W - T0; x < W; x++) px(x, y);
     }
@@ -516,28 +610,46 @@
   // the same at night. Clouds drift around the frame by day, stars twinkle by
   // night (with the odd shooting star), and dawn and dusk glow orange and pink.
   // api.hour overrides the clock (tests and screenshots).
-  const SKY = [ // hour, color at the top, color at the bottom
-    [0, '#070b1f', '#141c3d'], [4.6, '#070b1f', '#141c3d'], [5.6, '#2a2350', '#c76a6a'], [6.6, '#5c7fc4', '#ffb37a'],
-    [8, '#3f93e6', '#bfe3ff'], [16.2, '#3f93e6', '#bfe3ff'], [18, '#3c6fb8', '#ffb070'], [19.2, '#2b2a5e', '#e0607a'],
-    [20.4, '#0d1430', '#29305e'], [24, '#070b1f', '#141c3d'],
+  const SKY = [
+    // hour, color at the top, color at the bottom
+    [0, '#070b1f', '#141c3d'],
+    [4.6, '#070b1f', '#141c3d'],
+    [5.6, '#2a2350', '#c76a6a'],
+    [6.6, '#5c7fc4', '#ffb37a'],
+    [8, '#3f93e6', '#bfe3ff'],
+    [16.2, '#3f93e6', '#bfe3ff'],
+    [18, '#3c6fb8', '#ffb070'],
+    [19.2, '#2b2a5e', '#e0607a'],
+    [20.4, '#0d1430', '#29305e'],
+    [24, '#070b1f', '#141c3d'],
   ];
-  const RISE = 6, SET = 19.5; // the sun is up from 6:00 to 19:30
+  const RISE = 6,
+    SET = 19.5; // the sun is up from 6:00 to 19:30
   const mixRGB = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f));
   const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-  const hourNow = () => (api.hour != null ? api.hour : (() => { const d = new Date(); return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600; })());
+  const hourNow = () =>
+    api.hour != null
+      ? api.hour
+      : (() => {
+          const d = new Date();
+          return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+        })();
   function skyAt(hr) {
     let i = 0;
     while (i < SKY.length - 2 && SKY[i + 1][0] <= hr) i++;
-    const [h0, t0, b0] = SKY[i], [h1, t1, b1] = SKY[i + 1];
+    const [h0, t0, b0] = SKY[i],
+      [h1, t1, b1] = SKY[i + 1];
     const f = clamp((hr - h0) / (h1 - h0 || 1), 0, 1);
     return { top: mixRGB(hex(t0), hex(t1), f), bottom: mixRGB(hex(b0), hex(b1), f) };
   }
   // 1 in full night, 0 in full day, in between at dawn and dusk.
-  const nightness = (hr) => (hr < 4.8 || hr > 20.6 ? 1 : hr < 7 ? clamp((7 - hr) / 2.2, 0, 1) : hr > 18.2 ? clamp((hr - 18.2) / 2.4, 0, 1) : 0);
+  const nightness = (hr) =>
+    hr < 4.8 || hr > 20.6 ? 1 : hr < 7 ? clamp((7 - hr) / 2.2, 0, 1) : hr > 18.2 ? clamp((hr - 18.2) / 2.4, 0, 1) : 0;
   // A point along the frame's path: up the left side, across the top, down the right.
   function along(p) {
     const { w, h, t } = G;
-    const side = h * 0.55, top = w;
+    const side = h * 0.55,
+      top = w;
     const total = side * 2 + top;
     let d = clamp(p, 0, 1) * total;
     if (d < side) return [t * 0.5, h * 0.62 - d];
@@ -547,7 +659,8 @@
     return [w - t * 0.5, h * 0.07 + d];
   }
 
-  let skyBg = null, skyHour = -1;
+  let skyBg = null,
+    skyHour = -1;
   function skyCache() {
     const hr = hourNow();
     skyHour = hr;
@@ -578,7 +691,8 @@
 
   function skySim() {
     const { w, h, t } = G;
-    const ring = () => { // a random point inside the frame's band
+    const ring = () => {
+      // a random point inside the frame's band
       const per = 2 * (w + h);
       let d = Math.random() * per;
       if (d < w) return [d, rand(1, t - 1)];
@@ -588,8 +702,16 @@
       if (d < w) return [d, h - rand(1, t - 1)];
       return [rand(1, t - 1), d - w];
     };
-    const stars = Array.from({ length: Math.round((w + h) / 9) }, () => { const [x, y] = ring(); return { x, y, r: rand(0.35, 1.1), ph: rand(0, 6), sp: rand(0.8, 2.4) }; });
-    const clouds = Array.from({ length: Math.max(4, Math.round((w + h) / 120)) }, () => ({ d: Math.random(), sp: rand(0.004, 0.009), s: rand(0.75, 1.15), puffs: Math.round(rand(3, 5)) }));
+    const stars = Array.from({ length: Math.round((w + h) / 9) }, () => {
+      const [x, y] = ring();
+      return { x, y, r: rand(0.35, 1.1), ph: rand(0, 6), sp: rand(0.8, 2.4) };
+    });
+    const clouds = Array.from({ length: Math.max(4, Math.round((w + h) / 120)) }, () => ({
+      d: Math.random(),
+      sp: rand(0.004, 0.009),
+      s: rand(0.75, 1.15),
+      puffs: Math.round(rand(3, 5)),
+    }));
     sim = { stars, clouds, shoot: null, nextShoot: rand(6, 16), time: 0 };
   }
 
@@ -597,7 +719,10 @@
     const S = sim;
     S.time += dt;
     for (const c of S.clouds) c.d = (c.d + c.sp * dt) % 1;
-    if (S.shoot) { S.shoot.life -= dt; if (S.shoot.life <= 0) S.shoot = null; }
+    if (S.shoot) {
+      S.shoot.life -= dt;
+      if (S.shoot.life <= 0) S.shoot = null;
+    }
     S.nextShoot -= dt;
     if (S.nextShoot <= 0 && nightness(hourNow()) > 0.7) {
       const { w, t } = G;
@@ -639,14 +764,23 @@
       for (const s of S.stars) {
         const a = night * (0.45 + 0.55 * Math.abs(Math.sin(S.time * s.sp + s.ph)));
         ctx.fillStyle = `rgba(255,255,240,${a})`;
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
       }
       if (S.shoot) {
-        const k = S.shoot.life / 0.9, x0 = S.shoot.x + (1 - k) * S.shoot.len * 2, y0 = S.shoot.y + (1 - k) * 6;
+        const k = S.shoot.life / 0.9,
+          x0 = S.shoot.x + (1 - k) * S.shoot.len * 2,
+          y0 = S.shoot.y + (1 - k) * 6;
         const g = ctx.createLinearGradient(x0, y0, x0 - S.shoot.len, y0 - 6);
-        g.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.strokeStyle = g; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 - S.shoot.len, y0 - 6); ctx.stroke();
+        g.addColorStop(0, `rgba(255,255,255,${0.9 * k})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 - S.shoot.len, y0 - 6);
+        ctx.stroke();
       }
     }
 
@@ -659,19 +793,29 @@
       const low = Math.min(1, Math.abs(p - 0.5) * 2); // redder near sunrise and sunset
       const core = mixRGB([255, 244, 200], [255, 160, 90], low * low);
       const halo = ctx.createRadialGradient(bx, by, R * 0.4, bx, by, R * 4.2);
-      halo.addColorStop(0, rgb(core, 0.75)); halo.addColorStop(1, rgb(core, 0));
-      ctx.fillStyle = halo; ctx.fillRect(bx - R * 4.2, by - R * 4.2, R * 8.4, R * 8.4);
+      halo.addColorStop(0, rgb(core, 0.75));
+      halo.addColorStop(1, rgb(core, 0));
+      ctx.fillStyle = halo;
+      ctx.fillRect(bx - R * 4.2, by - R * 4.2, R * 8.4, R * 8.4);
       ctx.fillStyle = rgb(core);
-      ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bx, by, R, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       const halo = ctx.createRadialGradient(bx, by, R * 0.5, bx, by, R * 3.4);
-      halo.addColorStop(0, 'rgba(220,230,255,.35)'); halo.addColorStop(1, 'rgba(220,230,255,0)');
-      ctx.fillStyle = halo; ctx.fillRect(bx - R * 3.4, by - R * 3.4, R * 6.8, R * 6.8);
+      halo.addColorStop(0, 'rgba(220,230,255,.35)');
+      halo.addColorStop(1, 'rgba(220,230,255,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(bx - R * 3.4, by - R * 3.4, R * 6.8, R * 6.8);
       ctx.fillStyle = '#eef2ff';
-      ctx.beginPath(); ctx.arc(bx, by, R * 0.85, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bx, by, R * 0.85, 0, Math.PI * 2);
+      ctx.fill();
       // The shadowed part makes it a crescent.
       ctx.fillStyle = rgb(skyAt(hr).top);
-      ctx.beginPath(); ctx.arc(bx + R * 0.62, by - R * 0.22, R * 0.68, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bx + R * 0.62, by - R * 0.22, R * 0.68, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Clouds drifting around the frame, pink-tinged at dawn and dusk, faint at night.
@@ -682,8 +826,11 @@
       const r = t * 0.42 * c.s;
       ctx.fillStyle = rgb(tint, ca);
       for (let i = 0; i < c.puffs; i++) {
-        const ox = (i - (c.puffs - 1) / 2) * r * 0.95, oy = Math.sin(i * 2.1) * r * 0.25;
-        ctx.beginPath(); ctx.arc(cx + ox, cy + oy, r * (i % 2 ? 0.85 : 1.05), 0, Math.PI * 2); ctx.fill();
+        const ox = (i - (c.puffs - 1) / 2) * r * 0.95,
+          oy = Math.sin(i * 2.1) * r * 0.25;
+        ctx.beginPath();
+        ctx.arc(cx + ox, cy + oy, r * (i % 2 ? 0.85 : 1.05), 0, Math.PI * 2);
+        ctx.fill();
       }
     }
     ctx.drawImage(gloss, 0, 0, w, h);
@@ -700,7 +847,11 @@
   function loop(now) {
     raf = 0;
     if (!cv || !G) return;
-    if (G.t < 6) { ctx.clearRect(0, 0, G.w, G.h); ctx.drawImage(bg, 0, 0, G.w, G.h); return; } // the slim bar
+    if (G.t < 6) {
+      ctx.clearRect(0, 0, G.w, G.h);
+      ctx.drawImage(bg, 0, 0, G.w, G.h);
+      return;
+    } // the slim bar
     const t = now || performance.now();
     const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 1 / 60;
     lastT = t;

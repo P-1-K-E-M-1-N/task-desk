@@ -39,6 +39,7 @@ These hold for every change, by a person or by an AI agent. The app's whole valu
 
 ```powershell
 npm run lint     # ESLint; `npm run lint:fix` repairs the simple cases
+npm run format   # Prettier rewrites the code in the house format (CI checks it)
 npm test         # the tests that need no AI app (CI runs these on Windows)
 npm run test:all # every test, including the four that start a real Claude Code
 ```
@@ -49,7 +50,7 @@ If you change how plans, chats or tasks work, run `npm run test:all` and say so 
 
 ## Code style
 
-- ESLint's recommended rules, configured in `eslint.config.js`. Two-space indent, single quotes, LF line endings (`.editorconfig`).
+- Prettier decides the layout (`.prettierrc.json`: 140 columns, single quotes). Run `npm run format` before you commit; CI fails on unformatted code. ESLint's recommended rules catch the rest (`eslint.config.js`).
 - Comments explain *why*, in full sentences. The top of each file says what the file is for.
 - `let x = []; try { x = read() } catch { return }` is fine for "best effort" reads. Don't swallow an error the user would want to know about.
 - Keep the main process and the pages apart: pages talk to the app only through the `desk` API in `src/preload.js`, and every new IPC channel is added there.

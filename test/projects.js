@@ -13,25 +13,49 @@ const PROJ = path.join(BASE, 'rental-houses');
 const SHOTS = path.join(__dirname, 'shots');
 const FACTORY_FROM_NICK = path.join(__dirname, '..', 'test-fixtures', 'ops', 'FROM_NICK.md');
 const results = [];
-const ok = (name, cond, extra = '') => { results.push(cond); console.log(cond ? 'PASS' : 'FAIL', name, extra); };
+const ok = (name, cond, extra = '') => {
+  results.push(cond);
+  console.log(cond ? 'PASS' : 'FAIL', name, extra);
+};
 const settings = () => JSON.parse(fs.readFileSync(path.join(DATA, 'settings.json'), 'utf8'));
 
 async function launch(env) {
   const app = await _electron.launch(launchOpts(env));
-  await app.evaluate(({ shell }) => { global.__opened = []; shell.openExternal = async () => {}; shell.openPath = async (p) => { global.__opened.push(p); return ''; }; });
+  await app.evaluate(({ shell }) => {
+    global.__opened = [];
+    shell.openExternal = async () => {};
+    shell.openPath = async (p) => {
+      global.__opened.push(p);
+      return '';
+    };
+  });
   const box = await app.firstWindow();
   box.on('pageerror', (e) => ok('no box page errors', false, e.message));
   await box.waitForSelector('#pname');
   return { app, box };
 }
-const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date.now() < end) { const v = await fn(); if (v) return v; await page.waitForTimeout(800); } return null; };
+const until = async (page, fn, ms) => {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const v = await fn();
+    if (v) return v;
+    await page.waitForTimeout(800);
+  }
+  return null;
+};
 
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
   useTestSettings({ look: { theme: 'clay', material: 'paper', appearance: 'light', size: 'm' } });
   fs.mkdirSync(PROJ, { recursive: true });
-  fs.writeFileSync(path.join(PROJ, 'README.md'), '# Rental houses\n\nTwo houses: 12 Elm St and 40 Oak Ave. Repairs go through Mike (mike@example.com).\n');
-  fs.writeFileSync(path.join(PROJ, 'TODO.md'), '# To do\n\n## Repairs\n- [ ] **Ask Mike for a quote on the Elm St faucet** (2026-10-30)\n- [x] Replace the Oak Ave smoke detector\n\n## Rent\n- [ ] Draft the November rent reminder for the Oak Ave tenant\n');
+  fs.writeFileSync(
+    path.join(PROJ, 'README.md'),
+    '# Rental houses\n\nTwo houses: 12 Elm St and 40 Oak Ave. Repairs go through Mike (mike@example.com).\n'
+  );
+  fs.writeFileSync(
+    path.join(PROJ, 'TODO.md'),
+    '# To do\n\n## Repairs\n- [ ] **Ask Mike for a quote on the Elm St faucet** (2026-10-30)\n- [x] Replace the Oak Ave smoke detector\n\n## Rent\n- [ ] Draft the November rent reminder for the Oak Ave tenant\n'
+  );
   const factoryBefore = fs.existsSync(FACTORY_FROM_NICK) ? fs.readFileSync(FACTORY_FROM_NICK, 'utf8') : null;
 
   let { app, box } = await launch();
@@ -41,7 +65,10 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   // ---- add a project through the editor ----
   await box.locator('#switch').click();
   ok('switcher menu offers "Add a project"', await box.locator('.popmenu.projects button', { hasText: 'Add a project' }).isVisible());
-  const [ed] = await Promise.all([app.waitForEvent('window'), box.locator('.popmenu.projects button', { hasText: 'Add a project' }).click()]);
+  const [ed] = await Promise.all([
+    app.waitForEvent('window'),
+    box.locator('.popmenu.projects button', { hasText: 'Add a project' }).click(),
+  ]);
   ed.on('pageerror', (e) => ok('no editor page errors', false, e.message));
   await ed.waitForSelector('#folder');
   await ed.locator('#add').click();
@@ -49,7 +76,11 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await ed.locator('#folder').fill(PROJ);
   await ed.locator('#folder').dispatchEvent('change');
   await until(ed, async () => (await ed.locator('#name').inputValue()) !== '', 5000);
-  ok('picking a folder suggests a name', (await ed.locator('#name').inputValue()) === 'Rental Houses', await ed.locator('#name').inputValue());
+  ok(
+    'picking a folder suggests a name',
+    (await ed.locator('#name').inputValue()) === 'Rental Houses',
+    await ed.locator('#name').inputValue()
+  );
   ok('picking a folder finds its checklist', (await ed.locator('#tasksFile').inputValue()) === 'TODO.md');
   await until(ed, () => ed.locator('#found').isVisible(), 5000);
   const found = await ed.locator('#found').innerText();
@@ -65,19 +96,28 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   ok('box switches to the new project', (await box.locator('#pname').innerText()) === 'Rental Houses');
   await until(box, async () => (await box.locator('.card').count()) === 2, 5000);
   ok('project tasks show in the box (ticked lines skipped)', (await box.locator('.card').count()) === 2);
-  ok('lane chips come from ## headings', await box.locator('.chip', { hasText: 'Repairs' }).count() === 1 && await box.locator('.chip', { hasText: 'Rent' }).count() === 1);
+  ok(
+    'lane chips come from ## headings',
+    (await box.locator('.chip', { hasText: 'Repairs' }).count()) === 1 && (await box.locator('.chip', { hasText: 'Rent' }).count()) === 1
+  );
   const pid = settings().projects[0].id;
-  ok('project saved in settings', settings().projects.length === 1 && settings().projects[0].tasksFile === 'TODO.md' && settings().view === pid);
+  ok(
+    'project saved in settings',
+    settings().projects.length === 1 && settings().projects[0].tasksFile === 'TODO.md' && settings().view === pid
+  );
 
   // ---- quick add ----
   ok('quick add shows for the project', await box.locator('#quickadd').isVisible());
   await box.locator('#qtext').fill('Order a new mailbox for 12 Elm St');
   await box.locator('#qtext').press('Enter');
   await until(box, async () => (await box.locator('.card').count()) === 3, 5000);
-  ok('quick add puts the task in the box', await box.locator('.card', { hasText: 'Order a new mailbox' }).count() === 1);
-  ok('quick-added task is under "My list"', await box.locator('.chip', { hasText: /my list/i }).count() === 1);
+  ok('quick add puts the task in the box', (await box.locator('.card', { hasText: 'Order a new mailbox' }).count()) === 1);
+  ok('quick-added task is under "My list"', (await box.locator('.chip', { hasText: /my list/i }).count()) === 1);
   const st = JSON.parse(fs.readFileSync(path.join(DATA, 'projects', pid, 'state.json'), 'utf8'));
-  ok('quick-added task saved in the project\'s own memory', (st.added || []).some((a) => /mailbox/.test(a.text)));
+  ok(
+    "quick-added task saved in the project's own memory",
+    (st.added || []).some((a) => /mailbox/.test(a.text))
+  );
   ok('the checklist file was not changed', !/mailbox/.test(fs.readFileSync(path.join(PROJ, 'TODO.md'), 'utf8')));
 
   // ---- all projects ----
@@ -86,8 +126,12 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await until(box, async () => (await box.locator('#pname').innerText()) === 'All projects', 5000);
   const allCount = await box.locator('.card').count();
   ok('"All projects" lists both projects\' tasks', allCount >= 14, `${allCount} cards`);
-  ok('"All projects" chips are projects', await box.locator('.chip', { hasText: 'Rental Houses' }).count() === 1 && await box.locator('.chip', { hasText: 'Workshop' }).count() === 1);
-  ok('cards say which project they belong to', await box.locator('.card .lane', { hasText: 'Rental Houses' }).count() === 3);
+  ok(
+    '"All projects" chips are projects',
+    (await box.locator('.chip', { hasText: 'Rental Houses' }).count()) === 1 &&
+      (await box.locator('.chip', { hasText: 'Workshop' }).count()) === 1
+  );
+  ok('cards say which project they belong to', (await box.locator('.card .lane', { hasText: 'Rental Houses' }).count()) === 3);
   await box.locator('.chip', { hasText: 'Rental Houses' }).click();
   ok('project chip filters the list', (await box.locator('.card').count()) === 3);
   await box.screenshot({ path: path.join(SHOTS, 'projects-all.png') });
@@ -103,11 +147,20 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   ok('notes box is labelled for the project', /^notes and results$/i.test(await win.locator('#notesHead').innerText()));
   const term = () => win.evaluate(() => document.querySelector('.xterm-rows')?.innerText || '');
   let trusted = false;
-  const chatText = await until(win, async () => {
-    const t = await term();
-    if (/trust this folder/i.test(t) && !trusted) { trusted = true; await win.locator('.term').click(); await win.keyboard.press('ArrowDown'); await win.keyboard.press('Enter'); }
-    return /his project "Rental Houses"/.test(t.replace(/\s+/g, ' ')) ? t : null;
-  }, 120000);
+  const chatText = await until(
+    win,
+    async () => {
+      const t = await term();
+      if (/trust this folder/i.test(t) && !trusted) {
+        trusted = true;
+        await win.locator('.term').click();
+        await win.keyboard.press('ArrowDown');
+        await win.keyboard.press('Enter');
+      }
+      return /his project "Rental Houses"/.test(t.replace(/\s+/g, ' ')) ? t : null;
+    },
+    120000
+  );
   ok('chat starts with the project brief', !!chatText);
   await win.screenshot({ path: path.join(SHOTS, 'project-task.png') });
   await win.locator('#notes').fill('Texted Mike, quote is $140.');
@@ -115,10 +168,13 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await win.locator('#bdone').click();
   await box.waitForTimeout(1500);
   const projFrom = fs.existsSync(path.join(PROJ, 'FROM_NICK.md')) ? fs.readFileSync(path.join(PROJ, 'FROM_NICK.md'), 'utf8') : '';
-  ok('Done writes to the project\'s results file', /Ask Mike for a quote/.test(projFrom) && /quote is \$140/.test(projFrom) && /Rental Houses/.test(projFrom));
+  ok(
+    "Done writes to the project's results file",
+    /Ask Mike for a quote/.test(projFrom) && /quote is \$140/.test(projFrom) && /Rental Houses/.test(projFrom)
+  );
   const factoryNow = fs.existsSync(FACTORY_FROM_NICK) ? fs.readFileSync(FACTORY_FROM_NICK, 'utf8') : null;
   ok('Workshop FROM_NICK.md untouched by project work', factoryNow === factoryBefore);
-  ok('done project task leaves the box', await box.locator('.card', { hasText: 'Ask Mike for a quote' }).count() === 0);
+  ok('done project task leaves the box', (await box.locator('.card', { hasText: 'Ask Mike for a quote' }).count()) === 0);
 
   // ---- edit (autosave) ----
   await box.locator('#switch').click();
@@ -130,12 +186,18 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   ok('look panel says which project is showing', /uses the desk's look/.test(await box.locator('.lookpanel .scope').innerText()));
   await box.locator('.lookpanel .scope button').click();
   await box.waitForTimeout(300);
-  ok('project gets its own look in its color', /Styling .* only/.test(await box.locator('.lookpanel .scope').innerText())
-    && (await box.evaluate(() => getComputedStyle(document.body).getPropertyValue('--clay').trim())) !== '');
+  ok(
+    'project gets its own look in its color',
+    /Styling .* only/.test(await box.locator('.lookpanel .scope').innerText()) &&
+      (await box.evaluate(() => getComputedStyle(document.body).getPropertyValue('--clay').trim())) !== ''
+  );
   await box.locator('.lookpanel .grid button', { hasText: 'Stars' }).click();
   await box.waitForTimeout(300);
-  ok('frame change goes to the project only', (await box.evaluate(() => document.documentElement.dataset.material)) === 'stars'
-    && (JSON.parse(fs.readFileSync(path.join(DATA, 'settings.json'), 'utf8')).look.material) === deskLook);
+  ok(
+    'frame change goes to the project only',
+    (await box.evaluate(() => document.documentElement.dataset.material)) === 'stars' &&
+      JSON.parse(fs.readFileSync(path.join(DATA, 'settings.json'), 'utf8')).look.material === deskLook
+  );
   await box.mouse.click(5, 5);
   await box.locator('#switch').click();
   await box.locator('.popmenu.projects button', { hasText: 'All projects' }).click();
@@ -148,20 +210,36 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await box.screenshot({ path: path.join(__dirname, 'shots', 'project-own-look.png') });
   await box.locator('#switch').click();
 
-  const [ed2] = await Promise.all([app.waitForEvent('window'), box.locator('.popmenu.projects button', { hasText: 'Edit this project' }).click()]);
+  const [ed2] = await Promise.all([
+    app.waitForEvent('window'),
+    box.locator('.popmenu.projects button', { hasText: 'Edit this project' }).click(),
+  ]);
   await ed2.waitForSelector('#remove:not([hidden])');
-  ok('editor opens with the project filled in', (await ed2.locator('#name').inputValue()) === 'Rental Houses' && (await ed2.locator('#notes').inputValue()).includes('Mike prefers'));
+  ok(
+    'editor opens with the project filled in',
+    (await ed2.locator('#name').inputValue()) === 'Rental Houses' && (await ed2.locator('#notes').inputValue()).includes('Mike prefers')
+  );
   await ed2.locator('#name').fill('Rentals');
-  const saved = await until(ed2, async () => (await ed2.locator('#savestate').getAttribute('data-s')) === 'saved' && settings().projects[0].name === 'Rentals', 5000);
+  const saved = await until(
+    ed2,
+    async () => (await ed2.locator('#savestate').getAttribute('data-s')) === 'saved' && settings().projects[0].name === 'Rentals',
+    5000
+  );
   ok('editing a project saves itself', !!saved);
   await until(box, async () => (await box.locator('#pname').innerText()) === 'Rentals', 5000);
   ok('box shows the new name', (await box.locator('#pname').innerText()) === 'Rentals');
   await ed2.locator('#cancel').click();
 
   // ---- safety ----
-  const guard = await box.evaluate((f) => desk.saveProject({ name: 'Factory copy', folder: f, source: 'list', results: 'file', resultsFile: 'ops/NOTES.md' }), require('./env').WORKSPACE);
-  ok('a project can\'t write into the Workshop', guard.ok === false && /read-only/.test(guard.error), guard.error);
-  const outside = await box.evaluate((f) => desk.saveProject({ name: 'Sneaky', folder: f, source: 'list', results: 'file', resultsFile: '..\\escape.md' }), PROJ);
+  const guard = await box.evaluate(
+    (f) => desk.saveProject({ name: 'Factory copy', folder: f, source: 'list', results: 'file', resultsFile: 'ops/NOTES.md' }),
+    require('./env').WORKSPACE
+  );
+  ok("a project can't write into the Workshop", guard.ok === false && /read-only/.test(guard.error), guard.error);
+  const outside = await box.evaluate(
+    (f) => desk.saveProject({ name: 'Sneaky', folder: f, source: 'list', results: 'file', resultsFile: '..\\escape.md' }),
+    PROJ
+  );
   ok('results file must stay inside the project folder', outside.ok === false);
   ok('nothing was created by the refused saves', settings().projects.length === 1);
 
@@ -178,7 +256,10 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
   await app.close();
   ({ app, box } = await launch());
   await until(box, async () => (await box.locator('#pname').innerText()) === 'Old project', 8000);
-  ok('projects and the chosen view survive a restart', (await box.locator('#pname').innerText()) === 'Old project' && settings().projects.length === 2);
+  ok(
+    'projects and the chosen view survive a restart',
+    (await box.locator('#pname').innerText()) === 'Old project' && settings().projects.length === 2
+  );
   await app.close();
 
   // ---- OneDrive-style data folder ----
@@ -201,4 +282,7 @@ const until = async (page, fn, ms) => { const end = Date.now() + ms; while (Date
 
   console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);
   process.exit(results.every(Boolean) ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(2); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(2);
+});

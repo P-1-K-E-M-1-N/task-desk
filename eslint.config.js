@@ -5,7 +5,27 @@ const js = require('@eslint/js');
 const globals = require('globals');
 
 // Top-level helpers in src/renderer/ui.js that the page scripts use (see /* exported */ there).
-const UI_HELPERS = ['icon', 'h', 'laneColor', 'laneName', 'TYPE_LABEL', 'fmtMin', 'toast', 'actBtn', 'popMenu', 'placePopup', 'applyLook', 'lookPanel', 'autosave', 'saveStatus', 'isDark', 'LOOK', 'THEMES', 'MATERIALS', 'MOVING'];
+const UI_HELPERS = [
+  'icon',
+  'h',
+  'laneColor',
+  'laneName',
+  'TYPE_LABEL',
+  'fmtMin',
+  'toast',
+  'actBtn',
+  'popMenu',
+  'placePopup',
+  'applyLook',
+  'lookPanel',
+  'autosave',
+  'saveStatus',
+  'isDark',
+  'LOOK',
+  'THEMES',
+  'MATERIALS',
+  'MOVING',
+];
 
 module.exports = [
   { ignores: ['node_modules/**', 'data/**', 'test/shots/**', 'test-fixtures/**'] },
