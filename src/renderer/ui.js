@@ -128,9 +128,9 @@ function placePopup(anchor, m) {
 // ---------- look: theme, frame material, light/dark, text size ----------
 const THEMES = [['clay', 'Clay'], ['sage', 'Sage'], ['ocean', 'Ocean'], ['plum', 'Plum'], ['honey', 'Honey'], ['graphite', 'Graphite']];
 const MATERIALS = [['paper', 'Paper'], ['glass', 'Glass'], ['linen', 'Linen'], ['wood', 'Wood'], ['leather', 'Leather'], ['metal', 'Metal'], ['neon', 'Neon'],
-  ['aurora', 'Aurora'], ['lava', 'Magma'], ['stars', 'Stars'], ['rainbow', 'Rainbow'], ['bubbler', 'Bubbler'], ['lavalamp', 'Lava lamp'], ['picture', 'My picture']];
+  ['aurora', 'Aurora'], ['lava', 'Magma'], ['stars', 'Stars'], ['rainbow', 'Rainbow'], ['bubbler', 'Bubbler'], ['lavalamp', 'Lava lamp'], ['sky', 'Day & night sky'], ['picture', 'My picture']];
 // Frames that move (a picture can be a GIF).
-const MOVING = ['aurora', 'lava', 'stars', 'rainbow', 'bubbler', 'lavalamp', 'picture'];
+const MOVING = ['aurora', 'lava', 'stars', 'rainbow', 'bubbler', 'lavalamp', 'sky', 'picture'];
 let LOOK = desk.lookNow();
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 const stillQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -145,7 +145,7 @@ function applyLook(look = LOOK) {
   if (look.pictureUrl) root.style.setProperty('--frame-pic', `url("${look.pictureUrl}")`);
   else root.style.removeProperty('--frame-pic');
   // The bubbler and lava lamp are drawn live (liveframe.js); they hold still with "Keep still" or Windows' animations off.
-  root.classList.toggle('dark', look.appearance === 'dark' || (look.appearance === 'system' && darkQuery.matches));
+  root.classList.toggle('dark', isDark(look.appearance));
   window.liveFrame.set(look.material, root.classList.contains('dark'), look.motion !== 'off' && !stillQuery.matches);
   applyColors(look);
   document.dispatchEvent(new Event('lookchange'));
@@ -184,6 +184,12 @@ function applyColors(look) {
 const clampN = (v, d) => Math.max(5, Math.min(100, Number.isFinite(+v) && v !== '' && v != null ? +v : d));
 applyLook();
 darkQuery.addEventListener('change', () => applyLook());
+// "Day & night": light from 7:00 to 19:00, dark the rest (the same hours as main.js).
+function nightNow() { const hr = new Date().getHours(); return hr < 7 || hr >= 19; }
+function isDark(a) { return a === 'dark' || (a === 'system' && darkQuery.matches) || (a === 'cycle' && nightNow()); }
+setInterval(() => {
+  if (LOOK && LOOK.appearance === 'cycle' && isDark('cycle') !== document.documentElement.classList.contains('dark')) applyLook();
+}, 60 * 1000);
 stillQuery.addEventListener('change', () => applyLook());
 desk.onLook((look) => applyLook(look));
 
@@ -247,7 +253,7 @@ function lookPanel(anchor) {
     h('h4', {}, 'Corners'),
     seg('round', [['sharp', 'Sharp'], ['normal', 'Normal'], ['round', 'Round'], ['extra', 'Extra round']]),
     h('h4', {}, 'Light or dark'),
-    seg('appearance', [['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']]),
+    seg('appearance', [['cycle', 'Day & night'], ['system', 'Like Windows'], ['light', 'Light'], ['dark', 'Dark']]),
     h('h4', {}, 'Text size'),
     seg('size', [['s', 'Small'], ['m', 'Normal'], ['l', 'Large'], ['xl', 'Larger']]),
     h('label', { class: 'newown', onclick: stop },

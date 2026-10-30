@@ -230,6 +230,52 @@ function tickUpdated() {
 }
 setInterval(tickUpdated, 5000);
 
+// ---------- copy instructions for another AI chat ----------
+// Ready-to-paste text that tells another Claude Code (or Codex, Gemini…) chat
+// how to work with Task Desk: where to put the tasks it needs you to do, and
+// where your Done notes come back. Filled in for the project on show.
+const FORM = '1 Name · 2 Folder · 3 Where its tasks come from · 4 When I press Done, my notes go to · 5 The chat (may it change files?) · 6 Anything the AI should know (optional) · 7 Color · 8 Look (optional) · 9 Which AI (optional)';
+const CHECKLIST_RULES = 'one task per line as "- [ ] what to do", grouped under "## Section" headings. Write each task so it can be done without this chat: what to do, where (links, file paths), and what "done" looks like. Only list things I have to do myself (send, sign up, decide, pay, check). Never tick my tasks yourself: I finish them in Task Desk.';
+function setupText() {
+  return [
+    'I use Task Desk, a desktop app, for the hands-on tasks my projects need from me. Please set this project up for it:',
+    '',
+    `1. Keep a checklist of everything you need me to do in TODO.md in this project's folder (create it if it's missing): ${CHECKLIST_RULES}`,
+    '2. When I finish or skip a task, Task Desk adds my notes and results to TASK_RESULTS.md in this folder. Read it at the start of every session and act on the entries you haven\'t handled yet. Don\'t edit or reorder it.',
+    `3. Then tell me how to add this project to Task Desk. Its "Add a project" form has numbered boxes: ${FORM}. Give me the exact text to type or option to pick for each box, by number. For 3 that's "A checklist file" (TODO.md), and for 4 it's "A file in the project folder" (TASK_RESULTS.md).`,
+  ].join('\n');
+}
+function projectText(p) {
+  const where = p.folder ? ` (folder: ${p.folder})` : '';
+  const lines = [`I track the hands-on tasks for this project, "${p.name}"${where}, in Task Desk, a desktop app.`, ''];
+  if (p.source === 'file' && p.tasksPath) lines.push(`- Tasks for me: Task Desk reads ${p.tasksPath}. When you need me to do something, add it there: ${CHECKLIST_RULES}`);
+  else lines.push('- Tasks for me: this project\'s tasks live inside Task Desk (no file). When you need me to do something, tell me in one line and I\'ll add it there.');
+  if (p.results === 'file' && p.resultsPath) lines.push(`- My results: when I finish or skip a task, Task Desk appends my notes and anything I pasted to ${p.resultsPath}. Read it at the start of every session and act on the new entries. Don't edit or reorder it.`);
+  else lines.push('- My results: Task Desk keeps my notes. I\'ll paste anything you need from them.');
+  lines.push(`- If I ask how to change the project's settings in Task Desk, answer by its form's numbered boxes: ${FORM}.`);
+  return lines.join('\n');
+}
+function workspaceText() {
+  const name = (data.factory && data.factory.name) || 'the workspace';
+  return `I now finish NEEDS_NICK items for ${name} in a separate app (Task Desk). Every time I mark a task DONE or SKIP, it appends a dated entry to ops/FROM_NICK.md with the lane, the task text, my notes and any results I pasted. On every daily tick, read ops/FROM_NICK.md first. For each entry you haven't handled yet, continue that lane from my notes, tick the matching box in the lane's needs_nick.md (or ops/needs_nick_global.md) so it drops off NEEDS_NICK.md, and note in the lane log which FROM_NICK entry you acted on. Don't edit or reorder FROM_NICK.md itself: it's append-only and the app writes to it.`;
+}
+$('#copyfor').innerHTML = icon('paste');
+$('#copyfor').onclick = async (e) => {
+  e.stopPropagation();
+  const up = userProject();
+  const p = up ? await desk.getProject(up.id) : null;
+  const copy = (text, what) => { desk.copy(text); toast(`Copied ${what}. Paste it into the other chat.`); };
+  const items = [
+    ...(p ? [{ label: `How "${p.name}" works with Task Desk`, icon: 'copy', hint: 'for its AI', run: () => copy(projectText(p), `the "${p.name}" instructions`) }] : []),
+    { label: 'Set up a new project for Task Desk', icon: 'plus', hint: 'any AI chat', run: () => copy(setupText(), 'the setup instructions') },
+    ...(data.factory ? [{ label: `${data.factory.name}: read my results`, icon: 'copy', hint: 'workspace', run: () => copy(workspaceText(), 'the workspace note') }] : []),
+  ];
+  popMenu($('#copyfor'), items, {
+    head: 'Copy for another AI chat',
+    notes: ['Paste it into Claude Code, Codex or any AI chat so it puts your tasks where Task Desk reads them.'],
+  });
+};
+
 // ---------- your name ----------
 // Asked once on a new desk (and from "Your name…" in the menu). The AI calls
 // you by it, and "only lines that mention me" looks for it. Skipping is fine.

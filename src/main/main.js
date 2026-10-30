@@ -233,9 +233,19 @@ async function pickFramePicture(scope) {
   return { ok: true, look: lookOut(scope) };
 }
 
+// "Day & night" (appearance 'cycle') is light from 7:00 to 19:00 and dark the rest;
+// the windows follow the clock (see ui.js), and so does Windows' own theming of them.
+const DAY_FROM = 7, DAY_TO = 19;
+const isNight = (d = new Date()) => d.getHours() < DAY_FROM || d.getHours() >= DAY_TO;
+const themeSource = (a) => (a === 'cycle' ? (isNight() ? 'dark' : 'light') : a);
+setInterval(() => {
+  const a = config.get().look.appearance;
+  if (a === 'cycle' && nativeTheme.themeSource !== themeSource(a)) applyLook();
+}, 60 * 1000);
+
 function applyLook() {
   const look = config.get().look;
-  nativeTheme.themeSource = look.appearance;
+  nativeTheme.themeSource = themeSource(look.appearance);
   for (const w of BrowserWindow.getAllWindows()) {
     if (w.isDestroyed()) continue;
     const mine = lookOut(scopeOf(w));
@@ -978,7 +988,7 @@ ipcMain.handle('view:set', (e, view) => setView(view));
 ipcMain.handle('project:edit', (e, id) => openProjectEditor(id || null));
 ipcMain.handle('project:get', (e, id) => {
   const p = projects.get(id);
-  return p ? { ...p, resultsPath: projects.resultsFile(p), missing: projects.missing(p) } : null;
+  return p ? { ...p, resultsPath: projects.resultsFile(p), tasksPath: projects.tasksFile(p), missing: projects.missing(p) } : null;
 });
 ipcMain.handle('project:save', (e, draft) => {
   const r = projects.save(draft);
@@ -1145,7 +1155,7 @@ app.whenReady().then(async () => {
   await bridge.start(chatTool).catch((e) => console.warn('chat tools unavailable:', e.message));
   if (!fs.existsSync(ICON_PNG)) { fs.mkdirSync(path.dirname(ICON_PNG), { recursive: true }); fs.writeFileSync(ICON_PNG, icon.png(256)); }
   if (!fs.existsSync(ICON_ICO)) fs.writeFileSync(ICON_ICO, icon.ico());
-  nativeTheme.themeSource = config.get().look.appearance;
+  nativeTheme.themeSource = themeSource(config.get().look.appearance);
   createTray();
   createBox();
   if (!globalShortcut.register(config.get().hotkey, toggleBox)) console.warn('Hotkey already taken:', config.get().hotkey);

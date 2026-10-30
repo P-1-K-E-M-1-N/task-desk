@@ -38,11 +38,13 @@
     content: ''; position: absolute; inset: 0 0 auto 0; height: 160px; pointer-events: none;
     background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--clay) 13%, transparent), transparent 60%);
   }
-  header { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; flex: none; }
+  header { position: relative; display: flex; align-items: center; gap: 2px; height: 40px; padding: 0 4px 0 12px; flex: none; }
   .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 650; font-size: 12px; letter-spacing: .01em; color: var(--ink-2); }
   .brand img { width: 18px; height: 18px; border-radius: 5px; }
   /* The empty space in the header is where you grab the box to move it, so it never shrinks to nothing. */
-  header .sp { flex: 1; min-width: 44px; align-self: stretch; }
+  header .sp { flex: 1; min-width: 40px; align-self: stretch; }
+  header .iconbtn { width: 27px; flex: none; }
+  header .pill { margin-left: 4px; }
   .hero { position: relative; padding: 4px 18px 12px; flex: none; }
   .hello { color: var(--ink-3); font-size: 12px; font-weight: 500; }
   .big { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; }
@@ -172,6 +174,7 @@
       <div class="barsum" id="barsum"></div>
       <span class="pill mode-test" id="mode" hidden>TEST</span>
       <div class="sp"></div>
+      <button class="iconbtn" id="copyfor" title="Copy instructions for another AI chat (Claude Code, Codex…) so it works with Task Desk"></button>
       <button class="iconbtn" id="look" title="Customize the look (themes and frames)"></button>
       <button class="iconbtn" id="collapse" title="Collapse to a slim bar"></button>
       <button class="iconbtn" id="menu" title="Menu"></button>
