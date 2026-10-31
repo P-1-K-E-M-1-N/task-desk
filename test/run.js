@@ -6,7 +6,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const NO_AI = ['updater.js', 'standalone.js', 'ai.js', 'seamless.js'];
+const NO_AI = ['updater.js', 'standalone.js', 'ai.js', 'seamless.js', 'flow.js'];
 const NEEDS_AI = ['e2e.js', 'projects.js', 'chat-tools.js', 'look.js'];
 const all = process.argv.includes('--all');
 const only = process.argv.slice(2).filter((a) => a.endsWith('.js'));
