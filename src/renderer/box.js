@@ -265,13 +265,14 @@ function card(t, i) {
         <div class="ttl"></div>
         <div class="meta">
           <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${tag.color}"></span><span class="nm"></span></span>
-          <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}
+          <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}
         </div>
       </div>
       <div class="right">${right}</div>`,
   });
   el.querySelector('.ttl').textContent = t.title;
   el.querySelector('.lane .nm').textContent = tag.name;
+  if (t.updatedAfter) el.querySelector('.upd').title = `Updated after you finished "${t.updatedAfter.title}": ${t.updatedAfter.why}`;
   return el;
 }
 

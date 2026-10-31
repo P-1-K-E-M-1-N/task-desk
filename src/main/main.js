@@ -17,6 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { spawn } = require('child_process');
 const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
@@ -115,6 +116,8 @@ function decorate(t) {
     minutes: (plan && plan.est_minutes) || t.minutes,
     planStatus: planner.status(t),
     planOk: c ? c.ok : null,
+    updatedAfter: (c && c.updatedAfter) || null,
+    chromeDrive: chromeDrive(t.id),
     steps,
     ticked,
     status: st.status,
@@ -468,6 +471,19 @@ function openTask(id, bounds) {
   w.loadFile(path.join(RENDERER, 'task.html'), { query: { id } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
+  // Closing a task you've started but not finished asks "Did you finish it?"
+  // in the window (Done / Done & next / close anyway / keep working).
+  w.on('close', (e) => {
+    if (w.closeAnyway || app.isQuitting || !state.isOpen(id)) return;
+    const cur = findTask(id);
+    const c = cur && planner.cached(cur);
+    const ticks = state.task(id).ticks;
+    const ticked = c ? c.plan.steps.filter((_, i) => ticks['s' + i]).length : 0;
+    if (!ticked) return;
+    e.preventDefault();
+    w.show();
+    w.webContents.send('task:askFinish', { ticked, steps: c.plan.steps.length });
+  });
   w.on('closed', () => {
     chat.stop(id);
     taskWins.delete(id);
@@ -800,6 +816,18 @@ function menu() {
     config.synced()
       ? { label: 'Move my data back to this computer…', click: moveDataHome }
       : { label: 'Keep my data in OneDrive…', click: moveDataToCloud },
+    {
+      label: 'Let Claude work in Chrome (uses more tokens)',
+      type: 'checkbox',
+      checked: !!config.get().chromeDrive,
+      click: (i) => config.set({ chromeDrive: i.checked }),
+    },
+    {
+      label: 'Update other tasks when one is done',
+      type: 'checkbox',
+      checked: config.get().catchUp !== false,
+      click: (i) => config.set({ catchUp: i.checked }),
+    },
     { label: 'Start with Windows', type: 'checkbox', checked: fs.existsSync(startupLink()), click: (i) => setAutostart(i.checked) },
     {
       label: 'Show in the taskbar',
@@ -1159,6 +1187,8 @@ function planView(t) {
     steps: steps.map((s, i) => ({ step: i + 1, text: s.text, done: !!st.ticks['s' + i], comment: (st.stepNotes || {})['s' + i] || '' })),
     notes: st.notes || '',
     planReady: !!steps.length,
+    opened_pages: (st.opened || []).map((o) => ({ url: o.url, at: o.at })),
+    chrome: chromeDrive(t.id) ? 'work' : 'look',
   };
 }
 
@@ -1338,7 +1368,15 @@ handle('task:snooze', (e, id, when) => {
   broadcast();
   return d.toISOString();
 });
-handle('task:finish', (e, id, status, notes, goNext) => {
+handle('task:finish', (e, id, status, notes, goNext) => finishTask(id, status, notes, goNext));
+// "Close anyway" from the did-you-finish question.
+handle('task:closeAnyway', (e, id) => {
+  const w = taskWins.get(id);
+  if (!w || w.isDestroyed()) return;
+  w.closeAnyway = true;
+  w.close();
+});
+function finishTask(id, status, notes, goNext) {
   const t = findTask(id);
   if (!t) return { ok: false };
   const st = state.task(id);
@@ -1367,8 +1405,32 @@ handle('task:finish', (e, id, status, notes, goNext) => {
     if (w && !w.isDestroyed()) w.close();
     if (next) openTask(next.id);
   }, 650);
+  if (status === 'done') catchUp(t, entry);
   return { ok: true, file, resultsTo: resultsKind(t) };
-});
+}
+
+// After a task is done, the AI checks the same project's other open tasks and
+// redrafts the plans this one changed (an answer they were waiting for, a step
+// already done). Each redraft says why ("updated after ...").
+async function catchUp(t, entry) {
+  if (config.get().catchUp === false) return;
+  const others = tasks.filter((x) => x.project === t.project && x.id !== t.id && state.isOpen(x.id)).slice(0, 25);
+  if (!others.length) return;
+  let hits = [];
+  try {
+    hits = await planner.affected({ ...t, notes: entry.notes, results: entry.results }, others);
+  } catch (err) {
+    log.warn(`couldn't check the other tasks after "${t.title}": ${err.message}`);
+    return;
+  }
+  for (const h of hits) {
+    const other = findTask(h.id);
+    if (!other || !state.isOpen(other.id)) continue;
+    log.info(`redrafting "${other.title}" after "${t.title}": ${h.why}`);
+    planner.regenerate({ ...other, recentChange: { title: t.title, notes: entry.notes, why: h.why } });
+  }
+  if (hits.length) broadcast();
+}
 
 // ---------- projects ----------
 handle('view:set', (e, view) => setView(view));
@@ -1399,7 +1461,11 @@ handle('project:remove', (e, id) => {
       'Its tasks leave the box. Nothing in the project folder is touched, and your notes and results stay in the app data folder in case you add it back.',
   });
   if (r !== 0) return false;
-  for (const [id2, w] of [...taskWins]) if (state.projectOf(id2) === id) w.close();
+  for (const [id2, w] of [...taskWins])
+    if (state.projectOf(id2) === id) {
+      w.closeAnyway = true;
+      w.close();
+    }
   projects.remove(id);
   refresh();
   startPolling();
@@ -1434,13 +1500,44 @@ handle('task:add', (e, pid, text) => {
   return id;
 });
 
-handle('act:url', (e, url) => {
-  if (/^https?:\/\//i.test(url)) shell.openExternal(url);
-});
+// Links from a task open in Chrome, where the task's Claude chat can see them
+// (Claude in Chrome). The task remembers the last few pages it opened, so
+// "look at the window" in the chat means the newest one.
+const CHROME = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA]
+  .filter(Boolean)
+  .map((d) => path.join(d, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+function openLink(e, url) {
+  if (!/^https?:\/\//i.test(url)) return;
+  const exe = !TESTING && CHROME.find((f) => fs.existsSync(f));
+  if (exe) spawn(exe, [url], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
+  else shell.openExternal(url);
+  const id = [...taskWins].find(([, w]) => !w.isDestroyed() && w.webContents === e.sender)?.[0];
+  if (id) {
+    const st = state.task(id);
+    state.update(id, { opened: [...(st.opened || []), { url, at: new Date().toISOString() }].slice(-8) });
+  }
+}
+// Whether this task's chat may click and type in Chrome (more tokens), or only look.
+const chromeDrive = (id) => chat.chromeWork({ id });
+handle('act:url', (e, url) => openLink(e, url));
 handle('act:copy', (e, text) => clipboard.writeText(String(text)));
 handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
-  const u = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  shell.openExternal(u);
+  openLink(
+    e,
+    `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  );
+});
+// The task window's Chrome switch: look only, or let Claude work in Chrome.
+handle('task:chromeDrive', (e, id, on) => {
+  state.update(id, { chromeDrive: !!on });
+  if (chat.isLive(id))
+    chat.send(
+      id,
+      on
+        ? `(Task Desk) ${config.who()} turned on "Let Claude work in Chrome" for this task. ${chat.CHROME_WORK}`
+        : `(Task Desk) "Let Claude work in Chrome" is off again. ${chat.CHROME_LOOK}`
+    );
+  return chromeDrive(id);
 });
 handle('act:file', async (e, p) => {
   const f = resolvePath(p, e);
