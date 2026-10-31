@@ -53,7 +53,7 @@ If you change how plans, chats or tasks work, run `npm run test:all` and say so 
 - Prettier decides the layout (`.prettierrc.json`: 140 columns, single quotes). Run `npm run format` before you commit; CI fails on unformatted code. ESLint's recommended rules catch the rest (`eslint.config.js`).
 - Comments explain *why*, in full sentences. The top of each file says what the file is for.
 - `let x = []; try { x = read() } catch { return }` is fine for "best effort" reads. Don't swallow an error the user would want to know about.
-- Keep the main process and the pages apart: pages talk to the app only through the `desk` API in `src/preload.js`, and every new IPC channel is added there and registered in `main.js` with `handle()` (never `ipcMain.handle` directly: `handle()` checks the sender).
+- Keep the main process and the pages apart: pages talk to the app only through the `desk` API in `src/preload.js`, and every new IPC channel is added there and registered in `src/main/ipc.js` with `handle()` (never `ipcMain.handle` directly: `handle()` checks the sender).
 - Pages run sandboxed with a strict content security policy: no inline `<script>`, no `onclick=`, nothing from the network. Put behaviour in the page's `.js` file.
 - Pure logic (parsing, validation, file formats) gets a unit test in `test/unit/`. Screens get a Playwright test.
 - When something goes wrong that the user won't see on screen, write it to the log (`src/main/log.js`) instead of an empty `catch`.
