@@ -50,6 +50,8 @@ async function load() {
   RESULTS_TO = r.resultsTo;
   document.title = T.title;
   $('#aiName').textContent = T.aiName || 'Claude Code';
+  showChrome(T.chromeDrive);
+  $('#cchrome').hidden = !/claude/i.test(T.aiName || 'Claude Code');
   $('#ttile').className = tileClass(T.type);
   $('#ttile').title = typeHint(T.type);
   $('#ttile').innerHTML = icon(T.type);
@@ -127,6 +129,15 @@ function renderPlan(planOk) {
       )
     );
   s.append(h('p', { class: 'summary', html: rich(P.summary) }));
+  if (T.updatedAfter)
+    s.append(
+      h(
+        'div',
+        { class: 'updated' },
+        h('span', { html: icon('refresh') }),
+        h('span', {}, `Updated after you finished "${T.updatedAfter.title}": ${T.updatedAfter.why}`)
+      )
+    );
 
   const done = P.steps.filter((_, i) => ST.ticks['s' + i]).length;
   s.append(
@@ -186,6 +197,7 @@ function stepEl(step, i) {
     el.classList.toggle('done', ST.ticks[key]);
     await desk.tick(ID, key, ST.ticks[key]);
     updateProgress();
+    checkAllDone();
   };
   const body = h(
     'div',
@@ -206,6 +218,89 @@ function updateProgress() {
   $('.progress .bar i').style.width = `${(d / P.steps.length) * 100}%`;
   $('.progress span').textContent = `${d} of ${P.steps.length} steps`;
 }
+
+// ---------- all steps ticked: finish and move on ----------
+// Ticking the last step (you or the chat) starts a short countdown to
+// "Done & next". "Not yet" stops it until a step is unticked and ticked again;
+// typing anywhere pauses it.
+const COUNTDOWN = 5;
+let finishing = false;
+let notYet = false;
+let countdown = null;
+const allTicked = () => !!(P && P.steps.length && P.steps.every((_, i) => ST.ticks['s' + i]));
+
+function checkAllDone() {
+  if (!allTicked()) {
+    notYet = false;
+    stopCountdown();
+    return;
+  }
+  if (!finishing && !notYet && !countdown) startCountdown();
+}
+function startCountdown() {
+  let left = COUNTDOWN;
+  const bar = $('#alldone');
+  const msg = h('span', { class: 'msg' });
+  const say = () => (msg.textContent = `All steps done. Finishing and moving to the next task in ${left}…`);
+  say();
+  bar.style.setProperty('--secs', COUNTDOWN + 's');
+  bar.replaceChildren(
+    msg,
+    h('span', { class: 'bar' }, h('i')),
+    h('button', { class: 'btn sm', onclick: () => ((notYet = true), stopCountdown()) }, 'Not yet'),
+    h('button', { class: 'btn sm primary', html: `<span>Done &amp; next</span>${icon('send')}`, onclick: () => finish('done', true) })
+  );
+  bar.hidden = false;
+  countdown = setInterval(() => {
+    left -= 1;
+    if (left > 0) return say();
+    stopCountdown(true);
+    finish('done', true);
+  }, 1000);
+}
+function stopCountdown(keepBar) {
+  clearInterval(countdown);
+  countdown = null;
+  if (!keepBar) $('#alldone').hidden = true;
+}
+// Typing pauses the countdown: the bar stays with its two buttons.
+window.addEventListener(
+  'keydown',
+  () => {
+    if (!countdown) return;
+    stopCountdown(true);
+    notYet = true;
+    $('#alldone .msg').textContent = 'All steps done.';
+    $('#alldone .bar')?.remove();
+  },
+  true
+);
+
+// "Did you finish it?" when you close a task you started (sent by the app).
+desk.onAskFinish(({ ticked, steps }) => {
+  if ($('.askfinish')) return;
+  const close = () => ask.remove();
+  const ask = h(
+    'div',
+    { class: 'askfinish' },
+    h(
+      'div',
+      { class: 'card' },
+      h('h2', {}, 'Did you finish it?'),
+      h('p', {}, `You ticked ${ticked} of ${steps} steps on "${T ? T.title : 'this task'}" but didn't press Done.`),
+      h(
+        'div',
+        { class: 'row' },
+        h('button', { class: 'btn primary', html: `${icon('check')}<span>Done</span>`, onclick: () => (close(), finish('done', false)) }),
+        h('button', { class: 'btn', html: `<span>Done &amp; next</span>${icon('send')}`, onclick: () => (close(), finish('done', true)) }),
+        h('span', { class: 'sp', style: 'flex:1' }),
+        h('button', { class: 'btn ghost', onclick: () => (close(), desk.closeAnyway(ID)) }, 'Close anyway'),
+        h('button', { class: 'btn ghost', onclick: close }, 'Keep working')
+      )
+    )
+  );
+  document.body.append(ask);
+});
 
 // Comment Claude left on a step (through the chat's taskdesk tools).
 function commentEl(key) {
@@ -242,6 +337,7 @@ desk.onTaskChanged((id, ch) => {
       el.classList.add('flash');
     }
     updateProgress();
+    checkAllDone();
     toast(
       ch.done === true ? `Claude ticked step ${n}` : ch.done === false ? `Claude un-ticked step ${n}` : `Claude commented on step ${n}`
     );
@@ -463,8 +559,12 @@ const notesSaved = autosave(
 $('#notesSaved').replaceWith(notesSaved);
 
 async function finish(status, next) {
+  if (finishing) return;
+  finishing = true;
+  stopCountdown();
   const r = await desk.finish(ID, status, $('#notes').value, next);
   if (!r.ok) {
+    finishing = false;
     toast(r.error || "Couldn't save");
     return;
   }
@@ -721,6 +821,23 @@ $('#cmore').onclick = (e) =>
     },
     { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
   ]);
+
+// Chrome: by default the chat only looks at pages you open from the plan;
+// switched on, it may click and type there too (more tokens).
+function showChrome(on) {
+  $('#cchrome').classList.toggle('on', !!on);
+  $('#cchrome').innerHTML = `${icon('external')}<span>${on ? 'Chrome: working' : 'Chrome: look only'}</span>`;
+  $('#cchrome').title = on
+    ? 'Claude may click and type in Chrome for the steps (you press send, submit or pay yourself). Uses more tokens. Click to go back to look only.'
+    : 'Links open in Chrome and Claude can look at them when you ask. Click to let Claude work in Chrome too (uses more tokens).';
+}
+$('#cchrome').onclick = async () => {
+  const on = await desk.setChromeDrive(ID, !(T && T.chromeDrive));
+  if (T) T.chromeDrive = on;
+  showChrome(on);
+  toast(on ? 'Claude can work in Chrome for this task' : 'Claude only looks at Chrome for this task');
+};
+showChrome(false);
 
 // ---------- live updates ----------
 desk.onPlan((id) => {

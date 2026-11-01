@@ -87,7 +87,10 @@ function regenerate(task) {
   try {
     fs.unlinkSync(file(task));
   } catch {}
-  if (!running.has(task.id) && !queue.some((t) => t.id === task.id)) queue.unshift(task);
+  // A redraft with news (task.recentChange) replaces a queued plain one.
+  const i = queue.findIndex((t) => t.id === task.id);
+  if (i >= 0) queue.splice(i, 1);
+  if (!running.has(task.id)) queue.unshift(task);
   pump();
 }
 
@@ -151,7 +154,7 @@ ${listFiles(task.laneDir).join('\n')}
 
 LANE.md:
 ${laneMd || '(none)'}
-
+${recent(task)}
 ${rules('Never plan to edit workspace files: results go back through the Done notes.')}`;
 }
 
@@ -178,8 +181,19 @@ PROJECT FOLDER: ${folder || '(none: this project is just a list)'}
 ${folder ? `(Relative paths in the task are relative to this folder.)\n\nFILES IN THE PROJECT FOLDER:\n${listFiles(folder).join('\n')}` : ''}
 ${task.planNotes ? `\nNOTES FOR PLANNING THIS PROJECT:\n${task.planNotes}\n` : ''}
 ${readme || ''}
-
+${recent(task)}
 ${rules(task.allowEdits ? 'The chat beside the plan may change files in the project folder when a step needs it.' : `Never plan to change project files without ${config.who()} asking: results go back through the Done notes.`)}`;
+}
+
+// A task finished just now that changes this one (see catchUp in main.js).
+function recent(task) {
+  const r = task.recentChange;
+  if (!r) return '';
+  return `
+JUST FINISHED: ${config.who()} just finished the task "${r.title}".${r.notes ? ` Their notes: ${r.notes}` : ''}
+Why this task changes: ${r.why}
+Plan with that in mind: skip what is already done, use answers they gave, and say in the summary what changed.
+`;
 }
 
 function rules(last) {
@@ -193,7 +207,7 @@ function rules(last) {
   decide (a real choice between options),
   account (create an account, sign up, or prove identity on a website),
   setup (change settings on a website: turn on an API, get a key, give permissions, connect services),
-  check (look over or test something an agent made),
+  qa (check, look over or test something an agent made),
   research (look up numbers or facts on a website, e.g. keyword volumes).
 - est_minutes: honest estimate for ${who}.
 - steps: 3-7 concrete steps in order, each one short. Attach ONE action where a click helps:
@@ -213,18 +227,18 @@ function rules(last) {
 
 // One run of the plan writer. Claude Code returns the plan checked against the
 // schema; Codex and Gemini are asked for the JSON and it's checked in validate().
-function runAI(task) {
+function runAI(task, input = prompt(task), schema = SCHEMA) {
   const p = ai.pick(task);
   const loc = ai.locate(p);
   if (!loc) return Promise.resolve({ error: `${p.app} (${p.name}) isn't installed on this computer` });
-  if (p.id !== 'claude') return runOther(p, loc, task);
+  if (p.id !== 'claude') return runOther(p, loc, task, input, schema);
   return new Promise((resolve) => {
     const args = [
       '-p',
       '--output-format',
       'json',
       '--json-schema',
-      JSON.stringify(SCHEMA),
+      JSON.stringify(schema),
       '--tools',
       'Read',
       'Glob',
@@ -251,11 +265,11 @@ function runAI(task) {
         resolve({ error: (err || out).slice(0, 500) || 'no output' });
       }
     });
-    p.stdin.end(prompt(task));
+    p.stdin.end(input);
   });
 }
 
-function runOther(p, loc, task) {
+function runOther(p, loc, task, input, schema) {
   return new Promise((resolve) => {
     const outFile = path.join(config.LOCAL_DIR, 'mcp', `plan-${task.id}.txt`);
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
@@ -280,7 +294,7 @@ function runOther(p, loc, task) {
       } catch {}
       resolve(plan ? { plan } : { error: (err || out).slice(0, 500) || 'no output' });
     });
-    proc.stdin.end(prompt(task) + ai.PLAN_TAIL(SCHEMA));
+    proc.stdin.end(input + ai.PLAN_TAIL(schema));
   });
 }
 
@@ -332,8 +346,65 @@ async function make(task) {
     ok: !!plan,
     plan: plan || fallback(task, error),
   };
+  if (task.recentChange) rec.updatedAfter = { title: task.recentChange.title, why: task.recentChange.why };
   fs.writeFileSync(file(task), JSON.stringify(rec, null, 2));
   events.emit('ready', task.id);
 }
 
-module.exports = { ensure, cached, status, regenerate, events, prompt };
+// After a task is finished: which of the other open tasks does it change?
+// One AI run reads the finished task and the open tasks' plans and names the
+// ones whose plan should be redrafted, with a one-line reason each.
+const AFFECTED = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['affected'],
+  properties: {
+    affected: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'why'],
+        properties: { id: { type: 'string' }, why: { type: 'string' } },
+      },
+    },
+  },
+};
+
+function affectedPrompt(done, others) {
+  const who = config.who();
+  const list = others
+    .map((t) => {
+      const c = cached(t);
+      const steps = c && c.plan ? c.plan.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : '(no plan yet)';
+      return `- id: ${t.id}\n  task: ${t.text.slice(0, 400)}\n  plan: ${c && c.plan ? c.plan.summary : ''} ${steps}`.slice(0, 1500);
+    })
+    .join('\n');
+  const notes = done.notes ? `THEIR NOTES: ${done.notes}\n` : '';
+  const results = done.results.length
+    ? `THEIR RESULTS:\n${done.results.map((r) => `- ${r.label}: ${String(r.value).slice(0, 500)}`).join('\n')}\n`
+    : '';
+  return `${who} just finished a task. Decide which of their other open tasks need a new plan because of it. Read files only if you must (read-only).
+
+FINISHED TASK: ${done.text}
+${notes}${results}
+OPEN TASKS:
+${list}
+
+Include a task only when its plan is now wrong or out of date: a step is already done, it now has an answer or account it was waiting for, a decision changes what to do, or it is no longer needed. Leave out tasks that are merely related. Usually that is none or one or two.
+why: one short sentence to ${who} as "you", e.g. "You already made the RevenueCat account, so step 1 is gone."`;
+}
+
+// run is the AI runner (tests pass a pretend one).
+async function affected(done, others, run = runAI) {
+  if (!others.length) return [];
+  const r = await run(done, affectedPrompt(done, others), AFFECTED);
+  const list = r.plan && Array.isArray(r.plan.affected) ? r.plan.affected : [];
+  const ids = new Set(others.map((t) => t.id));
+  const seen = new Set();
+  return list
+    .filter((a) => a && ids.has(a.id) && typeof a.why === 'string' && !seen.has(a.id) && seen.add(a.id))
+    .map((a) => ({ id: a.id, why: a.why.trim().slice(0, 300) }));
+}
+
+module.exports = { ensure, cached, status, regenerate, events, prompt, affected, affectedPrompt };
