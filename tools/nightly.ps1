@@ -134,8 +134,11 @@ if ($SkipTests) {
 #    that check to be green on the commit before it can land there.
 $check = $null
 for ($i = 0; $i -lt 40; $i++) {
-  $runs = gh api "repos/{owner}/{repo}/commits/$sha/check-runs" --jq '[.check_runs[] | select(.name == "Lint and test (Windows)")] | first | "\(.status) \(.conclusion)"' 2>$null
-  if ($runs -and $runs -like 'completed *') { $check = ($runs -split ' ')[1]; break }
+  # Parsed here rather than with --jq: PowerShell 5.1 mangles the quotes a jq filter needs.
+  $json = & cmd /c "gh api repos/{owner}/{repo}/commits/$sha/check-runs 2>nul"
+  $run = $null
+  try { $run = ($json | ConvertFrom-Json).check_runs | Where-Object { $_.name -eq 'Lint and test (Windows)' } | Select-Object -First 1 } catch {}
+  if ($run -and $run.status -eq 'completed') { $check = $run.conclusion; break }
   if ($i -eq 0) { Say "waiting for GitHub's check on $($sha.Substring(0,7))..." }
   Start-Sleep -Seconds 30
 }
