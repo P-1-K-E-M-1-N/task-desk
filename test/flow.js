@@ -111,14 +111,22 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   ok('and the running chat is told', !!(await until(async () => /turned on "Let Claude work in Chrome"/.test(await termText(win)))));
 
   // ---- ticking the last step counts down to Done & next ----
+  // One step at a time, waiting for each tick to be saved (CI machines are slow).
   const checks = win.locator('.step:not(.done) .check');
-  while ((await checks.count()) > 0) await checks.first().click();
-  ok('ticking the last step starts the countdown', !!(await until(() => win.locator('#alldone').isVisible(), 3000)));
+  for (let left = await checks.count(); left > 0; left--) {
+    await checks.first().click();
+    await until(async () => (await win.locator('.progress span').innerText()) === `${n - left + 1} of ${n} steps`);
+  }
+  ok(
+    'ticking the last step starts the countdown',
+    !!(await until(() => win.locator('#alldone').isVisible(), 8000)),
+    await win.locator('.progress span').innerText()
+  );
   await win.locator('#alldone button', { hasText: 'Not yet' }).click();
   ok('"Not yet" stops it', await win.locator('#alldone').isHidden());
   await win.locator('.step .check').last().click();
   await win.locator('.step .check').last().click();
-  ok('unticking and ticking again brings it back', !!(await until(() => win.locator('#alldone').isVisible(), 3000)));
+  ok('unticking and ticking again brings it back', !!(await until(() => win.locator('#alldone').isVisible(), 8000)));
   const before = taskWins().length;
   const next = await until(async () => {
     const w = taskWins().find((x) => !x.isClosed() && x !== win);
