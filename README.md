@@ -30,7 +30,7 @@ npm install
 npm start
 ```
 
-`-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, where changes land before they're released.
+`-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, which holds the changes that passed the last full test run but haven't been released yet. Day-to-day work happens on `dev`.
 
 The first start does three things:
 - creates a `data\` folder next to the app,
@@ -127,6 +127,7 @@ src/mcp/         the MCP server that gives each chat its plan tools
 src/renderer/    the box, task and project windows; liveframe.js draws the animated frames
 test/            Playwright tests; test/unit/ holds the fast node:test unit tests
 test-fixtures/   a sample lanes workspace, used by the tests
+tools/nightly.ps1  the nightly check: every test on dev, then main moves forward
 docs/GUIDE.md    the full user guide
 docs/WORKSPACE.md  the optional lanes workspace
 ```
@@ -147,7 +148,8 @@ A few things to know:
 - **Which tests use a real AI:** `e2e.js`, `projects.js`, `chat-tools.js` and `look.js` start the real Claude Code, so they need it signed in and use a little of your plan. `standalone.js` (a brand-new desk), `ai.js`, `seamless.js` and `updater.js` don't need any AI (`ai.js` and `seamless.js` use a pretend one, `test/fake-claude.js`).
 - **Before the first `test:all`,** `npm run test:plans` builds and caches plans for the sample tasks (in `data\plans\test\`), and the tests reuse them.
 - **Screenshots** are saved to `test/shots/`.
-- **CI** runs lint and `npm test` on a Windows runner for every pull request (`.github/workflows/ci.yml`).
+- **CI** runs lint and `npm test` on a Windows runner for every pull request and every push to `dev` (`.github/workflows/ci.yml`).
+- **The nightly check** (`tools\nightly.ps1`) runs every test, including the AI-backed ones, on `dev` and moves `main` forward when they pass. [CONTRIBUTING.md](CONTRIBUTING.md) explains it.
 
 ## Contributing
 

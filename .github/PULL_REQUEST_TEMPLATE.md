@@ -10,7 +10,7 @@
 
 - [ ] `npm run lint` passes
 - [ ] `npm test` passes
-- [ ] I ran the test(s) that use a real AI, if I touched planning or chat (`npm run test:all`)
+- [ ] I ran the test(s) that use a real AI if I touched planning or chat (`npm run test:all`), or I am leaving that to the nightly check
 - [ ] I tried it in the running app
 
 ## Ground rules (see CONTRIBUTING.md)

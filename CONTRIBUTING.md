@@ -19,11 +19,14 @@ npm start
 
 You need Windows 10 or 11, Node.js 24 (see `.nvmrc`) and Git. For the tests that use a real AI, Claude Code has to be installed and signed in.
 
-Work on a branch, not on `main`:
+Work on a branch off `dev`, not on `main`, and open your pull request against `dev`:
 
 ```powershell
+git checkout dev
 git checkout -b fix/what-you-are-fixing
 ```
+
+(`dev` is where changes land during the day; `main` only moves after the nightly check. See "How releases work".)
 
 ## Ground rules
 
@@ -46,7 +49,7 @@ npm run test:all # every test, including the four that start a real Claude Code
 
 `npm test` runs the unit tests in `test/unit/` (plain `node:test`, a few seconds) and then `test/updater.js`, `test/standalone.js`, `test/ai.js` and `test/seamless.js`. They start Electron with a temporary data folder and their own hotkey (`test/env.js`), so they're safe to run while your own Task Desk is open. The AI-backed tests (`e2e.js`, `projects.js`, `chat-tools.js`, `look.js`) use a little of your Claude plan; run `npm run test:plans` once first to cache their plans.
 
-If you change how plans, chats or tasks work, run `npm run test:all` and say so in the pull request.
+You don't have to run `npm run test:all` yourself: the nightly check (below) runs it on `dev` before anything reaches `main`. During the day, `npm run lint` and `npm run test:unit` are enough to commit, and GitHub runs `npm test` on every push to `dev`.
 
 ## Code style
 
@@ -68,7 +71,26 @@ If you change how plans, chats or tasks work, run `npm run test:all` and say so 
 
 ## How releases work
 
-`main` is where changes land. Installed copies follow the `release` branch, and the daily self-updater (`src/main/updater.js`) only fast-forwards to it. So a merge into `main` reaches nobody until it's promoted:
+There are three branches, and a change moves through them in order:
+
+| Branch | What it holds | How a change gets there |
+|---|---|---|
+| `dev` | Today's work | Commits and merged pull requests, checked by lint, the unit tests and GitHub's `npm test` run |
+| `main` | Everything that passed the full test run | The nightly check moves it forward, fast-forward only |
+| `release` | What installed copies run | The maintainer promotes `main` by hand (below) |
+
+**The nightly check** is `tools\nightly.ps1`. It runs in a separate clone that sits on `dev` (never in the copy you use as your desk), and it: brings any pull requests merged into `main` into `dev`; stops early when `dev` has nothing new; runs `npm install`, lint, the format check, `npm run test:plans` and `npm run test:all`; waits for GitHub's check on the commit; and then pushes that same commit to `main`. If anything fails, `main` is left alone and the report says what broke. Each run is written to `data\nightly\REPORT.md` in that clone, newest first, with the full test output beside it.
+
+```powershell
+git clone -b dev https://github.com/P-1-K-E-M-1-N/task-desk task-desk-dev
+cd task-desk-dev
+npm install
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\nightly.ps1 -Pause
+```
+
+The last line is what a "Goodnight" desktop shortcut can point at: run it before bed, and `main` is up to date in the morning. `-DryRun` does everything except push; `-SkipTests` tries the script without the slow tests. The four AI-backed tests start a real Claude Code, so the check spends a little of your Claude plan once a night, instead of every time someone verifies a change by hand.
+
+Installed copies follow the `release` branch, and the daily self-updater (`src/main/updater.js`) only fast-forwards to it. So a change on `main` reaches nobody until it's promoted:
 
 ```powershell
 git checkout release
@@ -77,7 +99,7 @@ git tag -a v1.2.0 -m "v1.2.0"
 git push origin release --tags
 ```
 
-Before promoting: `npm run test:all` is green, `CHANGELOG.md` has moved the **Unreleased** lines under the new version, and `package.json`'s version matches the tag. Then every installed copy picks it up at 7 AM.
+Before promoting: the latest nightly report says PROMOTED (so `npm run test:all` was green on exactly this commit), `CHANGELOG.md` has moved the **Unreleased** lines under the new version, and `package.json`'s version matches the tag. Then every installed copy picks it up at 7 AM.
 
 ## Questions
 
