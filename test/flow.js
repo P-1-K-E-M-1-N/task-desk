@@ -31,34 +31,37 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
     fs.unlinkSync(path.join(DATA, 'state.test.json'));
   } catch {}
   useTestSettings();
-  const app = await _electron.launch(launchOpts({ TASKDESK_FAKE_CLAUDE: FAKE }));
-  const opened = [];
-  await app.evaluate(({ shell }) => {
-    global.__opened = [];
-    shell.openExternal = async (u) => global.__opened.push(u);
-    shell.openPath = async () => '';
-  });
-  const box = await app.firstWindow();
-  await box.waitForSelector('.card', { timeout: 20000 });
-  await box.locator('.chip').first().click();
+  const start = async () => {
+    const a = await _electron.launch(launchOpts({ TASKDESK_FAKE_CLAUDE: FAKE }));
+    await a.evaluate(({ shell }) => {
+      global.__opened = [];
+      shell.openExternal = async (u) => global.__opened.push(u);
+      shell.openPath = async () => '';
+    });
+    const b = await a.firstWindow();
+    await b.waitForSelector('.card', { timeout: 20000 });
+    await b.locator('.chip').first().click();
+    return [a, b];
+  };
 
   // A three-step plan for the task, so the test doesn't wait for (or depend on) the plan writer.
-  const seedPlan = async (re) => {
-    const all = (await box.evaluate(() => desk.listTasks())).tasks;
-    const t = all.find((x) => re.test(x.title));
-    const dir = path.join(DATA, 'plans', 'test');
-    fs.mkdirSync(dir, { recursive: true });
-    const plan = {
-      summary: 'A short test plan.',
-      type: 'ask',
-      est_minutes: 5,
-      steps: ['Open the form', 'Fill it in', 'Send it'].map((text) => ({ text, action: 'none', data: {} })),
-      files: [],
-    };
-    const rec = { id: t.id, textHash: t.textHash, generatedAt: new Date().toISOString(), ok: true, plan };
-    fs.writeFileSync(path.join(dir, t.id + '.json'), JSON.stringify(rec));
+  // It is written while the desk is closed, so the plan writer can't overwrite it.
+  let [app, box] = await start();
+  const t = (await box.evaluate(() => desk.listTasks())).tasks.find((x) => /Open Recipes/.test(x.title));
+  await app.close();
+  const dir = path.join(DATA, 'plans', 'test');
+  fs.mkdirSync(dir, { recursive: true });
+  const plan = {
+    summary: 'A short test plan.',
+    type: 'ask',
+    est_minutes: 5,
+    steps: ['Open the form', 'Fill it in', 'Send it'].map((text) => ({ text, action: 'none', data: {} })),
+    files: [],
   };
-  await seedPlan(/Open Recipes/);
+  const rec = { id: t.id, textHash: t.textHash, generatedAt: new Date().toISOString(), ok: true, plan };
+  fs.writeFileSync(path.join(dir, t.id + '.json'), JSON.stringify(rec));
+  [app, box] = await start();
+  const opened = [];
 
   const openCard = async (re) => {
     const [w] = await Promise.all([app.waitForEvent('window'), box.locator('.card', { hasText: re }).first().click()]);
