@@ -129,6 +129,22 @@
   .celebrate .tile { margin: 0 auto 12px; width: 56px; height: 56px; border-radius: 18px; --tc: var(--ok); }
   .celebrate .tile svg.i { width: 28px; height: 28px; stroke-width: 2.4; }
 
+  /* all steps ticked: finish and move on in a few seconds */
+  .alldone { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 9px 10px 9px 12px; border-radius: 12px; background: var(--ok-soft); color: var(--ink); font-size: 13px; font-weight: 550; animation: rise .2s; }
+  .alldone .msg { margin-right: auto; }
+  .alldone .bar { position: relative; height: 3px; flex: none; width: 60px; border-radius: 3px; background: color-mix(in srgb, var(--ok) 25%, transparent); overflow: hidden; }
+  .alldone .bar i { position: absolute; inset: 0; background: var(--ok); transform-origin: left; animation: drain var(--secs, 5s) linear forwards; }
+  @keyframes drain { to { transform: scaleX(0); } }
+  /* "Did you finish it?" when closing a started task */
+  .askfinish { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 60%, transparent); backdrop-filter: blur(5px); z-index: 70; animation: rise .15s; }
+  .askfinish .card { width: min(420px, 90vw); padding: 20px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); }
+  .askfinish h2 { margin: 0 0 6px; font: 600 20px var(--serif); }
+  .askfinish p { margin: 0 0 16px; color: var(--ink-2); font-size: 13px; }
+  .askfinish .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .updated { display: flex; gap: 8px; align-items: flex-start; margin: -4px 0 14px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--t-info) 12%, var(--surface)); color: var(--ink-2); font-size: 12.5px; }
+  .updated svg.i { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--t-info); }
+  .chromebtn.on { color: var(--t-info); background: color-mix(in srgb, var(--t-info) 14%, transparent); }
+
   /* chat */
   .chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 12px; background: var(--bg-2); }
   .chatcard { flex: 1; display: flex; flex-direction: column; min-height: 0; border-radius: 16px; border: 1px solid var(--line-2); background: var(--term-bg); box-shadow: var(--shadow); overflow: hidden; position: relative; }
@@ -166,6 +182,7 @@
     <section class="plan">
       <div class="scroll" id="scroll"></div>
       <div class="finish" id="finish">
+        <div class="alldone" id="alldone" hidden></div>
         <div class="notes-head"><b id="notesHead">Notes and results</b><span id="notesSaved"></span></div>
         <textarea class="box" id="notes" placeholder="What you did, replies you got, anything worth keeping…"></textarea>
         <div class="frow">
@@ -182,6 +199,7 @@
         <div class="chead">
           <div class="avatar" id="avatar"></div>
           <div class="cwho"><button class="aiswitch" id="aiSwitch" title="Switch AI for this task"><b id="aiName">Claude Code</b><span class="chev">▾</span></button><div class="cstat" id="cstat"><span class="dot"></span><span id="cstatText">Waiting for the plan…</span></div></div>
+          <button class="btn sm ghost chromebtn" id="cchrome"></button>
           <button class="btn sm ghost" id="cclear" title="Clear the conversation (/clear) and keep going in the same chat"></button>
           <button class="btn sm ghost" id="cfresh" title="Close this chat and start a brand-new one for this task"></button>
           <button class="iconbtn" id="cmore" title="More chat options"></button>

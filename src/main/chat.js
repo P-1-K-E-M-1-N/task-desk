@@ -66,8 +66,28 @@ function systemNote(task) {
   ].join(' ');
 }
 
+// Links from the plan open in Chrome, and Claude chats start with Claude in
+// Chrome on. By default the chat only looks; "Let Claude work in Chrome" (desk
+// setting or per task) lets it click and type too, which costs more tokens.
+const CHROME_LOOK =
+  'Only look at Chrome pages (read them or take a screenshot) when asked; do not click, type or navigate there unless they ask you to.';
+const CHROME_WORK =
+  'You may work in Chrome for the steps: open pages, click through, fill in forms. Stop before the final send, submit, pay, sign-up or delete click and ask them to press it themselves.';
+const chromeWork = (task) => {
+  const own = state.task(task.id).chromeDrive;
+  return typeof own === 'boolean' ? own : !!config.get().chromeDrive;
+};
+function chromeNote(task) {
+  const who = config.who();
+  return [
+    `Links ${who} opens from the plan open in Google Chrome. get_task lists them under opened_pages, newest last.`,
+    `When they say "the window", "this page" or "that tab", they mean the newest one: find it with your Claude in Chrome tools.`,
+    chromeWork(task) ? CHROME_WORK : CHROME_LOOK,
+  ].join(' ');
+}
+
 function withTools(task, args) {
-  if (!bridge.ready()) return args;
+  if (!bridge.ready()) return ['--chrome', ...args];
   // These options take lists, so they go first: the next "--" option ends each list.
   return [
     '--mcp-config',
@@ -75,7 +95,8 @@ function withTools(task, args) {
     '--allowedTools',
     'mcp__taskdesk',
     '--append-system-prompt',
-    systemNote(task),
+    `${systemNote(task)} ${chromeNote(task)}`,
+    '--chrome',
     ...args,
   ];
 }
@@ -280,4 +301,19 @@ function attach(id, handlers) {
 // True when no chat has printed anything for `ms` (Claude isn't in the middle of a reply).
 const quietFor = (ms) => [...live.values()].every((e) => Date.now() - e.lastOut >= ms);
 
-module.exports = { start, switchAI, attach, write, send, resize, stop, stopAll, isLive, quietFor, firstMessage };
+module.exports = {
+  start,
+  switchAI,
+  attach,
+  write,
+  send,
+  resize,
+  stop,
+  stopAll,
+  isLive,
+  quietFor,
+  firstMessage,
+  chromeWork,
+  CHROME_LOOK,
+  CHROME_WORK,
+};
