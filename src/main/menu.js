@@ -216,6 +216,15 @@ function menu() {
       click: (i) => config.set({ chromeDrive: i.checked }),
     },
     {
+      label: 'Put my tasks in order (AI)',
+      type: 'checkbox',
+      checked: config.get().orderTasks !== false,
+      click: (i) => {
+        config.set({ orderTasks: i.checked });
+        desk.refresh();
+      },
+    },
+    {
       label: 'Update other tasks when one is done',
       type: 'checkbox',
       checked: config.get().catchUp !== false,

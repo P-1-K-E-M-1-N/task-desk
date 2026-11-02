@@ -87,7 +87,9 @@ function chromeNote(task) {
 }
 
 function withTools(task, args) {
-  if (!bridge.ready()) return ['--chrome', ...args];
+  // The model and effort picked for the task, its project or the desk (see ai.js).
+  const model = ai.modelArgs(task);
+  if (!bridge.ready()) return ['--chrome', ...model, ...args];
   // These options take lists, so they go first: the next "--" option ends each list.
   return [
     '--mcp-config',
@@ -97,6 +99,7 @@ function withTools(task, args) {
     '--append-system-prompt',
     `${systemNote(task)} ${chromeNote(task)}`,
     '--chrome',
+    ...model,
     ...args,
   ];
 }

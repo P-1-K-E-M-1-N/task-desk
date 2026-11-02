@@ -502,6 +502,21 @@ function register() {
     if (ai.PROVIDERS[id]) menu.setAI(id);
     return ai.choices(null);
   });
+  // Claude's model and effort: for the desk, a project ('factory' or its id) or one task ('task:<id>').
+  handle('model:set', (e, scope, patch) => {
+    if (typeof scope !== 'string' || !patch || typeof patch !== 'object') return null;
+    if (scope.startsWith('task:') && !desk.findTask(scope.slice(5))) return null;
+    if (!scope.startsWith('task:') && scope !== 'desk' && scope !== 'factory' && !projects.get(scope)) return null;
+    const r = ai.setModel(scope, patch);
+    desk.broadcast();
+    return r;
+  });
+  // Whether a task can have its own model and effort (right-click it in the box).
+  handle('model:perTask', (e, on) => {
+    config.set({ perTaskModel: !!on });
+    desk.broadcast();
+    return ai.perTaskOn();
+  });
   handle('chat:switchAI', (e, id, to) => {
     const t = desk.findTask(id);
     if (!t) return null;

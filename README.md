@@ -60,6 +60,14 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 
 **Where your Done notes go.** You choose per project: kept inside Task Desk, or appended to a results file in the project folder (`TASK_RESULTS.md` by default), where the project's own agents can read them. The results file is the only file Task Desk writes in a project folder.
 
+**What order the tasks are in.** The box lists first the tasks you can do right now, A to Z (urgent ones on top, low-priority ones at the bottom), and puts a task after the ones it has to wait for ("make the account" before "paste its key"). Those show "after 1 task" on their card; hover over it to see which one and why. The AI works this out once for each project, and again whenever its tasks change, so a new task can slot in ahead of older ones. Turn it off with **Put my tasks in order (AI)** in the ⋯ menu, and the tasks are just A to Z.
+
+**How far the project is.** With one project showing, the bar under the task count is a rough guess at how far the whole project is toward its end goal, counting the AI's work as well as yours, with the goal written under it. Until the AI has looked, the bar shows the share of tasks done instead. It's only a rough guess, and it gets better as the project goes on.
+
+**Which Claude model, and how hard it thinks.** Click the AI button at the bottom of the box, then **Claude model and effort…**. In **All projects** that sets the choice for every project; with one project showing it sets that project's. Tick **Let a task have its own** to give single tasks their own: right-click a task in the box and pick **Claude model and effort…**. A task uses its own choice first, then its project's, then the desk's, and "Usual" means "whatever comes next in that line". Bigger models and higher effort use more of your Claude plan. A chat that's already open keeps its model until you close the task and open it again.
+
+**Right-click a task** for more: open it, choose its Claude model, snooze it until tomorrow, redraft its plan, or copy its text.
+
 **Only lines that mention me.** For a checklist shared with other people, a project can show only the lines that contain your name. Set your name with **Your name…** in the ⋯ menu.
 
 **Advanced: a lanes workspace.** If you run several agents in one folder with a shared to-do file, Task Desk can read that too. See [docs/WORKSPACE.md](docs/WORKSPACE.md). It's off unless you connect one.
@@ -84,7 +92,10 @@ Most settings are changed in the app. They're stored as JSON in the data folder.
 | `pollSeconds` | `60` | How often task files are re-read (they're also watched for changes) |
 | `hotkey` | `Control+Alt+T` | Show/hide shortcut, in Electron accelerator format |
 | `ai` | `claude` | Default AI: `claude`, `codex` or `gemini`. A project can override it, and so can a single task. |
-| `plannerModel` | empty | Optional `--model` for Claude Code when it writes plans |
+| `plannerModel` | empty | Optional `--model` for Claude Code when it writes plans (and works out the task order) |
+| `models` | empty | Claude's model and effort for task chats: `desk`, and one entry per project. Set them from the AI button in the box. |
+| `perTaskModel` | `false` | Whether a task can have its own model and effort (right-click it in the box) |
+| `orderTasks` | `true` | Whether the AI puts each project's tasks in order and guesses how far the project is |
 | `projects`, `view`, `look` | | Your projects, the box's current view and the look settings. Edit these in the app. |
 
 `data\taskdesk.log` is the app's log: errors you never saw on screen, useful in a bug report. `data\update.log` is the self-updater's.
@@ -125,6 +136,7 @@ src/main/        Electron main process
   tasks.js       reads checklists and the lanes workspace files
   projects.js    projects and their settings
   planner.js     writes each task's plan with the task's AI (read-only)
+  order.js       which tasks wait on others, the A-to-Z order, and the rough goal line
   chat.js        runs the AI app for each task window in a pseudo-terminal
   ai.js          Claude Code / Codex / Gemini: finding them, their commands, hand-overs
   bridge.js      local link (127.0.0.1 + secret token) for the chat's plan tools

@@ -167,6 +167,13 @@
   .warnline button { border: 0; background: none; padding: 0; color: var(--clay); font-weight: 650; cursor: pointer; text-decoration: underline; }
   .card .upd { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--t-info); font-weight: 600; }
   .card .upd svg.i { width: 12px; height: 12px; }
+  /* Waits for another task first (see order.js), and a task's own Claude model. */
+  .card .waits { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--ink-3); font-weight: 600; }
+  .card .waits svg.i { width: 11px; height: 11px; }
+  .card .ownmodel { margin-left: 6px; padding: 0 5px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-3); font-size: 9.5px; font-weight: 650; }
+  /* The project's goal line: a rough AI guess, so the bar is striped rather than solid. */
+  .meter.goal .bar i { background: repeating-linear-gradient(90deg, var(--clay) 0 6px, var(--clay-2) 6px 9px); }
+  .goaltxt { margin-top: 4px; color: var(--ink-3); font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -185,7 +192,8 @@
     <section class="hero drag">
       <div class="hello" id="hello"></div>
       <div class="big"><b id="count">…</b><span id="mins"></span></div>
-      <div class="meter"><div class="bar"><i id="prog" style="width:0"></i></div><span id="progtxt"></span></div>
+      <div class="meter nodrag" id="meter"><div class="bar"><i id="prog" style="width:0"></i></div><span id="progtxt"></span></div>
+      <div class="goaltxt" id="goaltxt" hidden></div>
     </section>
     <div class="warnline" id="warn" hidden></div>
     <nav class="chips" id="chips"></nav>

@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('desk', {
   aiChoices: call('ai:choices'),
   setDefaultAI: call('ai:setDefault'),
   switchAI: call('chat:switchAI'),
+  setModel: call('model:set'),
+  setPerTaskModel: call('model:perTask'),
   setView: call('view:set'),
   addTask: call('task:add'),
   editProject: call('project:edit'),

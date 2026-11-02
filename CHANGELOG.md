@@ -6,6 +6,12 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- The box lists the tasks you can do right now first, A to Z (urgent ones still on top), and puts a task after the ones it has to wait for. The AI works this out for each project and again whenever its tasks change. Cards that wait say "after 1 task". Turn it off with **Put my tasks in order (AI)** in the ⋯ menu.
+- With one project showing, the bar at the top is a rough guess at how far the whole project is toward its goal, with the goal written under it.
+- Pick Claude's model and effort for every project, for one project, or (once you turn it on) for a single task, from the AI button at the bottom of the box.
+- Right-click a task in the box to open it, choose its Claude model, snooze it, redraft its plan or copy its text.
+
 ## 1.1.1 - 2026-10-30
 
 ### Fixed

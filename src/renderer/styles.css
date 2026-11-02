@@ -1241,6 +1241,15 @@ a {
   color: var(--ink);
   box-shadow: var(--shadow-sm);
 }
+/* Claude's model and effort: more choices than fit on one line. */
+.lookpanel .seg.wrap {
+  flex-wrap: wrap;
+}
+.lookpanel .seg.wrap button {
+  flex: 1 0 auto;
+  width: auto;
+  padding: 0 9px;
+}
 .lookpanel .foot {
   margin-top: 11px;
   font-size: 10.5px;

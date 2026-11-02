@@ -15,6 +15,7 @@ const chat = require('./chat');
 const { readTasks, normType } = require('./tasks');
 const projects = require('./projects');
 const ai = require('./ai');
+const order = require('./order');
 const log = require('./log');
 const windows = require('./windows');
 const menu = require('./menu');
@@ -65,12 +66,15 @@ function decorate(t) {
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
     aiName: ai.pick(t).app,
+    // Claude's model and effort for this task's chat, and its own choice (when per task is on).
+    claude:
+      ai.pick(t).id === 'claude'
+        ? { ...ai.modelFor(t), own: ai.modelSetting(`task:${t.id}`), base: ai.modelFor(t, { withTask: false }) }
+        : null,
     projectName: t.project === 'factory' ? config.factoryName() : t.projectName,
     projectColor: projects.colorOf(t.project),
   };
 }
-
-const tier = (t) => (t.important ? 0 : t.low ? 2 : 1);
 
 // Which project the box shows: 'all', 'factory' or a project id.
 function currentView() {
@@ -81,21 +85,26 @@ function currentView() {
 function payload() {
   const view = currentView();
   const everything = tasks.map(decorate);
-  const openAll = everything
-    .filter((t) => state.isOpen(t.id))
-    .sort((a, b) => tier(a) - tier(b) || a.minutes - b.minutes || (a.date || '').localeCompare(b.date || ''));
+  // Tasks that others wait on come first; the rest A to Z (see order.js).
+  const openNow = everything.filter((t) => state.isOpen(t.id));
+  const openAll = order.sortTasks(openNow, order.needsFor(openNow)).map((t) => ({ ...t, waitsOn: order.waitsOn(t, openNow) }));
   const inView = (t) => view === 'all' || t.project === view;
   const all = everything.filter(inView);
   const open = openAll.filter(inView);
   const s = config.get();
+  const counts = {
+    open: open.length,
+    minutes: open.reduce((n, t) => n + (t.minutes || 0), 0),
+    done: all.filter((t) => t.status === 'done').length,
+    snoozed: all.filter((t) => t.status === 'snoozed').length,
+  };
+  // Claude's model and effort for the view's scope (a project, or the desk in "All projects").
+  const scope = view === 'all' ? 'desk' : view;
   return {
     tasks: open,
-    counts: {
-      open: open.length,
-      minutes: open.reduce((n, t) => n + (t.minutes || 0), 0),
-      done: all.filter((t) => t.status === 'done').length,
-      snoozed: all.filter((t) => t.status === 'snoozed').length,
-    },
+    counts,
+    // How far the project on show is toward its end goal (a rough AI guess, or the share of tasks done).
+    goal: view === 'all' ? null : order.progress(view, counts),
     totalOpen: openAll.length,
     view,
     projects: projects.summary().map((p) => ({ ...p, open: openAll.filter((t) => t.project === p.id).length })),
@@ -108,6 +117,15 @@ function payload() {
     locked: s.boxLocked !== false,
     ai: { ...ai.choices(null), project: projects.get(view) && projects.get(view).ai ? projects.get(view).ai : null },
     synced: config.synced(),
+    models: {
+      scope,
+      own: ai.modelSetting(scope),
+      desk: ai.modelSetting('desk'),
+      perTask: ai.perTaskOn(),
+      list: ai.MODELS,
+      efforts: ai.EFFORTS,
+    },
+    ordering: s.orderTasks !== false,
   };
 }
 
@@ -125,6 +143,7 @@ function refresh() {
   state.save();
   tasks = fresh;
   planner.ensure(tasks);
+  order.ensure(tasks);
   broadcast();
 }
 
@@ -179,6 +198,7 @@ function startPolling() {
 }
 
 planner.events.on('status', () => broadcast());
+order.events.on('ready', () => broadcast());
 planner.events.on('ready', (id) => {
   broadcast();
   const w = windows.taskWins.get(id);

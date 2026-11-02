@@ -152,6 +152,7 @@ function popMenu(anchor, items, { head, notes = [] } = {}) {
     ...notes.filter(Boolean).map((n) => h('div', { class: 'popnote' }, n))
   );
   placePopup(anchor, m);
+  return m;
 }
 
 // Show a popup under (or above) a button; clicking outside closes it.

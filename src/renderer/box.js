@@ -151,9 +151,7 @@ function render() {
   $('#count').textContent = `${counts.open} task${counts.open === 1 ? '' : 's'}`;
   $('#mins').textContent = counts.open ? `· ~${fmtMin(counts.minutes)}` : '';
   $('#barsum').innerHTML = `${counts.open} tasks<em>~${fmtMin(counts.minutes)}</em>`;
-  const total = counts.open + counts.done;
-  $('#prog').style.width = total ? `${(counts.done / total) * 100}%` : '0';
-  $('#progtxt').textContent = counts.done ? `${counts.done} done` : 'none done yet';
+  drawGoal();
 
   // Header: which project, a warning if its folder is missing, and quick add for your own projects.
   $('#pname').textContent = viewName();
@@ -265,7 +263,7 @@ function card(t, i) {
         <div class="ttl"></div>
         <div class="meta">
           <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${tag.color}"></span><span class="nm"></span></span>
-          <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}
+          <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${ownModel(t)}</span>` : ''}
         </div>
       </div>
       <div class="right">${right}</div>`,
@@ -273,6 +271,15 @@ function card(t, i) {
   el.querySelector('.ttl').textContent = t.title;
   el.querySelector('.lane .nm').textContent = tag.name;
   if (t.updatedAfter) el.querySelector('.upd').title = `Updated after you finished "${t.updatedAfter.title}": ${t.updatedAfter.why}`;
+  if (t.waitsOn)
+    el.querySelector('.waits').title =
+      `Do this after: ${t.waitsOn.titles.map((x) => `"${x}"`).join(', ')}.${t.waitsOn.why ? ` ${t.waitsOn.why}` : ''}`;
+  if (ownModel(t)) el.querySelector('.ownmodel').title = "This task's own Claude model and effort";
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    taskMenu(t, e);
+  });
   return el;
 }
 
@@ -449,7 +456,13 @@ function drawAIPick() {
   const a = data && data.ai;
   if (!a) return;
   const cur = a.list.find((x) => x.id === a.desk) || a.list[0];
-  $('#aipick').innerHTML = `${icon('sparkle')}<span>${cur.name}</span><span class="chev">▾</span>`;
+  const own = data.models && data.models.own;
+  const extra =
+    own && (own.model || own.effort)
+      ? ` · ${[optName(data.models.list, own.model), optName(data.models.efforts, own.effort)].filter(Boolean).join(' ')}`
+      : '';
+  $('#aipick').innerHTML = `${icon('sparkle')}<span></span><span class="chev">▾</span>`;
+  $('#aipick span').textContent = cur.name + extra;
   document.body.classList.toggle('narrow', innerWidth < 360);
 }
 $('#aipick').onclick = (e) => {
@@ -466,6 +479,13 @@ $('#aipick').onclick = (e) => {
       toast(`New task chats use ${x.name}.`);
     },
   }));
+  const M = data.models;
+  items.push({
+    label: `Claude model and effort${M.scope === 'desk' ? '' : ` for ${viewName()}`}…`,
+    icon: 'bolt',
+    hint: [optName(M.list, M.own.model), optName(M.efforts, M.own.effort)].filter(Boolean).join(' · '),
+    run: () => scopeModelPanel(),
+  });
   popMenu($('#aipick'), items, {
     head: 'Default AI for task chats',
     notes: [
@@ -474,6 +494,197 @@ $('#aipick').onclick = (e) => {
     ],
   });
 };
+
+// ---------- the goal line ----------
+// Inside a project, the bar is a rough guess at how far the whole project is
+// toward its end goal (the AI's, once it has looked; until then, the share of
+// tasks done). In "All projects" it counts the tasks done.
+function drawGoal() {
+  const { counts, goal } = data;
+  const meter = $('#meter');
+  meter.classList.toggle('goal', !!(goal && goal.from === 'ai'));
+  $('#goaltxt').hidden = !(goal && goal.goal);
+  if (!goal || goal.from !== 'ai') {
+    const total = counts.open + counts.done;
+    $('#prog').style.width = total ? `${(counts.done / total) * 100}%` : '0';
+    $('#progtxt').textContent = counts.done ? `${counts.done} done` : 'none done yet';
+    meter.title = !goal
+      ? ''
+      : data.ordering
+        ? "For now, the share of tasks done. The AI's rough guess at the whole project shows here once it has looked."
+        : 'The share of tasks done. Turn on "Put my tasks in order (AI)" in the ⋯ menu for a guess at the whole project.';
+    return;
+  }
+  $('#prog').style.width = `${goal.percent}%`;
+  $('#progtxt').textContent = `~${goal.percent}% to the goal`;
+  $('#goaltxt').textContent = `Goal: ${goal.goal}`;
+  meter.title = `A rough guess by the AI, counting its work and yours.${goal.why ? ` ${goal.why}` : ''}${goal.stale ? ' It will look again after the latest changes.' : ''}`;
+}
+
+// ---------- right-click a task ----------
+const optName = (list, v) => (list.find(([x]) => x === v) || [])[1] || '';
+// "Opus · High" when the task has its own Claude model or effort (and per task is on).
+function ownModel(t) {
+  const M = data.models;
+  if (!M || !M.perTask || !t.claude) return '';
+  return [optName(M.list, t.claude.own.model), optName(M.efforts, t.claude.own.effort)].filter(Boolean).join(' · ');
+}
+
+function taskMenu(t, e) {
+  const at = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }) };
+  const M = data.models;
+  const items = [
+    { label: 'Open', icon: 'send', run: () => desk.openTask(t.id) },
+    ...(t.claude
+      ? [
+          {
+            label: M.perTask ? 'Claude model and effort…' : 'Pick a Claude model for this task…',
+            icon: 'bolt',
+            hint: M.perTask ? ownModel(t) || 'usual' : 'turns on per task',
+            run: async () => {
+              if (!M.perTask) {
+                await desk.setPerTaskModel(true);
+                toast('Tasks can have their own model now. Turn it off from the AI button below.');
+              }
+              taskModelPanel(t, at);
+            },
+          },
+        ]
+      : []),
+    {
+      label: 'Snooze until tomorrow',
+      icon: 'moon',
+      run: async () => {
+        await desk.snooze(t.id, 'day');
+        toast('Snoozed until tomorrow morning.');
+      },
+    },
+    {
+      label: 'Redraft its plan',
+      icon: 'refresh',
+      run: () => {
+        desk.replan(t.id);
+        toast('Drafting a new plan.');
+      },
+    },
+    {
+      label: 'Copy the task text',
+      icon: 'copy',
+      run: () => {
+        desk.copy(t.text);
+        toast('Copied.');
+      },
+    },
+  ];
+  const notes = t.waitsOn
+    ? [`Do this after: ${t.waitsOn.titles.map((x) => `"${x}"`).join(', ')}.${t.waitsOn.why ? ` ${t.waitsOn.why}` : ''}`]
+    : [];
+  const m = popMenu(at, items, { notes });
+  m.style.left = Math.max(8, Math.min(e.clientX, innerWidth - m.offsetWidth - 8)) + 'px';
+}
+
+// ---------- Claude's model and effort ----------
+// One panel for the desk, a project, or one task: a row of models and a row of
+// effort levels, each starting with "Usual" (what it falls back to).
+function modelPanel(anchor, { title, scope, own, base, perTaskBox, notes }) {
+  const M = data.models;
+  let cur = { ...own };
+  const m = h('div', { class: 'popmenu lookpanel modelpanel' });
+  const stop = (e) => e.stopPropagation();
+  const seg = (key, list) => {
+    const usual = optName(list, base[key]);
+    return h(
+      'div',
+      { class: 'seg wrap' },
+      [['', usual ? `Usual (${usual})` : 'Usual'], ...list].map(([v, name]) =>
+        h(
+          'button',
+          {
+            class: (cur[key] || '') === v ? 'on' : '',
+            onclick: async (e) => {
+              stop(e);
+              cur = (await desk.setModel(scope, { [key]: v })) || cur;
+              draw();
+            },
+          },
+          name
+        )
+      )
+    );
+  };
+  const draw = () =>
+    m.replaceChildren(
+      h(
+        'div',
+        { class: 'lphead' },
+        h('b', {}, title),
+        h('button', {
+          class: 'lpclose',
+          title: 'Close (Esc)',
+          html: icon('x'),
+          onclick: (e) => {
+            stop(e);
+            m.remove();
+          },
+        })
+      ),
+      h('h4', {}, 'Model'),
+      seg('model', M.list),
+      h('h4', {}, 'Effort'),
+      seg('effort', M.efforts),
+      perTaskBox
+        ? h(
+            'label',
+            { class: 'newown', onclick: stop },
+            h('input', {
+              type: 'checkbox',
+              checked: !!M.perTask,
+              onchange: async (e) => {
+                await desk.setPerTaskModel(e.target.checked);
+                toast(e.target.checked ? 'Right-click a task to give it its own model.' : "Every task uses its project's choice again.");
+              },
+            }),
+            h('span', {}, 'Let a task have its own (right-click it)')
+          )
+        : null,
+      ...notes.filter(Boolean).map((n) => h('div', { class: 'popnote' }, n))
+    );
+  draw();
+  placePopup(anchor, m);
+}
+
+const PLAN_NOTE =
+  'Bigger models and higher effort use more of your Claude plan. An open chat keeps its model until you close the task and open it again.';
+
+// From the AI button: the desk's choice in "All projects", else the project's.
+function scopeModelPanel() {
+  const M = data.models;
+  const forDesk = M.scope === 'desk';
+  const other = data.ai.project && data.ai.project !== 'claude';
+  modelPanel($('#aipick'), {
+    title: forDesk ? 'Claude for every project' : `Claude for ${viewName()}`,
+    scope: M.scope,
+    own: M.own,
+    base: forDesk ? {} : M.desk,
+    perTaskBox: true,
+    notes: [
+      forDesk ? "Used by every project that doesn't pick its own." : 'Used by every task in this project, unless a task has its own.',
+      other && "This project's chats use another AI, so this applies only to a task you switch to Claude.",
+      PLAN_NOTE,
+    ],
+  });
+}
+
+function taskModelPanel(t, anchor) {
+  modelPanel(anchor, {
+    title: 'Claude for this task',
+    scope: `task:${t.id}`,
+    own: t.claude.own,
+    base: t.claude.base,
+    perTaskBox: false,
+    notes: [`"Usual" is what ${t.projectName || 'its project'} uses.`, PLAN_NOTE],
+  });
+}
 
 // ---------- size lock ----------
 // Resting the mouse in the bottom-right corner for 3 seconds shows the lock.

@@ -407,4 +407,4 @@ async function affected(done, others, run = runAI) {
     .map((a) => ({ id: a.id, why: a.why.trim().slice(0, 300) }));
 }
 
-module.exports = { ensure, cached, status, regenerate, events, prompt, affected, affectedPrompt };
+module.exports = { ensure, cached, status, regenerate, events, prompt, affected, affectedPrompt, runAI };

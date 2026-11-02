@@ -171,6 +171,12 @@ function setOwnLook(id, on) {
 
 function remove(id) {
   const patch = { projects: list().filter((p) => p.id !== id) };
+  // Its Claude model and effort go with it.
+  const models = { ...(config.get().models || {}) };
+  if (id in models) {
+    delete models[id];
+    patch.models = models;
+  }
   if (config.get().view === id) patch.view = 'all';
   config.set(patch);
 }

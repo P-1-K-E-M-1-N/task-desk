@@ -44,6 +44,8 @@ function useTestSettings(extra = {}) {
     livePath: WORKSPACE,
     userName: 'Sam',
     userNameAsked: true,
+    // The task order is an extra AI run per project; tests that want it turn it on.
+    orderTasks: false,
     ...extra,
   };
   fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2));

@@ -63,6 +63,74 @@ function source(task) {
   return { id: PROVIDERS[config.get().ai] ? config.get().ai : 'claude', from: 'desk' };
 }
 
+// ---------- Claude's model and effort ----------
+// Which Claude model a task chat uses, and how hard it thinks. Set for the
+// desk, for a project (both from the box's AI button), and, when "per task" is
+// on, for one task (right-click it in the box). Each one, model and effort
+// separately, comes from the first of: the task, its project, the desk. Empty
+// means Claude Code's own default. Kept in settings as
+// models: { desk: {model, effort}, <project id or 'factory'>: {...} }, and per
+// task in its state.
+const MODELS = [
+  ['fable', 'Fable'],
+  ['opus', 'Opus'],
+  ['sonnet', 'Sonnet'],
+  ['haiku', 'Haiku'],
+];
+const EFFORTS = [
+  ['low', 'Low'],
+  ['medium', 'Medium'],
+  ['high', 'High'],
+  ['xhigh', 'Extra high'],
+  ['max', 'Max'],
+];
+const okModel = (m) => MODELS.some(([v]) => v === m);
+const okEffort = (e) => EFFORTS.some(([v]) => v === e);
+const perTaskOn = () => !!config.get().perTaskModel;
+
+// The saved choice for 'desk', a project id, 'factory', or a task id ('task:<id>').
+function modelSetting(scope) {
+  if (scope.startsWith('task:')) {
+    const id = scope.slice(5);
+    const st = state.has(id) ? state.task(id) : {};
+    return { model: okModel(st.model) ? st.model : '', effort: okEffort(st.effort) ? st.effort : '' };
+  }
+  const s = (config.get().models || {})[scope] || {};
+  return { model: okModel(s.model) ? s.model : '', effort: okEffort(s.effort) ? s.effort : '' };
+}
+
+// patch = { model?, effort? }; '' clears it (falls back to the project or desk).
+function setModel(scope, patch) {
+  const pick = (v, ok) => (v === '' || ok(v) ? v : undefined);
+  const next = { ...modelSetting(scope) };
+  if ('model' in patch && pick(patch.model, okModel) !== undefined) next.model = patch.model;
+  if ('effort' in patch && pick(patch.effort, okEffort) !== undefined) next.effort = patch.effort;
+  if (scope.startsWith('task:')) state.update(scope.slice(5), { model: next.model, effort: next.effort });
+  else config.set({ models: { ...(config.get().models || {}), [scope]: next } });
+  return next;
+}
+
+// What a task's Claude chat runs with, and where each part comes from ('task', 'project', 'desk' or '').
+// withTask: false gives what it would use without its own choice.
+function modelFor(task, { withTask = true } = {}) {
+  const scopes = [
+    ...(task && withTask && perTaskOn() ? [['task', `task:${task.id}`]] : []),
+    ['project', (task && task.project) || 'factory'],
+    ['desk', 'desk'],
+  ];
+  const out = { model: '', effort: '', modelFrom: '', effortFrom: '' };
+  for (const [from, scope] of scopes) {
+    const s = modelSetting(scope);
+    if (!out.model && s.model) Object.assign(out, { model: s.model, modelFrom: from });
+    if (!out.effort && s.effort) Object.assign(out, { effort: s.effort, effortFrom: from });
+  }
+  return out;
+}
+const modelArgs = (task) => {
+  const m = modelFor(task);
+  return [...(m.model ? ['--model', m.model] : []), ...(m.effort ? ['--effort', m.effort] : [])];
+};
+
 // Each AI keeps its own chat per task, so switching back resumes it.
 // (Older tasks only have chatSessionId, from before there was a choice.)
 function sessionFor(st, id) {
@@ -410,4 +478,11 @@ module.exports = {
   PLAN_TAIL,
   readPlan,
   jsonIn,
+  MODELS,
+  EFFORTS,
+  perTaskOn,
+  modelSetting,
+  setModel,
+  modelFor,
+  modelArgs,
 };
