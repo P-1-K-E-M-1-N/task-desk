@@ -276,7 +276,7 @@ function applyColors(look) {
 const clampN = (v, d) => Math.max(5, Math.min(100, Number.isFinite(+v) && v !== '' && v != null ? +v : d));
 applyLook();
 darkQuery.addEventListener('change', () => applyLook());
-// "Day & night": light from 7:00 to 19:00, dark the rest (the same hours as main.js).
+// "Day & night": light from 7:00 to 19:00, dark the rest (the same hours as windows.js).
 function nightNow() {
   const hr = new Date().getHours();
   return hr < 7 || hr >= 19;

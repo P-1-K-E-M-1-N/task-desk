@@ -114,7 +114,14 @@ A copied folder (not a clone) runs fine but can't update itself. Turn updates of
 
 ```
 src/main/        Electron main process
-  main.js        windows, menus, IPC, updates
+  main.js        the wiring: starts everything below
+  desk.js        the task list the box shows, read from every project
+  windows.js     the box, task and project windows, and how they look
+  menu.js        the ⋯ menu and the tray
+  shortcuts.js   desktop, Startup and Start-menu shortcuts
+  ipc.js         every channel the pages call, and the chat's plan tools
+  update-flow.js the daily update check, quiet-moment install, restart and reopen
+  data-folder.js moving the data folder to OneDrive, and the in-use lock
   tasks.js       reads checklists and the lanes workspace files
   projects.js    projects and their settings
   planner.js     writes each task's plan with the task's AI (read-only)

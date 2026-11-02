@@ -207,7 +207,7 @@ function suggest(folder) {
   return out;
 }
 
-// The box's project list (the lanes workspace first, when it's on), with open-task counts filled in by main.js.
+// The box's project list (the lanes workspace first, when it's on), with open-task counts filled in by desk.js.
 function summary() {
   return [
     ...(config.factoryOn() ? [{ id: 'factory', name: config.factoryName(), color: FACTORY_COLOR, kind: 'factory' }] : []),

@@ -2,7 +2,7 @@
 //
 // The app folder is a git clone of the release branch. Every day at 7 AM (or soon after startup, if
 // the computer was off at 7) it asks GitHub whether there's a newer version.
-// When there is, it installs it at a quiet moment (see main.js): updates that
+// When there is, it installs it at a quiet moment (see update-flow.js): updates that
 // only change the screens just refresh the open windows, and the chats keep
 // running; others restart the desk and reopen the task windows you had open,
 // with their chats picking up where they left off. "Restart to update" in the
