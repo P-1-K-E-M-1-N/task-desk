@@ -24,7 +24,9 @@
 param([switch]$DryRun, [switch]$SkipTests, [switch]$Pause)
 
 $ErrorActionPreference = 'Continue'
-$repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+# Node prints UTF-8; without this the console shows "·" as "┬╖".
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$repo =Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $repo
 $nightDir = Join-Path $repo 'data\nightly'
 New-Item -ItemType Directory -Force $nightDir | Out-Null
