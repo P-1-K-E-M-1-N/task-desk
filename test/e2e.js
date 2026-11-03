@@ -217,7 +217,13 @@ async function waitTerm(win, re, ms = 90000) {
   win = await openTaskByTitle(app, box, /Send G2 outreach/);
   await win.waitForSelector('.erow .check', { timeout: 10000 }).catch(() => {});
   const rows = await win.locator('.erow .check').count();
-  ok('email task shows one row per draft', rows >= 20, `${rows} rows`);
+  // The sample's emails.md has 3 drafts (each starts with a "Subject:" line).
+  const drafts = (
+    fs
+      .readFileSync(path.join(__dirname, '..', 'test-fixtures', 'lanes', 'menu-boards', 'outreach', 'emails.md'), 'utf8')
+      .match(/^Subject:/gm) || []
+  ).length;
+  ok('email task shows one row per draft', rows >= drafts && drafts > 0, `${rows} rows, ${drafts} drafts`);
   if (rows) {
     await win.locator('.erow .ebtns .btn', { hasText: 'Gmail' }).first().click();
     const o = await opened(app);
@@ -241,9 +247,11 @@ async function waitTerm(win, re, ms = 90000) {
   await shot(win, '07-task-keywords');
   const kwCopy = win.locator('.btn', { hasText: /Copy \d+ queries/ });
   if (await kwCopy.count()) {
+    // The sample doesn't list the queries, so the plan writes its own: as many as the button says.
+    const n = Number((await kwCopy.first().innerText()).match(/\d+/)[0]);
     await kwCopy.first().click();
     const lines = (await clip(app)).split('\n').filter(Boolean).length;
-    ok('copy keyword queries', lines >= 20, `${lines} queries on clipboard`);
+    ok('copy keyword queries', n > 0 && lines === n, `${lines} queries on clipboard, button says ${n}`);
   } else ok('keyword task has Copy queries button', false);
   const kp = win.locator('.btn', { hasText: 'Open Keyword Planner' });
   if (await kp.count()) {
