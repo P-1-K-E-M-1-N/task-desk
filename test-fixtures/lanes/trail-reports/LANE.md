@@ -29,11 +29,44 @@ G0, G1 and G2 passed. G3 is provisional until the keyword volumes arrive (the on
 pine ridge trail conditions
 pine ridge trail weather
 pine ridge trail closed
+pine ridge trail conditions today
+pine ridge trail snow
+pine ridge trail mud
+pine ridge trail report
+pine ridge trail open
+cedar loop trail conditions
 cedar loop trail conditions today
-...
+cedar loop trail weather
+cedar loop trail closed
+cedar loop trail snow
+cedar loop trail report
+cedar loop trail parking
+cedar loop trail open
+falls overlook trail conditions
+falls overlook trail weather
+falls overlook trail closed
+falls overlook trail ice
+falls overlook trail report
+falls overlook trail open
+falls overlook trail today
+falls overlook trail crowds
+north ridge loop conditions
+north ridge loop weather
+north ridge loop closed
+north ridge loop snow
+north ridge loop report
+north ridge loop open
+north ridge loop today
+north ridge loop mud
+is pine ridge trail open
+is cedar loop trail open
+is falls overlook trail open
+is north ridge loop open
+trail conditions near me today
+hiking trail conditions this weekend
+trail closures this week
+best trail to hike this weekend
 ```
-
-(40 lines in the real file; shortened here.)
 
 ## G3 Decision
 
