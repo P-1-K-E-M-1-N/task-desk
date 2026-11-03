@@ -6,6 +6,7 @@
 // run npm install if the packages changed. If npm install fails, it goes back
 // to the version that was there before, so the desk still opens.
 const fs = require('fs');
+const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 
 const [root, pid, relaunch, electron, logFile] = process.argv.slice(2);
@@ -18,6 +19,14 @@ const run = (cmd, args) =>
   execFileSync(cmd, args, { cwd: root, timeout: 10 * 60 * 1000, windowsHide: true, shell: cmd === 'npm' })
     .toString()
     .trim();
+// A copy set up with `npm install --omit=dev` (only what the desk needs, e.g. on
+// a work computer) stays that way: no developer tools unless they're already there.
+const NPM_INSTALL = [
+  'install',
+  '--no-audit',
+  '--no-fund',
+  ...(fs.existsSync(path.join(root, 'node_modules', 'eslint')) ? [] : ['--omit=dev']),
+];
 const alive = (p) => {
   try {
     process.kill(Number(p), 0);
@@ -37,13 +46,13 @@ const alive = (p) => {
     log(`updated ${before.slice(0, 7)} -> ${after.slice(0, 7)}`);
     if (changed.some((f) => f === 'package.json' || f === 'package-lock.json')) {
       try {
-        run('npm', ['install', '--no-audit', '--no-fund']);
-        log('npm install done');
+        run('npm', NPM_INSTALL);
+        log(`npm ${NPM_INSTALL.join(' ')} done`);
       } catch (e) {
         log(`npm install failed, going back to ${before.slice(0, 7)}: ${String(e.message).split('\n')[0]}`);
         run('git', ['reset', '--hard', before]);
         try {
-          run('npm', ['install', '--no-audit', '--no-fund']);
+          run('npm', NPM_INSTALL);
         } catch {}
       }
     }

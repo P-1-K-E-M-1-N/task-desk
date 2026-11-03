@@ -26,9 +26,17 @@ No API keys are needed. Each AI app runs on its own account login.
 ```powershell
 git clone -b release https://github.com/P-1-K-E-M-1-N/task-desk.git task-desk
 cd task-desk
-npm install
+npm install --omit=dev
 npm start
 ```
+
+`--omit=dev` installs only what the desk needs to run: 24 packages instead of 103. Leave it off if you want to change the code or run the tests: plain `npm install` adds the code checker, the formatter and the test tools. Updates keep whichever you chose.
+
+**On a work computer with security software** (SentinelOne, CrowdStrike, Defender for Endpoint…), `npm install` can be flagged: one PowerShell window downloads and unpacks thousands of files, including programs (`electron.exe`, `ffmpeg.dll`). That's normal for an npm install, but it's your IT team's call, not something to work around. Ask them to allow it, and tell them what it does:
+- it runs from the folder you cloned it to, as you, with no admin rights and no installer;
+- `node_modules\electron\dist\electron.exe` is the app; it starts the AI apps you installed (`claude`, `codex`, `gemini`) and `git`;
+- every morning at 7 it runs `git pull` from this GitHub repo and, if the packages changed, `npm install` again (turn that off with **Update automatically** in the ⋯ menu);
+- it adds a desktop, Startup and Start-menu shortcut, and talks to nothing on the internet itself (the AI apps use their own sign-in).
 
 `-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, which holds the changes that passed the last full test run but haven't been released yet. Day-to-day work happens on `dev`.
 

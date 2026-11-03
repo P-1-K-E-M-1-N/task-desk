@@ -11,6 +11,7 @@ Changes a user would notice, newest first. The format follows
 - With one project showing, the bar at the top is a rough guess at how far the whole project is toward its goal, with the goal written under it.
 - Pick Claude's model and effort for every project, for one project, or (once you turn it on) for a single task, from the AI button at the bottom of the box.
 - With your data in OneDrive, each computer can keep its projects' folders (and the lanes workspace's) somewhere else. Picking a folder with **Fix the folder** on one computer no longer changes it on the others.
+- `npm install --omit=dev` now gives a working desk with only what it needs to run (Electron moved out of the developer tools), and daily updates keep it that way. The README says what to tell your IT team if security software flags the install.
 - Right-click a task in the box to open it, choose its Claude model, snooze it, redraft its plan or copy its text.
 
 ## 1.1.1 - 2026-10-30
