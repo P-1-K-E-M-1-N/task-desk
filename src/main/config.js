@@ -11,6 +11,11 @@
 //    and the chat-tool configs.
 //  - DATA_DIR holds everything worth keeping: settings, projects, ticks, notes,
 //    plans. It is LOCAL_DIR unless it was moved to OneDrive.
+//
+// Folders can sit in different places on each computer. When the data is
+// shared through OneDrive, a project's folder (or the workspace's) picked on
+// another computer is kept in that computer's machine.json ("folders"), and the
+// shared settings keep the first computer's. See folderFor() and placeFolder().
 const fs = require('fs');
 const path = require('path');
 
@@ -31,6 +36,8 @@ const MACHINE_KEYS = [
   'reopenAfterUpdate',
   'showInTaskbar',
   'linksFor',
+  // This computer's own folder for a project ({ <project id>: path, factory: path }).
+  'folders',
 ];
 
 const DEFAULTS = {
@@ -124,12 +131,37 @@ function set(patch) {
   return get();
 }
 
-// The folder the app reads the lanes workspace from (its root or the test copy).
-function root() {
-  return settings.mode === 'live' ? settings.livePath : settings.testPath;
+const synced = () => DATA_DIR !== LOCAL_DIR;
+
+// A project's folder on this computer: its own, else the shared one. id is a project id or 'factory'.
+// An empty one means "none on this computer".
+const folderFor = (id, shared) => {
+  const own = machine.folders || {};
+  return (id in own ? own[id] : shared) || '';
+};
+
+// Saving a folder: returns what the shared settings should keep. With shared
+// data, a folder that differs from the shared one stays on this computer only,
+// so the other computer keeps its own. Otherwise this computer's override goes.
+function placeFolder(id, value, shared) {
+  const folders = { ...(machine.folders || {}) };
+  let keep = value;
+  const same = !!value && path.resolve(value) === path.resolve(shared || '.');
+  if (synced() && shared && !same) {
+    folders[id] = value;
+    keep = shared;
+  } else delete folders[id];
+  set({ folders });
+  return keep;
 }
 
-const synced = () => DATA_DIR !== LOCAL_DIR;
+// The lanes workspace's folder on this computer.
+const livePath = () => folderFor('factory', settings.livePath);
+
+// The folder the app reads the lanes workspace from (its root or the test copy).
+function root() {
+  return settings.mode === 'live' ? livePath() : settings.testPath;
+}
 
 // The person, for prompts and the box ("the user" until they say their name).
 const userName = () => String(settings.userName || '').trim();
@@ -137,18 +169,18 @@ const who = () => userName() || 'the user';
 const whose = () => (userName() ? `${userName()}'s` : "the user's");
 
 // The lanes workspace is shown only when it's turned on (and, live, has a folder).
-const factoryOn = () => settings.factory === true && (settings.mode !== 'live' || !!settings.livePath);
+const factoryOn = () => settings.factory === true && (settings.mode !== 'live' || !!livePath());
 const titleCase = (s) =>
   s
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
 const factoryName = () =>
-  String(settings.factoryName || '').trim() || (settings.livePath ? titleCase(path.basename(settings.livePath)) : '') || 'Workspace';
+  String(settings.factoryName || '').trim() || (livePath() ? titleCase(path.basename(livePath())) : '') || 'Workspace';
 // Is this path inside the live workspace folder? (false when there isn't one)
 function inFactory(p) {
-  if (!settings.livePath || !p) return false;
-  const rel = path.relative(path.resolve(settings.livePath), path.resolve(p));
+  if (!livePath() || !p) return false;
+  const rel = path.relative(path.resolve(livePath()), path.resolve(p));
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
@@ -162,6 +194,9 @@ module.exports = {
   set,
   root,
   synced,
+  folderFor,
+  placeFolder,
+  livePath,
   dataMissing,
   wantedDataDir: wanted,
   userName,

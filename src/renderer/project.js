@@ -237,6 +237,7 @@ async function init() {
   $('#remove').hidden = false;
   $('#openResults').hidden = false;
   mark('saved');
+  $('#folderShared').hidden = !p.synced;
   if (p.missing)
     showError({ ok: false, field: 'folder', error: "This folder isn't on this computer. Choose where the project lives here." });
   preview();

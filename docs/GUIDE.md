@@ -55,17 +55,17 @@ Everything is saved on this computer by default. To have the same desk on anothe
 2. On the other computer, install Task Desk (see "Setting up another computer" below) and choose **Keep my data in OneDrive…** there too. It sees the data that's already there and offers **Use the data in OneDrive**.
 
 Some things stay separate on each computer:
-- **Per computer:** the box's position, Start with Windows, and chat history (each computer's Claude Code keeps its own).
+- **Per computer:** the box's position, Start with Windows, chat history (each computer's Claude Code keeps its own), and where each project's folder is (see below).
 - **Never in OneDrive:** API keys.
 - **One computer at a time:** OneDrive can't merge two copies of the same file. If the desk is already open on another computer, Task Desk warns you before it opens.
 - **Moving back:** **Move my data back to this computer…** in the ⋯ menu copies everything home and stops using OneDrive on this PC.
 
 **Setting up another computer:**
 1. Install Node.js and Claude Code, and sign in to Claude Code.
-2. Clone your copy of the repo (you'll need to sign in to GitHub on that computer if it's private), then run `npm install` inside it. A clone keeps itself up to date (see "Updates"). A copied folder works too, but it can't update itself.
+2. Clone the repo (`git clone -b release https://github.com/P-1-K-E-M-1-N/task-desk.git`), then run `npm install` inside it. A clone keeps itself up to date (see "Updates"). A copied folder works too, but it can't update itself.
 3. Start it with `npm start`. It makes its own desktop and Startup shortcuts.
 
-Projects whose folders are in OneDrive work on both computers. A folder that only exists on one computer shows the "folder isn't on this computer" note on the other.
+**Folders can be in different places on each computer.** Your projects' folders don't have to be at the same path, or in OneDrive. On a computer where a project's folder isn't found, the box says "This project's folder isn't on this computer". Click **Fix the folder** and choose where the project is on that computer (or leave the folder empty if it isn't there at all). That choice is kept for that computer only; your other computers keep theirs. The lanes workspace works the same way: **Pick its folder** in the box, or **<name>'s folder on this computer…** in the ⋯ menu. Projects whose folders are in OneDrive simply work everywhere.
 
 ## Everything you type saves itself
 

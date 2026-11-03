@@ -14,7 +14,7 @@ const projectHeader = (name) =>
 // Safety net: inside the lanes workspace, only ops/FROM_NICK.md may ever be written.
 function guard(file) {
   if (!config.inFactory(file)) return;
-  const rel = path.relative(path.resolve(config.get().livePath), path.resolve(file));
+  const rel = path.relative(path.resolve(config.livePath()), path.resolve(file));
   if (rel.toLowerCase() !== path.join('ops', 'from_nick.md')) {
     throw new Error(`The ${config.factoryName()} folder is read-only (only ops\\FROM_NICK.md may be added to).`);
   }

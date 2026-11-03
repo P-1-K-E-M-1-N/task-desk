@@ -309,9 +309,19 @@ function register() {
 
   // ----- projects -----
   handle('project:edit', (e, id) => windows.openProjectEditor(id || null));
+  // "Fix the folder" for the lanes workspace: pick where it is on this computer.
+  handle('workspace:folder', () => menu.connectWorkspace());
   handle('project:get', (e, id) => {
     const p = projects.get(id);
-    return p ? { ...p, resultsPath: projects.resultsFile(p), tasksPath: projects.tasksFile(p), missing: projects.missing(p) } : null;
+    return p
+      ? {
+          ...p,
+          resultsPath: projects.resultsFile(p),
+          tasksPath: projects.tasksFile(p),
+          missing: projects.missing(p),
+          synced: config.synced(),
+        }
+      : null;
   });
   handle('project:save', (e, draft) => {
     const r = projects.save(draft);

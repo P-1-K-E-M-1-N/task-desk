@@ -29,7 +29,9 @@ const CANDIDATES = [
   'README.md',
 ];
 
-const list = () => config.get().projects || [];
+// raw: as saved (shared between computers). list: with this computer's own folders.
+const raw = () => config.get().projects || [];
+const list = () => raw().map((p) => ({ ...p, folder: config.folderFor(p.id, p.folder) }));
 const get = (id) => list().find((p) => p.id === id) || null;
 
 const inside = (file, folder) => {
@@ -143,16 +145,18 @@ function clean(d) {
 function save(draft) {
   const r = clean(draft);
   if (!r.ok) return r;
-  const all = list();
+  const all = raw();
   const i = all.findIndex((x) => x.id === r.project.id);
-  const next = i >= 0 ? all.map((x, j) => (j === i ? r.project : x)) : [...all, r.project];
+  // The folder may be this computer's own (see config.placeFolder); the shared copy keeps the other one.
+  const shared = { ...r.project, folder: config.placeFolder(r.project.id, r.project.folder, i >= 0 ? all[i].folder : '') };
+  const next = i >= 0 ? all.map((x, j) => (j === i ? shared : x)) : [...all, shared];
   config.set({ projects: next });
   return { ...r, created: i < 0 };
 }
 
 // A change made in the look panel while this project is showing.
 function setLook(id, patch) {
-  const all = list();
+  const all = raw();
   const p = all.find((x) => x.id === id);
   if (!p) return null;
   p.look = { ...(p.look || {}), ...patch };
@@ -161,7 +165,7 @@ function setLook(id, patch) {
 }
 
 function setOwnLook(id, on) {
-  const all = list();
+  const all = raw();
   const p = all.find((x) => x.id === id);
   if (!p) return;
   p.ownLook = on;
@@ -170,12 +174,17 @@ function setOwnLook(id, on) {
 }
 
 function remove(id) {
-  const patch = { projects: list().filter((p) => p.id !== id) };
+  const patch = { projects: raw().filter((p) => p.id !== id) };
   // Its Claude model and effort go with it.
   const models = { ...(config.get().models || {}) };
   if (id in models) {
     delete models[id];
     patch.models = models;
+  }
+  const folders = { ...(config.get().folders || {}) };
+  if (id in folders) {
+    delete folders[id];
+    patch.folders = folders;
   }
   if (config.get().view === id) patch.view = 'all';
   config.set(patch);
@@ -216,7 +225,17 @@ function suggest(folder) {
 // The box's project list (the lanes workspace first, when it's on), with open-task counts filled in by desk.js.
 function summary() {
   return [
-    ...(config.factoryOn() ? [{ id: 'factory', name: config.factoryName(), color: FACTORY_COLOR, kind: 'factory' }] : []),
+    ...(config.factoryOn()
+      ? [
+          {
+            id: 'factory',
+            name: config.factoryName(),
+            color: FACTORY_COLOR,
+            kind: 'factory',
+            missing: config.get().mode === 'live' && !fs.existsSync(config.livePath()),
+          },
+        ]
+      : []),
     ...list().map((p) => ({ id: p.id, name: p.name, color: p.color, kind: p.source, missing: missing(p) })),
   ];
 }

@@ -100,7 +100,7 @@ Most settings are changed in the app. They're stored as JSON in the data folder.
 
 `data\taskdesk.log` is the app's log: errors you never saw on screen, useful in a bug report. `data\update.log` is the self-updater's.
 
-`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update, and where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**).
+`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update, where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**), and `folders`: where a project's folder (or the workspace's) is on this computer when it differs from your other computers'. With your data in OneDrive, folders can be at different paths on each computer; see [docs/GUIDE.md](docs/GUIDE.md).
 
 Environment variables (mostly for tests and development):
 

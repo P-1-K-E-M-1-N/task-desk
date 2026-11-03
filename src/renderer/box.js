@@ -156,10 +156,14 @@ function render() {
   // Header: which project, a warning if its folder is missing, and quick add for your own projects.
   $('#pname').textContent = viewName();
   const up = userProject();
-  $('#warn').hidden = !(up && up.missing);
+  const ws = data.view === 'factory' && data.projects.find((p) => p.id === 'factory');
+  $('#warn').hidden = !((up && up.missing) || (ws && ws.missing));
   if (up && up.missing) {
     $('#warn').innerHTML = "This project's folder isn't on this computer. <button>Fix the folder</button>";
     $('#warn').querySelector('button').onclick = () => desk.editProject(up.id);
+  } else if (ws && ws.missing) {
+    $('#warn').innerHTML = "This workspace's folder isn't on this computer. <button>Pick its folder</button>";
+    $('#warn').querySelector('button').onclick = () => desk.pickWorkspaceFolder();
   }
   $('#quickadd').hidden = !up;
   if (up && $('#qtext').dataset.view !== data.view) {

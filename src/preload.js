@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('desk', {
   setView: call('view:set'),
   addTask: call('task:add'),
   editProject: call('project:edit'),
+  pickWorkspaceFolder: call('workspace:folder'),
   setMe: call('me:set'),
   getMe: call('me:get'),
   onAskMe: on('me:ask'),

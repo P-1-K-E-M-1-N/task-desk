@@ -51,7 +51,7 @@ function setMode(mode) {
       defaultId: 0,
       cancelId: 1,
       message: `Switch ${config.factoryName()} to live?`,
-      detail: `Tasks will come from ${config.get().livePath}. The app only ever appends to ops\\FROM_NICK.md there.`,
+      detail: `Tasks will come from ${config.livePath()}. The app only ever appends to ops\\FROM_NICK.md there.`,
     });
     if (r !== 0) return;
   }
@@ -117,7 +117,12 @@ function connectWorkspace() {
     });
     return;
   }
-  config.set({ factory: true, livePath: dir, mode: 'live' });
+  // With shared data and a workspace already connected, a different folder is this computer's own.
+  config.set({
+    factory: true,
+    livePath: config.placeFolder('factory', dir, config.get().factory ? config.get().livePath : ''),
+    mode: 'live',
+  });
   state.use('live');
   desk.startPolling();
   desk.refresh();
@@ -152,6 +157,10 @@ function menu() {
       ? [
           { label: `${config.factoryName()}: test copies`, type: 'radio', checked: s.mode === 'test', click: () => setMode('test') },
           { label: `${config.factoryName()}: live`, type: 'radio', checked: s.mode === 'live', click: () => setMode('live') },
+          {
+            label: `${config.factoryName()}'s folder on this computer…`,
+            click: connectWorkspace,
+          },
           { label: `Disconnect ${config.factoryName()}`, click: disconnectWorkspace },
         ]
       : [{ label: 'Connect a lanes workspace…', click: connectWorkspace }]),
@@ -262,4 +271,4 @@ function menu() {
   ]);
 }
 
-Object.assign(module.exports, { createTray, updateTray, setTrayImage, setAI, menu });
+Object.assign(module.exports, { createTray, updateTray, setTrayImage, setAI, menu, connectWorkspace });
