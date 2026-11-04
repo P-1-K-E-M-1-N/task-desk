@@ -46,7 +46,8 @@ const helper = () => {
   git(AUTHOR, 'checkout', '-q', '-b', 'main');
   write(AUTHOR, 'package.json', JSON.stringify({ name: 'pretend-desk', version: '1.0.0', private: true }, null, 2));
   write(AUTHOR, 'app.txt', 'version 1\n');
-  write(AUTHOR, '.gitignore', 'data/\nnode_modules/\npackage-lock.json\n');
+  // The lockfile is part of the app, as in the real repo: updates install exactly what it says.
+  write(AUTHOR, '.gitignore', 'data/\nnode_modules/\n');
   git(AUTHOR, 'add', '-A');
   git(AUTHOR, 'commit', '-q', '-m', 'First version');
   git(AUTHOR, 'push', '-q', '-u', 'origin', 'main');
