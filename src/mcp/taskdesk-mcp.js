@@ -8,7 +8,11 @@ const http = require('http');
 const readline = require('readline');
 
 const PORT = Number(process.env.TASKDESK_PORT);
-const TOKEN = process.env.TASKDESK_TOKEN;
+// The chat's own token, from the file the app made for it (never on a command line).
+let TOKEN = '';
+try {
+  TOKEN = require('fs').readFileSync(process.env.TASKDESK_TOKEN_FILE, 'utf8').trim();
+} catch {}
 const TASK = process.env.TASKDESK_TASK;
 
 const TOOLS = [

@@ -44,7 +44,7 @@ function firstMessage(task, plan) {
     const where = task.projectFolder ? ` (folder ${task.projectFolder})` : '';
     const edits = task.allowEdits
       ? 'You may change files in the project folder when a step needs it.'
-      : "Don't change files in the project folder unless they explicitly ask: their results go back through the Done notes.";
+      : 'This chat is set not to change files in the project folder (Task Desk turns off your edit tools; the project\'s "let the chat change files" setting turns them on): their results go back through the Done notes.';
     msg = `${cap(config.who())} is working on this task from the project "${task.projectName}"${where}: ${task.text}. The plan they're following: ${steps} Help them finish it. ${edits} As steps get done, tick them in the plan with the Task Desk tools.`;
   } else {
     const lane = task.lane === 'factory' ? 'workspace-wide' : `lane ${task.lane} (folder ${task.laneDir})`;
@@ -66,17 +66,31 @@ function systemNote(task) {
   ].join(' ');
 }
 
-// Links from the plan open in Chrome, and Claude chats start with Claude in
-// Chrome on. By default the chat only looks; "Let Claude work in Chrome" (desk
-// setting or per task) lets it click and type too, which costs more tokens.
+// Claude in Chrome: whether a chat gets the user's Chrome at all. Off unless
+// it's turned on, for the desk (⋯ menu) or one task (its Chrome button):
+//   'off'   no Chrome: Claude starts without it (the default)
+//   'look'  Claude can read the pages they open from the plan, when asked
+//   'work'  Claude may also click and type there (uses more tokens)
+// Company-safe mode keeps it off. Older settings said chromeDrive true/false
+// ("work" or "look only" while Chrome was always on).
+const CHROME_MODES = ['off', 'look', 'work'];
 const CHROME_LOOK =
   'Only look at Chrome pages (read them or take a screenshot) when asked; do not click, type or navigate there unless they ask you to.';
 const CHROME_WORK =
   'You may work in Chrome for the steps: open pages, click through, fill in forms. Stop before the final send, submit, pay, sign-up or delete click and ask them to press it themselves.';
-const chromeWork = (task) => {
-  const own = state.task(task.id).chromeDrive;
-  return typeof own === 'boolean' ? own : !!config.get().chromeDrive;
-};
+function deskChrome() {
+  const s = config.get();
+  if (CHROME_MODES.includes(s.chrome)) return s.chrome;
+  return s.chromeDrive === true ? 'work' : 'off';
+}
+function chromeMode(task) {
+  if (config.safeMode()) return 'off';
+  const st = state.has(task.id) ? state.task(task.id) : {};
+  if (CHROME_MODES.includes(st.chrome)) return st.chrome;
+  if (st.chromeDrive === true) return 'work';
+  return deskChrome();
+}
+const chromeWork = (task) => chromeMode(task) === 'work';
 function chromeNote(task) {
   const who = config.who();
   return [
@@ -86,19 +100,25 @@ function chromeNote(task) {
   ].join(' ');
 }
 
+// May the chat change files? Only a project with "let the chat change files"
+// on (Edit project, box 5). Otherwise Claude Code itself refuses its edit tools,
+// so it doesn't depend on Claude following the brief.
+const mayEdit = (task) => isProject(task) && !!task.allowEdits;
+const NO_EDITS = ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
+
 function withTools(task, args) {
   // The model and effort picked for the task, its project or the desk (see ai.js).
   const model = ai.modelArgs(task);
-  if (!bridge.ready()) return ['--chrome', ...model, ...args];
-  // These options take lists, so they go first: the next "--" option ends each list.
+  const chrome = chromeMode(task) !== 'off';
+  const edits = mayEdit(task) ? [] : NO_EDITS;
+  // Options that take lists go first: the next "--" option ends each list.
+  const tools = bridge.ready() ? ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk'] : [];
   return [
-    '--mcp-config',
-    bridge.configFor(task.id),
-    '--allowedTools',
-    'mcp__taskdesk',
+    ...tools,
+    ...edits,
     '--append-system-prompt',
-    `${systemNote(task)} ${chromeNote(task)}`,
-    '--chrome',
+    `${systemNote(task)}${chrome ? ` ${chromeNote(task)}` : ''}`,
+    ...(chrome ? ['--chrome'] : []),
     ...model,
     ...args,
   ];
@@ -196,7 +216,7 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
   handoffs.delete(task.id);
   const claude = p.id === 'claude';
   const tries = claude ? attempts(task, plan, mode, note) : otherAttempts(p, task, plan, mode, note);
-  const tools = !claude && bridge.ready() ? ai.toolArgs(p, bridge.spec(task.id), task.id) : { args: [], env: {} };
+  const tools = !claude && bridge.ready() ? ai.toolArgs(p, bridge.spec(task.id), task.id, { edits: mayEdit(task) }) : { args: [], env: {} };
   const run = (i) => {
     const a = tries[i];
     cb.onInfo && cb.onInfo({ label: a.label, sessionId: a.sid, ai: p.id });
@@ -263,7 +283,9 @@ function write(id, data) {
 function send(id, text) {
   const e = live.get(id);
   if (!e) return false;
-  e.proc.write('\x1b[200~' + text + '\x1b[201~');
+  // The text can't end the paste early: any "end of paste" marker inside it is removed.
+  const safe = String(text).replace(/\x1b\[20[01]~/g, '');
+  e.proc.write('\x1b[200~' + safe + '\x1b[201~');
   setTimeout(() => e.proc.write('\r'), 120);
   return true;
 }
@@ -281,6 +303,8 @@ function stop(id) {
   if (!e) return;
   e.stopped = true;
   live.delete(id);
+  // Its link to the app goes too: the token stops working and its config files are deleted.
+  bridge.forget(id);
   try {
     e.proc.kill();
   } catch {}
@@ -317,6 +341,10 @@ module.exports = {
   quietFor,
   firstMessage,
   chromeWork,
+  chromeMode,
+  deskChrome,
+  CHROME_MODES,
+  mayEdit,
   CHROME_LOOK,
   CHROME_WORK,
 };

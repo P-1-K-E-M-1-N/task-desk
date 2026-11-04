@@ -1,3 +1,4 @@
+/* global esc, safeColor */ // from ui.js
 const $ = (s) => document.querySelector(s);
 let data = null;
 let lane = 'all'; // the chip filter: a lane inside one project, or a project in "All projects"
@@ -42,7 +43,7 @@ function projectMenu(anchor) {
         m.remove();
         run();
       },
-      html: `${dot}<span class="nm"></span>${extra}<span class="cnt">${count}</span>`,
+      html: `${dot}<span class="nm"></span>${extra}<span class="cnt">${esc(count)}</span>`,
     });
   const set = (v) => {
     desk.setView(v);
@@ -53,7 +54,7 @@ function projectMenu(anchor) {
   const items = data.projects.map((p) => {
     const b = row(
       data.view === p.id,
-      `<span class="dot" style="background:${p.color}"></span>`,
+      `<span class="dot" style="background:${safeColor(p.color)}"></span>`,
       p.name,
       p.open,
       () => set(p.id),
@@ -150,7 +151,7 @@ function render() {
   $('#hello').textContent = greeting();
   $('#count').textContent = `${counts.open} task${counts.open === 1 ? '' : 's'}`;
   $('#mins').textContent = counts.open ? `· ~${fmtMin(counts.minutes)}` : '';
-  $('#barsum').innerHTML = `${counts.open} tasks<em>~${fmtMin(counts.minutes)}</em>`;
+  $('#barsum').innerHTML = `${esc(counts.open)} tasks<em>~${esc(fmtMin(counts.minutes))}</em>`;
   drawGoal();
 
   // Header: which project, a warning if its folder is missing, and quick add for your own projects.
@@ -232,10 +233,10 @@ function render() {
 }
 
 function chipEl(key, label, n, color, plain) {
-  const dot = key === 'all' ? '' : `<span class="dot" style="background:${color}"></span>`;
+  const dot = key === 'all' ? '' : `<span class="dot" style="background:${safeColor(color)}"></span>`;
   const b = h('button', {
     class: 'chip' + (lane === key ? ' on' : ''),
-    html: `${dot}<span class="cl"></span> <em>${n}</em>`,
+    html: `${dot}<span class="cl"></span> <em>${esc(n)}</em>`,
     onclick: () => {
       lane = key;
       render();
@@ -262,12 +263,12 @@ function card(t, i) {
     title: t.text,
     onclick: () => desk.openTask(t.id),
     html: `
-      <div class="${tileClass(t.type)}" title="${typeHint(t.type)}">${icon(t.type)}</div>
+      <div class="${esc(tileClass(t.type))}" title="${esc(typeHint(t.type))}">${icon(t.type)}</div>
       <div class="body">
         <div class="ttl"></div>
         <div class="meta">
-          <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${tag.color}"></span><span class="nm"></span></span>
-          <span class="sep">·</span><span>${fmtMin(t.minutes)}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${ownModel(t)}</span>` : ''}
+          <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${safeColor(tag.color)}"></span><span class="nm"></span></span>
+          <span class="sep">·</span><span>${esc(fmtMin(t.minutes))}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${esc(ownModel(t))}</span>` : ''}
         </div>
       </div>
       <div class="right">${right}</div>`,

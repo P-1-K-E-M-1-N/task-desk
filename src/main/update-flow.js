@@ -18,8 +18,9 @@ let pendingUpdate = null,
   updateTimer = null,
   idleTimer = null,
   installing = false;
-// Tests run their own copy and never update.
-const autoUpdateOn = () => config.get().autoUpdate !== false && !desk.TESTING && !process.env.TASKDESK_NO_UPDATE;
+// Updating by itself is something you turn on (off for new installs, and always
+// off in Company-safe mode). Tests run their own copy and never update.
+const autoUpdateOn = () => config.get().autoUpdate === true && !config.safeMode() && !desk.TESTING && !process.env.TASKDESK_NO_UPDATE;
 const logUpdate = (msg) => {
   try {
     fs.appendFileSync(UPDATE_LOG, `${new Date().toISOString()} ${msg}\n`);
@@ -212,6 +213,15 @@ function installOnQuit() {
 
 // After a restart for an update, tell the user what changed.
 function sayUpdated() {
+  // A problem the update helper left behind (see update-helper.js).
+  const problem = path.join(config.LOCAL_DIR, 'update-problem.txt');
+  try {
+    const text = fs.readFileSync(problem, 'utf8');
+    fs.rmSync(problem, { force: true });
+    config.set({ updatedNote: '' });
+    say("Task Desk couldn't finish an update", text);
+    return;
+  } catch {}
   const note = config.get().updatedNote;
   if (note) {
     config.set({ updatedNote: '' });

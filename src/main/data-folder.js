@@ -26,6 +26,8 @@ function oneDriveRoot() {
 }
 
 function moveDataToCloud() {
+  // Company-safe mode keeps the data on this computer.
+  if (config.safeMode()) return;
   let base = oneDriveRoot();
   if (!base) {
     const pick = dialog.showOpenDialogSync({ title: 'Choose your OneDrive folder', properties: ['openDirectory'] });

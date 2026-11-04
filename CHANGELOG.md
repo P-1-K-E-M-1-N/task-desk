@@ -13,6 +13,20 @@ Changes a user would notice, newest first. The format follows
 - With your data in OneDrive, each computer can keep its projects' folders (and the lanes workspace's) somewhere else. Picking a folder with **Fix the folder** on one computer no longer changes it on the others.
 - `npm install --omit=dev` now gives a working desk with only what it needs to run (Electron moved out of the developer tools), and daily updates keep it that way. The README says what to tell your IT team if security software flags the install.
 - Right-click a task in the box to open it, choose its Claude model, snooze it, redraft its plan or copy its text.
+- **Company-safe mode** (⋯ menu, or `TASKDESK_SAFE_MODE=1` from an IT team) for a work computer: no automatic updates, no Chrome for chats, Claude Code only, and the data kept off OneDrive.
+
+### Changed (security)
+- Updating by itself is now off for new installs: **Check for updates now** shows what changed and asks first. Copies that already updated themselves keep doing so.
+- Updates that change the packages reinstall them with `npm ci --ignore-scripts` (exact locked versions, no install scripts), then Electron's own checked download. `git`, `node` and `npm` run by their full paths, never through a shell. A failed update goes back and tells you so.
+- Chats no longer get your Chrome browser unless you turn it on: a task's **Chrome** button goes off, look only, working; **Claude and Chrome** in the ⋯ menu sets the default.
+- A chat that may not change files really can't: Claude Code starts with its edit tools turned off, and Gemini gets its file-writing tools turned off and asks before every action.
+- Open buttons open documents from a list of safe types (no programs, scripts, shortcuts, web pages or macro files, no network paths). Links, email drafts with a recipient, and files or folders outside the task's folder show the whole address and ask first.
+- Keys are only written into a `.env` or `.env.local` file inside the task's folder, never through a link, and a key with spaces, quotes or other odd characters is refused instead of written.
+- The AI apps start with only the environment variables they need, not your other tools' API keys and tokens.
+- Each chat gets its own token for the plan tools, kept in a file rather than on a command line, and deleted when the chat stops.
+- Plans are checked strictly before their buttons are made, and text from project files is marked as data the plan writer must not take instructions from.
+- The windows can't open pop-ups or navigate away, and everything from tasks, plans and settings is escaped before it's shown.
+- Settings from OneDrive are checked again when they're used (results files, checklists, project ids, lane names), settings are written atomically, and a damaged settings file is kept aside instead of overwritten.
 
 ## 1.1.1 - 2026-10-30
 

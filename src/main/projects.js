@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const config = require('./config');
 const state = require('./state');
 const { readChecklist, toTasks } = require('./tasks');
+const { within, safeId, isNetwork } = require('./safety');
 
 const COLORS = ['#c96442', '#2f6fae', '#4f7a5a', '#8a4a87', '#a87414', '#2f8580', '#b0587a', '#6a68b0'];
 const FACTORY_COLOR = '#9a9184';
@@ -30,7 +31,9 @@ const CANDIDATES = [
 ];
 
 // raw: as saved (shared between computers). list: with this computer's own folders.
-const raw = () => config.get().projects || [];
+// A project whose id isn't a plain id (a hand-edited or damaged settings file) is ignored,
+// since the id becomes part of folder names.
+const raw = () => (config.get().projects || []).filter((p) => p && safeId(p.id));
 const list = () => raw().map((p) => ({ ...p, folder: config.folderFor(p.id, p.folder) }));
 const get = (id) => list().find((p) => p.id === id) || null;
 
@@ -51,13 +54,23 @@ function workDir(p) {
   return d;
 }
 
+// The checklist (only ever read). A relative one has to stay inside the project
+// folder; network paths are never read.
 function tasksFile(p) {
-  if (p.source !== 'file' || !p.tasksFile) return null;
-  return path.isAbsolute(p.tasksFile) ? p.tasksFile : path.join(p.folder || '', p.tasksFile);
+  if (p.source !== 'file' || !p.tasksFile || isNetwork(p.tasksFile)) return null;
+  if (path.isAbsolute(p.tasksFile)) return p.tasksFile;
+  const f = path.join(p.folder || '', p.tasksFile);
+  return p.folder && within(f, p.folder) ? f : null;
 }
 
+// Checked every time it's used, not only when the project was saved (the
+// settings may come from OneDrive): a .md or .txt file really inside the
+// project folder, else the notes stay in the app's own data folder.
 function resultsFile(p) {
-  if (p.results === 'file' && p.folder) return path.resolve(p.folder, p.resultsFile || DEFAULT_RESULTS);
+  if (p.results === 'file' && p.folder) {
+    const f = path.resolve(p.folder, p.resultsFile || DEFAULT_RESULTS);
+    if (within(f, p.folder) && /\.(md|txt)$/i.test(f) && !isFactoryPath(f)) return f;
+  }
   return path.join(config.PROJECTS_DIR, p.id, 'results.md');
 }
 

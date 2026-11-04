@@ -1,5 +1,5 @@
 // Small shared helpers: icons, element builder, lane colors, toasts.
-/* exported icon, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
+/* exported icon, esc, safeColor, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
 const ICONS = {
   // The eight kinds of task.
   outreach: '<path d="M20.5 3.5 3.5 10.2l6.8 3.5 3.5 6.8z"/><path d="m20.5 3.5-10.2 10.2"/>',
@@ -46,8 +46,21 @@ const ICONS = {
     '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-.9.7-1.6 1.7-1.6h2.1a4 4 0 0 0 4-4C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.8" cy="11" r="1.1"/><circle cx="10.5" cy="7.4" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/>',
 };
 
+// Unknown names (say, a task type from a file) draw an empty icon.
 function icon(name, cls = '') {
-  return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+  const paths = Object.hasOwn(ICONS, name) ? ICONS[name] : '';
+  return `<svg class="i ${esc(cls)}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+}
+
+// Text that goes into HTML markup (between tags or inside an attribute).
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// A color for a style attribute: a #hex color, or one laneColor() made; anything else gets the fallback.
+function safeColor(c, fallback = 'var(--ink-3)') {
+  const s = String(c ?? '');
+  return /^#[0-9a-f]{3,8}$/i.test(s) || /^hsl\(\d+ \d+% \d+%\)$/.test(s) || s === 'var(--ink-3)' ? s : fallback;
 }
 
 function h(tag, attrs = {}, ...kids) {
@@ -112,9 +125,9 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-// Button that briefly shows a confirmation label after it runs.
+// Button that briefly shows a confirmation label after it runs. label and done are plain text.
 function actBtn(label, ic, fn, { cls = '', done = 'Done' } = {}) {
-  const b = h('button', { class: `btn sm ${cls}`, html: `${icon(ic)}<span>${label}</span>` });
+  const b = h('button', { class: `btn sm ${cls}`, html: `${icon(ic)}<span>${esc(label)}</span>` });
   b.addEventListener('click', async (e) => {
     e.stopPropagation();
     const r = await fn();
@@ -124,17 +137,17 @@ function actBtn(label, ic, fn, { cls = '', done = 'Done' } = {}) {
     }
     if (done) {
       b.classList.add('done-flash');
-      b.innerHTML = `${icon('check')}<span>${done}</span>`;
+      b.innerHTML = `${icon('check')}<span>${esc(done)}</span>`;
       setTimeout(() => {
         b.classList.remove('done-flash');
-        b.innerHTML = `${icon(ic)}<span>${label}</span>`;
+        b.innerHTML = `${icon(ic)}<span>${esc(label)}</span>`;
       }, 1400);
     }
   });
   return b;
 }
 
-// head: an optional title line; notes: optional small print under the items.
+// head: an optional title line; notes: optional small print under the items. All plain text.
 function popMenu(anchor, items, { head, notes = [] } = {}) {
   const m = h(
     'div',
@@ -146,7 +159,7 @@ function popMenu(anchor, items, { head, notes = [] } = {}) {
           m.remove();
           it.run();
         },
-        html: `${icon(it.icon)}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}`,
+        html: `${icon(it.icon)}<span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}`,
       })
     ),
     ...notes.filter(Boolean).map((n) => h('div', { class: 'popnote' }, n))
@@ -177,14 +190,14 @@ function placePopup(anchor, m) {
     0
   );
   // Esc closes it too.
-  document.addEventListener('keydown', function esc(e) {
+  document.addEventListener('keydown', function onEsc(e) {
     if (!m.isConnected) {
-      document.removeEventListener('keydown', esc);
+      document.removeEventListener('keydown', onEsc);
       return;
     }
     if (e.key === 'Escape') {
       m.remove();
-      document.removeEventListener('keydown', esc);
+      document.removeEventListener('keydown', onEsc);
     }
   });
 }
@@ -230,7 +243,8 @@ function applyLook(look = LOOK) {
   else delete root.dataset.motion;
   if (look.motion === 'off') root.dataset.still = '';
   else delete root.dataset.still;
-  if (look.pictureUrl) root.style.setProperty('--frame-pic', `url("${look.pictureUrl}")`);
+  // Characters that could end the url("…") early are percent-encoded.
+  if (look.pictureUrl) root.style.setProperty('--frame-pic', `url("${String(look.pictureUrl).replace(/["\\\n\r]/g, encodeURIComponent)}")`);
   else root.style.removeProperty('--frame-pic');
   // The bubbler and lava lamp are drawn live (liveframe.js); they hold still with "Keep still" or Windows' animations off.
   root.classList.toggle('dark', isDark(look.appearance));
@@ -349,10 +363,15 @@ function lookPanel(anchor) {
           {
             class: 'cpick' + (cur && !PALETTE.includes(cur.toLowerCase()) ? ' on' : ''),
             title: 'Pick any color',
-            style: cur ? `--pick:${cur}` : '',
+            style: cur ? `--pick:${safeColor(cur, '')}` : '',
             onclick: stop,
           },
-          h('input', { type: 'color', value: cur || '#ff5fa8', oninput: (e) => setSoon({ [key]: e.target.value }), onchange: () => draw() })
+          h('input', {
+            type: 'color',
+            value: safeColor(cur, '') || '#ff5fa8',
+            oninput: (e) => setSoon({ [key]: e.target.value }),
+            onchange: () => draw(),
+          })
         )
       ),
       mixKey && cur

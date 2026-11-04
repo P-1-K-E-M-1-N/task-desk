@@ -50,21 +50,33 @@ const indent = (s) =>
     .join('\n');
 
 // Sets VAR=value in the named .env file, replacing an existing line if present.
+// Only a file called .env or .env.local, never through a link, and only a
+// value that is one plain line (an API key): anything with spaces, quotes, #,
+// $ or backslashes is refused rather than written in a way some tool might
+// read differently. The new file is written next to the old one and swapped in.
 function writeEnv(envPath, name, value) {
   const base = path.basename(envPath).toLowerCase();
-  if (!(base === '.env' || base.startsWith('.env.') || base.endsWith('.env'))) {
-    throw new Error('Refusing to write: target is not a .env file');
-  }
-  if (!/^[A-Z_][A-Z0-9_]*$/i.test(name)) throw new Error('Bad variable name');
-  const clean = String(value).trim().replace(/\r?\n/g, '');
+  if (base !== '.env' && base !== '.env.local') throw new Error('Refusing to write: target is not a .env file');
+  if (!/^[A-Z_][A-Z0-9_]{0,99}$/.test(name)) throw new Error('Bad variable name');
+  // (Where it may be is checked by the caller: inside the task's own folder, after asking.)
+  const clean = String(value).trim();
+  if (!clean) throw new Error('The key is empty');
+  if (!/^[\x21-\x7e]+$/.test(clean) || /["'`#$\\]/.test(clean))
+    throw new Error("That key has spaces, quotes or other characters a .env file can't hold safely. Check you copied only the key.");
   let body = '';
   try {
+    if (fs.lstatSync(envPath).isSymbolicLink()) throw new Error('Refusing to write: that .env file is a link to somewhere else');
     body = fs.readFileSync(envPath, 'utf8');
-  } catch {}
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
   const re = new RegExp(`^${name}=.*$`, 'm');
-  body = re.test(body) ? body.replace(re, `${name}=${clean}`) : body + (body && !body.endsWith('\n') ? '\n' : '') + `${name}=${clean}\n`;
+  const line = `${name}=${clean}`;
+  body = re.test(body) ? body.replace(re, () => line) : body + (body && !body.endsWith('\n') ? '\n' : '') + `${line}\n`;
   fs.mkdirSync(path.dirname(envPath), { recursive: true });
-  fs.writeFileSync(envPath, body);
+  const tmp = `${envPath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, body, { mode: 0o600 });
+  fs.renameSync(tmp, envPath);
 }
 
 module.exports = { appendFromNick, appendResults, projectHeader, guard, writeEnv };

@@ -33,10 +33,16 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   useTestSettings();
   const start = async () => {
     const a = await _electron.launch(launchOpts({ TASKDESK_FAKE_CLAUDE: FAKE }));
-    await a.evaluate(({ shell }) => {
+    await a.evaluate(({ shell, dialog }) => {
       global.__opened = [];
+      global.__asked = [];
       shell.openExternal = async (u) => global.__opened.push(u);
       shell.openPath = async () => '';
+      // "Open this link from the plan?": the test says yes, and keeps what was asked.
+      dialog.showMessageBox = async (...a) => {
+        global.__asked.push((a.find((x) => x && x.message) || {}).detail || '');
+        return { response: 0 };
+      };
     });
     const b = await a.firstWindow();
     await b.waitForSelector('.card', { timeout: 20000 });
@@ -77,9 +83,10 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   const n = await win.locator('.step').count();
   ok('the task has a plan with steps', n >= 2, String(n));
 
-  // ---- the chat starts with Chrome on ----
-  const args = await until(async () => /args: .*--chrome/.test(await termText(win)) && (await termText(win)));
-  ok('the Claude chat starts with Claude in Chrome on', !!args);
+  // ---- the chat starts without Chrome, and can't change files in the workspace ----
+  const args = await until(async () => /args: .*--append-system-prompt/.test(await termText(win)) && (await termText(win)));
+  ok('the Claude chat starts without Chrome', !!args && !/--chrome/.test(args));
+  ok('and with its edit tools turned off', /--disallowedTools Edit Write/.test(args || ''));
 
   // ---- closing a started task asks first ----
   await win.locator('.step .check').first().click();
@@ -100,6 +107,16 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   await wait(400);
   opened.push(...(await app.evaluate(() => global.__opened)));
   ok('the link opens (tests stand in for Chrome)', opened.includes('https://example.com/form'), opened.join(','));
+  const asked = await app.evaluate(() => global.__asked);
+  ok(
+    'after showing the whole link first',
+    asked.some((d) => d.startsWith('https://example.com/form')),
+    asked.join(' | ')
+  );
+  await win.evaluate(() => desk.openUrl('https://example.com/form'));
+  await wait(300);
+  ok('the same link only asks once', (await app.evaluate(() => global.__asked)).length === asked.length);
+  ok('a non-web link is refused', (await win.evaluate(() => desk.openUrl('file:///C:/Windows/notepad.exe'))).ok === false);
   const st1 = await stOf(win, id);
   ok(
     'the task remembers the page it opened',
@@ -107,10 +124,14 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   );
 
   // ---- the Chrome switch ----
-  ok('the switch starts at look only', /look only/.test(await win.locator('#cchrome').innerText()));
+  ok('the switch starts at off', /Chrome: off/.test(await win.locator('#cchrome').innerText()));
+  await win.locator('#cchrome').click();
+  ok('one click: look only', !!(await until(async () => /look only/.test(await win.locator('#cchrome').innerText()))));
+  ok('and the chat restarts with Chrome', !!(await until(async () => /args: .*--chrome/.test(await termText(win)))));
+  ok('the task remembers it', (await stOf(win, id)).chrome === 'look');
   await win.locator('#cchrome').click();
   await wait(300);
-  ok('it turns on "working"', /working/.test(await win.locator('#cchrome').innerText()) && (await stOf(win, id)).chromeDrive === true);
+  ok('another click: working', /working/.test(await win.locator('#cchrome').innerText()) && (await stOf(win, id)).chrome === 'work');
   ok('and the running chat is told', !!(await until(async () => /turned on "Let Claude work in Chrome"/.test(await termText(win)))));
 
   // ---- ticking the last step counts down to Done & next ----

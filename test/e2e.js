@@ -21,7 +21,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, name + '.p
 async function launch() {
   const app = await _electron.launch(launchOpts());
   app.process().stdout.on('data', (d) => (mainLog += d));
-  await app.evaluate(({ shell, clipboard }) => {
+  await app.evaluate(({ shell, clipboard, dialog }) => {
     global.__opened = [];
     shell.openExternal = async (u) => {
       global.__opened.push(['url', u]);
@@ -33,6 +33,8 @@ async function launch() {
     shell.showItemInFolder = (p) => {
       global.__opened.push(['show', p]);
     };
+    // "Open this link from the plan?" and the like: the test says yes.
+    dialog.showMessageBox = async () => ({ response: 0 });
   });
   const box = await app.firstWindow();
   box.on('pageerror', (e) => ok('no box page errors', false, e.message));

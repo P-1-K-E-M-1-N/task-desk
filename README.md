@@ -26,17 +26,22 @@ No API keys are needed. Each AI app runs on its own account login.
 ```powershell
 git clone -b release https://github.com/P-1-K-E-M-1-N/task-desk.git task-desk
 cd task-desk
-npm install --omit=dev
+npm ci --omit=dev --ignore-scripts
+node node_modules/electron/install.js
 npm start
 ```
 
-`--omit=dev` installs only what the desk needs to run: 24 packages instead of 103. Leave it off if you want to change the code or run the tests: plain `npm install` adds the code checker, the formatter and the test tools. Updates keep whichever you chose.
+What the two install lines do:
+- `npm ci` installs exactly the versions listed in `package-lock.json`, each checked against its recorded checksum. `--omit=dev` leaves out the developer tools (24 packages instead of 103). `--ignore-scripts` stops every package from running its own install script.
+- `node node_modules/electron/install.js` downloads Electron, the program that runs the app, and checks it against the checksums that ship in the Electron package. It's the only download that needs a script, so it runs as its own step where you can see it.
 
-**On a work computer with security software** (SentinelOne, CrowdStrike, Defender for Endpoint…), `npm install` can be flagged: one PowerShell window downloads and unpacks thousands of files, including programs (`electron.exe`, `ffmpeg.dll`). That's normal for an npm install, but it's your IT team's call, not something to work around. Ask them to allow it, and tell them what it does:
+To change the code or run the tests, use `npm ci --ignore-scripts` without `--omit=dev`; that adds the code checker, the formatter and the test tools. Updates keep whichever you chose.
+
+**On a work computer,** read [Company-safe mode](#company-safe-mode) first, and expect your security software (SentinelOne, CrowdStrike, Defender for Endpoint…) to notice the install: one window downloads and unpacks many files, including programs (`electron.exe`, `ffmpeg.dll`). That's your IT team's call, not something to work around. Ask them to allow it, and tell them what it does:
 - it runs from the folder you cloned it to, as you, with no admin rights and no installer;
-- `node_modules\electron\dist\electron.exe` is the app; it starts the AI apps you installed (`claude`, `codex`, `gemini`) and `git`;
-- every morning at 7 it runs `git pull` from this GitHub repo and, if the packages changed, `npm install` again (turn that off with **Update automatically** in the ⋯ menu);
-- it adds a desktop, Startup and Start-menu shortcut, and talks to nothing on the internet itself (the AI apps use their own sign-in).
+- `node_modules\electron\dist\electron.exe` is the app; it starts `git` and the AI app you installed (`claude`);
+- it never updates itself unless you turn **Update automatically** on (Company-safe mode keeps it off);
+- it adds a desktop, Startup and Start-menu shortcut, and talks to nothing on the internet itself (the AI app uses its own sign-in).
 
 `-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, which holds the changes that passed the last full test run but haven't been released yet. Day-to-day work happens on `dev`.
 
@@ -76,6 +81,24 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 
 **Right-click a task** for more: open it, choose its Claude model, snooze it until tomorrow, redraft its plan, or copy its text.
 
+**Claude and your Chrome browser.** A chat doesn't get your Chrome unless you turn it on. The **Chrome** button above a task's chat goes from **off** to **look only** (Claude reads the pages you open from the plan when you ask) to **working** (it may also click and type there, which uses more tokens; you still press send, submit or pay yourself). Turning it on or off restarts the chat, which picks up where it was. **Claude and Chrome** in the ⋯ menu sets the starting point for every task.
+
+**What the Open buttons do.** A plan's buttons open documents (Markdown, text, PDF, pictures, Word, Excel and PowerPoint files without macros…) and folders, never programs, scripts or shortcuts. A document inside the task's own folder opens straight away. Anything else asks first and shows the whole path: a link from the plan (once per link), an email draft with a recipient filled in, or a file or folder outside the task's folder. The plan is written by the AI from your project's files, so check that the address is one you expect.
+
+**What a chat may change.** A Claude chat can only edit files in the project folder when the project's **The chat may change files** box is ticked (box 5). Otherwise Task Desk starts Claude Code with its editing tools turned off. Codex runs in a read-only sandbox in the same case, and Gemini gets its file-writing tools turned off.
+
+### Company-safe mode
+
+For a work computer: tick **Company-safe mode (for a work computer)** in the ⋯ menu. On that computer only (your other computers aren't affected), Task Desk then:
+- never updates by itself (**Check for updates now** still asks before installing anything),
+- starts every chat without your Chrome browser,
+- uses only Claude Code, never Codex or Gemini,
+- keeps its data on this computer instead of OneDrive (it offers to move it back if it's there).
+
+An IT team can switch it on for good with the environment variable `TASKDESK_SAFE_MODE=1`; it then can't be turned off in the app. The rest applies everywhere: the Open buttons, the chats' edit limits, and what the AI apps can see (below).
+
+**What the AI apps can see.** Claude Code, Codex and Gemini start with only the environment variables they need to run (Windows' own folders and paths, language, your proxy and certificate settings, and where each app keeps its sign-in), not every variable on the computer. API keys and tokens set for other tools stay out. If an app really needs one more, add its name to `"passEnv": ["NAME"]` in `data\machine.json`.
+
 **Only lines that mention me.** For a checklist shared with other people, a project can show only the lines that contain your name. Set your name with **Your name…** in the ⋯ menu.
 
 **Advanced: a lanes workspace.** If you run several agents in one folder with a shared to-do file, Task Desk can read that too. See [docs/WORKSPACE.md](docs/WORKSPACE.md). It's off unless you connect one.
@@ -104,11 +127,12 @@ Most settings are changed in the app. They're stored as JSON in the data folder.
 | `models` | empty | Claude's model and effort for task chats: `desk`, and one entry per project. Set them from the AI button in the box. |
 | `perTaskModel` | `false` | Whether a task can have its own model and effort (right-click it in the box) |
 | `orderTasks` | `true` | Whether the AI puts each project's tasks in order and guesses how far the project is |
+| `chrome` | `off` | Whether Claude chats get your Chrome browser: `off`, `look` or `work`. A task's Chrome button can change it for that task. |
 | `projects`, `view`, `look` | | Your projects, the box's current view and the look settings. Edit these in the app. |
 
 `data\taskdesk.log` is the app's log: errors you never saw on screen, useful in a bug report. `data\update.log` is the self-updater's.
 
-`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update, where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**), and `folders`: where a project's folder (or the workspace's) is on this computer when it differs from your other computers'. With your data in OneDrive, folders can be at different paths on each computer; see [docs/GUIDE.md](docs/GUIDE.md).
+`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update (`autoUpdate`, off for new installs), Company-safe mode (`safeMode`), extra variables the AI apps may see (`passEnv`), where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**), and `folders`: where a project's folder (or the workspace's) is on this computer when it differs from your other computers'. With your data in OneDrive, folders can be at different paths on each computer; see [docs/GUIDE.md](docs/GUIDE.md).
 
 Environment variables (mostly for tests and development):
 
@@ -118,16 +142,19 @@ Environment variables (mostly for tests and development):
 | `TASKDESK_LOCAL_DATA` | no | Ignore a OneDrive data folder, and turn off self-updates (the tests set this) |
 | `TASKDESK_USERDATA` | no | Separate Electron profile, so a second copy can run beside the main one |
 | `TASKDESK_NO_UPDATE` | no | Turn off the daily self-update |
-| `TASKDESK_FAKE_AI` | no | `<node.exe>\|<script.js>`: run a pretend AI app instead of the real one (tests). `TASKDESK_FAKE_CLAUDE` is the older name. |
+| `TASKDESK_SAFE_MODE` | no | `1` turns on [Company-safe mode](#company-safe-mode) for good (for an IT team) |
+| `TASKDESK_FAKE_AI` | no | `<node.exe>\|<script.js>`: run a pretend AI app instead of the real one. Only in a test run, and only a script from the app's own `test\` folder. `TASKDESK_FAKE_CLAUDE` is the older name. |
 | `CODEX_HOME` | no | Read by the app to find Codex's saved sessions (defaults to `%USERPROFILE%\.codex`) |
 
-`TASKDESK_PORT`, `TASKDESK_TOKEN` and `TASKDESK_TASK` are set by the app for its own chat-tool server (`src/mcp/taskdesk-mcp.js`); you don't set them.
+`TASKDESK_PORT`, `TASKDESK_TOKEN_FILE` and `TASKDESK_TASK` are set by the app for its own chat-tool server (`src/mcp/taskdesk-mcp.js`); you don't set them. Each chat gets its own token, in a file in `data\mcp\` that's deleted when the chat stops.
 
 ## Updates
 
-A copy made with `git clone` checks its GitHub remote every day at 7 AM. It follows the `release` branch: changes merged into `main` reach installed copies only when the maintainer promotes them (see [CONTRIBUTING.md](CONTRIBUTING.md)), so a half-finished change never lands on your desk. If the computer was off at 7, it checks a couple of minutes after the next start. It only fast-forwards, and it waits for a quiet moment before installing. Updates that only change screens refresh the open windows in place, so chats keep running. Bigger ones restart the app and reopen the task windows that were open. A copy with local code changes or local commits is skipped, so work in progress isn't overwritten.
+Updating by itself is **off** for a new install: choose **Check for updates now** in the ⋯ menu, which shows what changed and asks before installing. Tick **Update automatically (daily, 7 AM)** to have it update on its own instead (copies installed before this setting existed keep updating). Company-safe mode keeps it off. When an update changes the packages, it reinstalls them the same careful way as the setup (`npm ci --ignore-scripts`, then Electron's checked download), and if that fails it goes back to the version you had and tells you so next time the desk starts.
 
-A copied folder (not a clone) runs fine but can't update itself. Turn updates off with **Update automatically (daily, 7 AM)** in the ⋯ menu. The log is `data\update.log`.
+With **Update automatically** on, a copy made with `git clone` checks its GitHub remote every day at 7 AM. It follows the `release` branch: changes merged into `main` reach installed copies only when the maintainer promotes them (see [CONTRIBUTING.md](CONTRIBUTING.md)), so a half-finished change never lands on your desk. If the computer was off at 7, it checks a couple of minutes after the next start. It only fast-forwards, and it waits for a quiet moment before installing. Updates that only change screens refresh the open windows in place, so chats keep running. Bigger ones restart the app and reopen the task windows that were open. A copy with local code changes or local commits is skipped, so work in progress isn't overwritten.
+
+A copied folder (not a clone) runs fine but can't update itself. The log is `data\update.log`.
 
 ## Project structure
 
@@ -147,7 +174,8 @@ src/main/        Electron main process
   order.js       which tasks wait on others, the A-to-Z order, and the rough goal line
   chat.js        runs the AI app for each task window in a pseudo-terminal
   ai.js          Claude Code / Codex / Gemini: finding them, their commands, hand-overs
-  bridge.js      local link (127.0.0.1 + secret token) for the chat's plan tools
+  bridge.js      local link (127.0.0.1 + a token per chat) for the chat's plan tools
+  safety.js      what Open buttons may open, paths inside a folder, what the AI apps see
   log.js         data\taskdesk.log: errors you never saw, kept under a megabyte
   updater.js     daily self-update; update-helper.js finishes ones that change packages
 src/mcp/         the MCP server that gives each chat its plan tools

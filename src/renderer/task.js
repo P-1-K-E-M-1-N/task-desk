@@ -1,3 +1,4 @@
+/* global esc, safeColor */ // from ui.js
 const $ = (s) => document.querySelector(s);
 const ID = new URLSearchParams(location.search).get('id');
 let T = null; // task
@@ -27,7 +28,6 @@ $('#cclear').innerHTML = `${icon('eraser')}<span>Clear</span>`;
 $('#cfresh').innerHTML = `${icon('plus')}<span>Fresh chat</span>`;
 $('#cmore').innerHTML = icon('more');
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const rich = (s) =>
   esc(s)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -50,7 +50,7 @@ async function load() {
   RESULTS_TO = r.resultsTo;
   document.title = T.title;
   $('#aiName').textContent = T.aiName || 'Claude Code';
-  showChrome(T.chromeDrive);
+  showChrome(T.chrome, T.chromeLocked);
   $('#cchrome').hidden = !/claude/i.test(T.aiName || 'Claude Code');
   $('#ttile').className = tileClass(T.type);
   $('#ttile').title = typeHint(T.type);
@@ -85,16 +85,19 @@ function renderPlan(planOk) {
     h('span', {
       class: 'pill',
       title: typeHint(T.type),
-      html: `${icon(T.type)}${TYPE_LABEL[T.type] || T.type}`,
-      style: `color:var(--t-${T.type})`,
+      html: `${icon(T.type)}${esc(TYPE_LABEL[T.type] || T.type)}`,
+      style: `color:var(--t-${String(T.type).replace(/[^\w-]/g, '')})`,
     }),
     isFactory()
       ? null
-      : h('span', { class: 'pill', html: `<span class="dot" style="background:${T.projectColor}"></span>${esc(T.projectName)}` }),
+      : h('span', {
+          class: 'pill',
+          html: `<span class="dot" style="background:${safeColor(T.projectColor)}"></span>${esc(T.projectName)}`,
+        }),
     isFactory() || T.lane !== 'general'
       ? h('span', { class: 'pill lane', html: `<span class="dot" style="background:${laneColor(T.lane)}"></span>${esc(laneName(T.lane))}` })
       : null,
-    h('span', { class: 'pill', html: `${icon('clock')}~${fmtMin(T.minutes)}` }),
+    h('span', { class: 'pill', html: `${icon('clock')}~${esc(fmtMin(T.minutes))}` }),
     T.date ? h('span', { class: 'pill' }, T.date) : null
   );
   s.append(eyebrow, h('h1', {}, T.title));
@@ -572,7 +575,7 @@ async function finish(status, next) {
     { factory: `Sent to ${T.projectName}.`, file: `Saved to ${base(r.file)}.`, app: 'Saved in Task Desk.' }[r.resultsTo] || 'Saved.';
   const msg = status === 'done' ? `Nice. ${where}` : r.resultsTo === 'factory' ? `Skipped. ${T.projectName} will know.` : 'Skipped.';
   document.body.append(
-    h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${msg}` }))
+    h('div', { class: 'celebrate' }, h('div', { html: `<div class="tile">${icon(status === 'done' ? 'check' : 'skip')}</div>${esc(msg)}` }))
   );
 }
 $('#bdone').onclick = () => finish('done', false);
@@ -822,22 +825,44 @@ $('#cmore').onclick = (e) =>
     { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
   ]);
 
-// Chrome: by default the chat only looks at pages you open from the plan;
-// switched on, it may click and type there too (more tokens).
-function showChrome(on) {
-  $('#cchrome').classList.toggle('on', !!on);
-  $('#cchrome').innerHTML = `${icon('external')}<span>${on ? 'Chrome: working' : 'Chrome: look only'}</span>`;
-  $('#cchrome').title = on
-    ? 'Claude may click and type in Chrome for the steps (you press send, submit or pay yourself). Uses more tokens. Click to go back to look only.'
-    : 'Links open in Chrome and Claude can look at them when you ask. Click to let Claude work in Chrome too (uses more tokens).';
+// Chrome: off by default (the chat has no access to your browser). Each click
+// moves on: off -> look only (Claude reads the pages you open from the plan,
+// when asked) -> working (it may click and type there too, more tokens) -> off.
+// Company-safe mode keeps it off.
+const CHROME_NEXT = { off: 'look', look: 'work', work: 'off' };
+const CHROME_TEXT = {
+  off: ['Chrome: off', "Claude can't see or use your Chrome browser in this chat. Click to let it look at pages you open from the plan."],
+  look: [
+    'Chrome: look only',
+    'Claude can look at pages you open from the plan when you ask. Click to let it click and type there too (uses more tokens).',
+  ],
+  work: [
+    'Chrome: working',
+    'Claude may click and type in Chrome for the steps (you press send, submit or pay yourself). Uses more tokens. Click to turn Chrome off.',
+  ],
+};
+function showChrome(mode, locked) {
+  const m = CHROME_TEXT[mode] ? mode : 'off';
+  $('#cchrome').classList.toggle('on', m !== 'off');
+  $('#cchrome').innerHTML = `${icon('external')}<span>${esc(CHROME_TEXT[m][0])}</span>`;
+  $('#cchrome').title = locked ? 'Company-safe mode is on, so chats never get your Chrome browser.' : CHROME_TEXT[m][1];
+  $('#cchrome').disabled = !!locked;
 }
 $('#cchrome').onclick = async () => {
-  const on = await desk.setChromeDrive(ID, !(T && T.chromeDrive));
-  if (T) T.chromeDrive = on;
-  showChrome(on);
-  toast(on ? 'Claude can work in Chrome for this task' : 'Claude only looks at Chrome for this task');
+  const r = await desk.setChrome(ID, CHROME_NEXT[(T && T.chrome) || 'off']);
+  if (!r) return;
+  if (T) T.chrome = r.mode;
+  showChrome(r.mode, r.locked);
+  toast(
+    {
+      off: 'Chrome is off for this task',
+      look: 'Claude can look at Chrome for this task',
+      work: 'Claude can work in Chrome for this task',
+    }[r.mode] + (r.restarted ? ' (the chat picked up where it was)' : '')
+  );
+  if (r.restart) startChat('auto');
 };
-showChrome(false);
+showChrome('off');
 
 // ---------- live updates ----------
 desk.onPlan((id) => {

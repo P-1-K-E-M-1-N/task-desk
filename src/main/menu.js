@@ -64,6 +64,7 @@ function setMode(mode) {
 
 // The desk's AI. New chats use it; open chats keep going until restarted.
 function setAI(id) {
+  if (!ai.allowed(id)) return;
   ai.forget(); // look for the apps again (one may have just been installed)
   config.set({ ai: id });
   const p = ai.PROVIDERS[id];
@@ -185,7 +186,7 @@ function menu() {
     {
       label: 'AI for chats and plans',
       submenu: [
-        ...ai.IDS.map((id) => {
+        ...ai.IDS.filter(ai.allowed).map((id) => {
           const p = ai.PROVIDERS[id];
           return {
             label: `${p.name} (${p.app})${ai.locate(p) ? '' : ' - not installed'}`,
@@ -217,12 +218,31 @@ function menu() {
     { type: 'separator' },
     config.synced()
       ? { label: 'Move my data back to this computer…', click: dataFolder.moveDataHome }
-      : { label: 'Keep my data in OneDrive…', click: dataFolder.moveDataToCloud },
+      : { label: 'Keep my data in OneDrive…', enabled: !config.safeMode(), click: dataFolder.moveDataToCloud },
+    // Whether Claude chats get Chrome, unless a task's own Chrome button says otherwise.
     {
-      label: 'Let Claude work in Chrome (uses more tokens)',
+      label: 'Claude and Chrome',
+      enabled: !config.safeMode(),
+      submenu: [
+        ['off', 'Off: chats never see my browser'],
+        ['look', 'Look only: Claude reads pages I open, when I ask'],
+        ['work', 'Work: Claude may click and type (uses more tokens)'],
+      ].map(([mode, label]) => ({
+        label,
+        type: 'radio',
+        checked: chat.deskChrome() === mode,
+        click: () => {
+          config.set({ chrome: mode, chromeDrive: mode === 'work' });
+          desk.broadcast();
+        },
+      })),
+    },
+    {
+      label: config.safeModeForced() ? 'Company-safe mode (set by your IT team)' : 'Company-safe mode (for a work computer)',
       type: 'checkbox',
-      checked: !!config.get().chromeDrive,
-      click: (i) => config.set({ chromeDrive: i.checked }),
+      checked: config.safeMode(),
+      enabled: !config.safeModeForced(),
+      click: (i) => setSafeMode(i.checked),
     },
     {
       label: 'Put my tasks in order (AI)',
@@ -255,7 +275,8 @@ function menu() {
     {
       label: 'Update automatically (daily, 7 AM)',
       type: 'checkbox',
-      checked: config.get().autoUpdate !== false,
+      enabled: !config.safeMode(),
+      checked: config.get().autoUpdate === true && !config.safeMode(),
       click: (i) => {
         config.set({ autoUpdate: i.checked });
         updateFlow.scheduleUpdates();
@@ -271,4 +292,29 @@ function menu() {
   ]);
 }
 
-Object.assign(module.exports, { createTray, updateTray, setTrayImage, setAI, menu, connectWorkspace });
+// Company-safe mode on or off for this computer (see config.safeMode).
+async function setSafeMode(on) {
+  config.set({ safeMode: !!on });
+  updateFlow.scheduleUpdates();
+  desk.broadcast();
+  if (!on) return;
+  const r = await dialog.showMessageBox({
+    type: 'info',
+    buttons: config.synced() ? ['Move my data back now', 'Later'] : ['OK'],
+    defaultId: 0,
+    message: 'Company-safe mode is on',
+    detail: [
+      'On this computer, Task Desk now:',
+      '  • never updates by itself (Check for updates still asks first),',
+      '  • starts chats without your Chrome browser,',
+      '  • uses only Claude Code (no Codex or Gemini),',
+      '  • keeps its data off OneDrive.',
+      '',
+      'Chats that are already running keep going as they are until they restart.',
+      config.synced() ? 'Your data is in OneDrive right now. Move it back to this computer?' : '',
+    ].join('\n'),
+  });
+  if (config.synced() && r.response === 0) dataFolder.moveDataHome();
+}
+
+Object.assign(module.exports, { createTray, setSafeMode, updateTray, setTrayImage, setAI, menu, connectWorkspace });

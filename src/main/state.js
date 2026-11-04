@@ -31,6 +31,8 @@ function use(mode) {
 const projectOf = (id) => (String(id).includes('_') ? String(id).split('_')[0] : 'factory');
 
 function store(key) {
+  // The key becomes a folder name, so only plain project ids are used as one.
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(String(key))) key = 'not-a-project';
   if (!stores.has(key)) stores.set(key, load(path.join(config.PROJECTS_DIR, key, 'state.json')));
   return stores.get(key).data;
 }

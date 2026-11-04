@@ -42,8 +42,9 @@ let tasks = [];
 let pollTimer = null;
 let watchers = [];
 
-// Whether this task's chat may click and type in Chrome (more tokens), or only look.
+// Whether this task's chat gets Chrome: 'off', 'look' or 'work' (see chat.js).
 const chromeDrive = (id) => chat.chromeWork({ id });
+const chromeMode = (id) => chat.chromeMode({ id });
 
 // A task as the windows see it: with its plan's type and estimate, its state and its project.
 function decorate(t) {
@@ -60,6 +61,8 @@ function decorate(t) {
     planOk: c ? c.ok : null,
     updatedAfter: (c && c.updatedAfter) || null,
     chromeDrive: chromeDrive(t.id),
+    chrome: chromeMode(t.id),
+    chromeLocked: config.safeMode(),
     steps,
     ticked,
     status: st.status,
@@ -223,6 +226,7 @@ Object.assign(module.exports, {
   ICON_ICO,
   tasks: () => tasks,
   chromeDrive,
+  chromeMode,
   decorate,
   currentView,
   payload,

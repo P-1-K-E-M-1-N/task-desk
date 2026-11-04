@@ -5,14 +5,14 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\nightly.ps1
 #
 #   -DryRun     do everything except push
-#   -SkipTests  skip the slow Electron tests (to try the script itself)
+#   -SkipTests  skip the slow Electron tests (to try the script itself; main is then never moved)
 #   -Pause      keep the window open at the end (the desktop shortcut uses this)
 #
 # What it does, in order:
 #   1. fetch; make sure this clone is clean and on dev
 #   2. bring main's merged pull requests into dev (a merge, pushed to dev)
 #   3. stop early when dev has nothing main doesn't have (no tests, no tokens)
-#   4. npm install, lint, format check
+#   4. npm ci (no install scripts), lint, format check
 #   5. npm run test:plans (fills in missing cached plans; uses your Claude plan)
 #   6. npm run test:all   (every test, including the four that start Claude Code)
 #   7. wait for GitHub's own check on the dev commit
@@ -111,7 +111,9 @@ Say "dev is $($ahead.Count) commit(s) ahead of main:"
 # 4. Dependencies and the quick checks.
 $env:TASKDESK_NO_UPDATE = '1'
 $env:TASKDESK_LOCAL_DATA = '1'
-Run 'npm install' 'npm install --no-audit --no-fund --loglevel=error' | Out-Null
+# Exactly the locked versions, with no package install scripts; then Electron's own checked download.
+Run 'npm ci' 'npm ci --ignore-scripts --no-audit --no-fund --loglevel=error' | Out-Null
+Run 'electron' 'node node_modules/electron/install.js' | Out-Null
 Run 'lint' 'npm run lint --silent' | Out-Null
 Run 'format check' 'npm run format:check --silent' | Out-Null
 
@@ -150,6 +152,10 @@ if ($check -ne 'success') {
 Say "GitHub's check: success"
 
 # 8. Move main forward. A plain push of the same commit: nothing is rewritten.
+#    Never after -SkipTests: main only moves when every test ran and passed.
+if ($SkipTests) {
+  Finish "SKIPPED TESTS: not promoted" "The checks ran without the Electron tests (-SkipTests), so main was left alone."
+}
 if ($DryRun) {
   Finish 'DRY RUN: would promote' "Everything passed. Without -DryRun this would have moved main to $($sha.Substring(0,7)):`n`n$commits"
 }

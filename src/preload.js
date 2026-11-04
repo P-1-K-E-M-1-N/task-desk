@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('desk', {
   snooze: call('task:snooze'),
   finish: call('task:finish'),
   closeAnyway: call('task:closeAnyway'),
-  setChromeDrive: call('task:chromeDrive'),
+  setChrome: call('task:chrome'),
   openUrl: call('act:url'),
   copy: call('act:copy'),
   gmail: call('act:gmail'),

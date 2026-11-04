@@ -53,8 +53,30 @@ test('writeEnv: only .env files, valid names, and an existing line is replaced',
   assert.throws(() => writeEnv(path.join(dir, 'config.json'), 'KEY', 'x'), /not a \.env file/);
   assert.throws(() => writeEnv(env, 'bad name', 'x'), /Bad variable name/);
   writeEnv(env, 'API_KEY', 'first');
-  writeEnv(env, 'OTHER', 'two\nlines');
+  writeEnv(env, 'OTHER', '  sk-two  \n');
   writeEnv(env, 'API_KEY', 'second');
-  assert.equal(fs.readFileSync(env, 'utf8'), 'API_KEY=second\nOTHER=twolines\n');
+  assert.equal(fs.readFileSync(env, 'utf8'), 'API_KEY=second\nOTHER=sk-two\n');
   assert.doesNotThrow(() => writeEnv(path.join(dir, '.env.local'), 'A', '1'));
+});
+
+test("writeEnv: refuses names, files and values it can't write safely", () => {
+  const dir = scratch('env2');
+  const env = path.join(dir, '.env');
+  assert.throws(() => writeEnv(path.join(dir, 'prod.env'), 'KEY', 'x'), /not a \.env file/);
+  assert.throws(() => writeEnv(path.join(dir, '.env.production'), 'KEY', 'x'), /not a \.env file/);
+  assert.throws(() => writeEnv(env, 'lower', 'x'), /Bad variable name/);
+  for (const bad of ['two\nlines', 'has space', 'a"b', 'a#b', 'x$&y', 'back\\slash', 'cr\rhere', ''])
+    assert.throws(() => writeEnv(env, 'KEY', bad), /characters|empty/, JSON.stringify(bad));
+  assert.equal(fs.existsSync(env), false, 'nothing was written');
+});
+
+test("writeEnv: $ patterns in a key can't duplicate the file, and a read error stops it", () => {
+  const dir = scratch('env3');
+  const env = path.join(dir, '.env');
+  fs.writeFileSync(env, 'A=1\nKEY=old\nB=2\n');
+  writeEnv(env, 'KEY', 'new-value_9');
+  assert.equal(fs.readFileSync(env, 'utf8'), 'A=1\nKEY=new-value_9\nB=2\n');
+  fs.rmSync(env);
+  fs.mkdirSync(env); // a folder where the file should be: reading fails, so nothing is overwritten
+  assert.throws(() => writeEnv(env, 'KEY', 'x'));
 });

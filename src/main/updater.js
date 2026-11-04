@@ -14,6 +14,10 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile, execFileSync, spawn } = require('child_process');
+const { where } = require('./sessions');
+
+// git and node by their full paths (never a git.exe that happens to sit in the app's folder).
+const gitExe = () => where('git').find((h) => /\.exe$/i.test(h)) || null;
 
 const HOUR = 60 * 60 * 1000;
 const RUN_AT = 7; // 7 AM, local time
@@ -36,8 +40,10 @@ function kindOf(files) {
 }
 
 function git(root, args, timeout = 60000) {
+  const exe = gitExe();
+  if (!exe) return Promise.resolve({ ok: false, out: '', err: "git wasn't found" });
   return new Promise((resolve) => {
-    execFile('git', args, { cwd: root, timeout, windowsHide: true }, (err, out, errOut) => {
+    execFile(exe, args, { cwd: root, timeout, windowsHide: true }, (err, out, errOut) => {
       resolve({ ok: !err, out: String(out || '').trim(), err: String(errOut || (err && err.message) || '').trim() });
     });
   });
@@ -88,15 +94,7 @@ function msUntilNextRun(now = new Date()) {
 
 // Find the system Node.js (needed only when an update changes the app's packages).
 function findNode() {
-  try {
-    const out = execFileSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { windowsHide: true })
-      .toString()
-      .split(/\r?\n/)[0]
-      .trim();
-    return out && fs.existsSync(out) ? out : null;
-  } catch {
-    return null;
-  }
+  return where('node').find((h) => /\.exe$/i.test(h) && fs.existsSync(h)) || null;
 }
 
 // Start the helper that installs the update once this app has quit, then
@@ -117,8 +115,10 @@ function startHelper({ root, relaunch, electron, log }) {
 // Install while the app is running, when the packages didn't change: a plain
 // fast-forward of the app's files. The caller restarts the app afterwards.
 function pullNow(root) {
+  const exe = gitExe();
+  if (!exe) return { ok: false, error: "git wasn't found" };
   try {
-    execFileSync('git', ['pull', '--ff-only', '--quiet'], { cwd: root, timeout: 120000, windowsHide: true });
+    execFileSync(exe, ['pull', '--ff-only', '--quiet'], { cwd: root, timeout: 120000, windowsHide: true });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e.stderr || e.message).split('\n')[0] };

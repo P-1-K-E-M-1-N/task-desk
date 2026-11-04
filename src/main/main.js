@@ -35,6 +35,26 @@ const ipc = require('./ipc');
 app.setAppUserModelId(desk.APP_ID);
 ipc.register();
 
+// Programs the app starts are looked up on PATH only, never in the current folder.
+process.env.NoDefaultCurrentDirectoryInExePath = '1';
+
+// The windows only ever show the app's own pages: no pop-up windows, no going
+// to another page, no embedded web views, and no browser permissions (camera,
+// notifications…). Links from a plan go through the Open buttons instead.
+app.on('web-contents-created', (e, wc) => {
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  wc.on('will-navigate', (ev, url) => {
+    if (url !== wc.getURL()) ev.preventDefault();
+  });
+  wc.on('will-redirect', (ev) => ev.preventDefault());
+  wc.on('will-attach-webview', (ev) => ev.preventDefault());
+});
+app.whenReady().then(() => {
+  const { session } = require('electron');
+  session.defaultSession.setPermissionRequestHandler((wc, permission, done) => done(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
+});
+
 // ---------- lifecycle ----------
 
 // Starting it again (the taskbar pin, Start menu or desktop icon) brings the box up.
@@ -82,7 +102,7 @@ app.whenReady().then(async () => {
   updateFlow.scheduleUpdates();
   updateFlow.reopenWindows();
   // Tests (their own data folder only) drive the update steps directly.
-  if (process.env.TASKDESK_LOCAL_DATA)
+  if (process.env.TASKDESK_LOCAL_DATA && process.env.TASKDESK_TEST)
     global.__update = {
       refreshWindows: updateFlow.refreshWindows,
       rememberWindows: updateFlow.rememberWindows,

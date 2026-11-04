@@ -7,6 +7,16 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
 const config = require('./config');
+const { where } = require('./sessions');
+
+// Checklists are small text files; anything bigger than this isn't read.
+const MAX_LIST = 2 * 1024 * 1024;
+const readSmall = (f) => {
+  if (fs.statSync(f).size > MAX_LIST) throw new Error(`${f} is too big to be a checklist`);
+  return fs.readFileSync(f, 'utf8');
+};
+// A lane named in NEEDS_NICK.md becomes a folder name only when it's a plain name.
+const plainLane = (lane) => /^[\w.-]{1,100}$/.test(lane) && !/^\.+$/.test(lane);
 
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex');
 // Does a line mention the user? (needs their name; false until they've given it)
@@ -116,9 +126,21 @@ function guessMinutes(text, type) {
 // Low-priority wording: optional, informational, or "only if we ever want it".
 const LOW = /optional|no action needed|decide only if|only if we ever/i;
 
+// The workspace's git worktrees (lanes can have their own). git runs by its full
+// path, with the folder's own settings that could start other programs switched off.
 function laneWorktrees(root) {
+  const git = where('git').find((h) => /\.exe$/i.test(h));
+  if (!git) return [];
   try {
-    const out = execFileSync('git', ['-C', root, 'worktree', 'list', '--porcelain'], { encoding: 'utf8', timeout: 5000 });
+    const out = execFileSync(
+      git,
+      ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=NUL', '-C', root, 'worktree', 'list', '--porcelain'],
+      {
+        encoding: 'utf8',
+        timeout: 5000,
+        windowsHide: true,
+      }
+    );
     return out
       .split(/\r?\n/)
       .filter((l) => l.startsWith('worktree '))
@@ -132,7 +154,7 @@ function readTasks(root) {
   const needs = path.join(root, 'ops', 'NEEDS_NICK.md');
   let raw = [];
   try {
-    raw = parseNeedsNick(fs.readFileSync(needs, 'utf8'));
+    raw = parseNeedsNick(readSmall(needs));
   } catch {
     raw = [];
   }
@@ -147,13 +169,13 @@ function readTasks(root) {
   } catch {}
   for (const lane of lanes) {
     try {
-      raw.push(...parseLaneFlags(fs.readFileSync(path.join(lanesDir, lane, 'LANE.md'), 'utf8'), lane));
+      raw.push(...parseLaneFlags(readSmall(path.join(lanesDir, lane, 'LANE.md')), lane));
     } catch {}
   }
 
   const worktrees = laneWorktrees(root);
   return toTasks(raw, (r) => {
-    const laneDir = r.lane === 'factory' ? root : path.join(lanesDir, r.lane);
+    const laneDir = r.lane === 'factory' || !plainLane(r.lane) ? root : path.join(lanesDir, r.lane);
     const tree = worktrees.find((w) => r.lane !== 'factory' && path.basename(w).includes(r.lane));
     return { laneDir, workDir: tree || root };
   }).map((t) => ({ ...t, project: 'factory' }));
@@ -164,7 +186,7 @@ function readTasks(root) {
 function readChecklist(file, onlyMine) {
   let raw = [];
   try {
-    raw = parseNeedsNick(fs.readFileSync(file, 'utf8'));
+    raw = parseNeedsNick(readSmall(file));
   } catch {}
   if (onlyMine) raw = raw.filter((r) => mentionsMe(r.text));
   return raw.map((r) => ({ ...r, lane: r.lane === 'factory' ? 'general' : r.lane }));

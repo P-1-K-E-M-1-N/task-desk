@@ -17,14 +17,16 @@ const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./ha
 const projects = require('./projects');
 const ai = require('./ai');
 const log = require('./log');
+const safety = require('./safety');
 const desk = require('./desk');
 const windows = require('./windows');
 const menu = require('./menu');
 
-const PAGES_URL = pathToFileURL(desk.RENDERER).href;
+// The app's own three pages, exactly (their ?id=… part aside).
+const PAGES = new Set(['box.html', 'task.html', 'project.html'].map((f) => pathToFileURL(path.join(desk.RENDERER, f)).href));
 const fromOurPage = (e) => {
   const u = (e.senderFrame && e.senderFrame.url) || '';
-  return u.startsWith(PAGES_URL);
+  return PAGES.has(u.split(/[?#]/)[0]);
 };
 const handle = (channel, fn) =>
   ipcMain.handle(channel, (e, ...args) => {
@@ -52,7 +54,31 @@ function baseFor(e) {
   const t = id && desk.findTask(id);
   return t && t.project !== 'factory' ? t.projectFolder || t.workDir : config.root();
 }
-const resolvePath = (p, e) => (p ? (path.isAbsolute(p) ? path.normalize(p) : path.join(e ? baseFor(e) : config.root(), p)) : null);
+// A path from a plan, as a full path. Network paths and odd names (see safety.js) are refused (null).
+const resolvePath = (p, e) => {
+  if (typeof p !== 'string' || !p || safety.isNetwork(p) || safety.oddName(p)) return null;
+  return path.isAbsolute(p) ? path.normalize(p) : path.join(e ? baseFor(e) : config.root(), p);
+};
+// Is this path inside the task's own folder (or the app's data folder)?
+const inTaskFolder = (f, e) => safety.within(f, baseFor(e)) || safety.within(f, config.DATA_DIR);
+
+// Asks before the app does something a plan asked for: the whole address or
+// path is shown, and Cancel is the default.
+async function confirm(e, { message, detail, ok }) {
+  const r = await dialog.showMessageBox(winOf(e), {
+    type: 'question',
+    buttons: [ok, 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    message,
+    detail,
+  });
+  return r.response === 0;
+}
+// Links you've already said yes to, per task, so the same link doesn't ask twice.
+const approved = new Set();
+const taskIdOf = (e) => [...windows.taskWins].find(([, w]) => !w.isDestroyed() && w.webContents === e.sender)?.[0] || '';
 // Where this task's Done notes go: 'factory' (FROM_NICK.md), 'file' (the project's file) or 'app'.
 function resultsKind(t) {
   const p = projects.get(t.project);
@@ -374,9 +400,13 @@ function register() {
     );
     return r.canceled ? null : r.filePaths[0];
   });
+  // A project's results file: only a document inside one of your projects' folders or the app's data.
   handle('project:open', (e, p) => {
-    if (p && fs.existsSync(p) && !desk.RUNS.test(p)) shell.openPath(p);
-    else return { ok: false, error: 'Nothing there yet: it appears after your first Done.' };
+    const f = typeof p === 'string' && !safety.isNetwork(p) ? path.resolve(p) : null;
+    const known = f && projects.list().some((x) => path.resolve(projects.resultsFile(x)) === f);
+    if (!f || !fs.existsSync(f)) return { ok: false, error: 'Nothing there yet: it appears after your first Done.' };
+    if (!known || !safety.openable(f)) return { ok: false, error: "Task Desk only opens your projects' results files here." };
+    shell.openPath(f);
   });
 
   // ----- plan step actions -----
@@ -386,52 +416,128 @@ function register() {
   const CHROME = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA]
     .filter(Boolean)
     .map((d) => path.join(d, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+  // Only web links (http or https), never with a name and password in them.
+  const webLink = (url) => {
+    try {
+      const u = new URL(String(url));
+      return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null;
+    } catch {
+      return null;
+    }
+  };
+  // Links the app itself makes (not the plan): no need to ask.
+  const OWN_LINKS = new Set(['https://ads.google.com/aw/keywordplanner/home']);
   function openLink(e, url) {
-    if (!/^https?:\/\//i.test(url)) return;
     const exe = !desk.TESTING && CHROME.find((f) => fs.existsSync(f));
     if (exe) spawn(exe, [url], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
     else shell.openExternal(url);
-    const id = [...windows.taskWins].find(([, w]) => !w.isDestroyed() && w.webContents === e.sender)?.[0];
+    const id = taskIdOf(e);
     if (id) {
       const st = state.task(id);
       state.update(id, { opened: [...(st.opened || []), { url, at: new Date().toISOString() }].slice(-8) });
     }
   }
-  handle('act:url', (e, url) => openLink(e, url));
+  // A link from a plan opens after you've seen the whole address and said yes (once per link and task).
+  handle('act:url', async (e, url) => {
+    const u = webLink(url);
+    if (!u) return { ok: false, error: 'Task Desk only opens web links (http or https).' };
+    const key = `${taskIdOf(e)} ${u}`;
+    if (!OWN_LINKS.has(u) && !approved.has(key)) {
+      const yes = await confirm(e, {
+        ok: 'Open the link',
+        message: `Open this link from the plan?`,
+        detail: `${u.length > 600 ? u.slice(0, 600) + '…' : u}\n\nIt opens at ${new URL(u).hostname}. Check it's a site you expect: the plan was written by the AI from the task's files.`,
+      });
+      if (!yes) return { ok: false, cancelled: true, error: 'Not opened' };
+      approved.add(key);
+    }
+    openLink(e, u);
+    return { ok: true };
+  });
   handle('act:copy', (e, text) => clipboard.writeText(String(text)));
-  handle('act:gmail', (e, { to = '', subject = '', body = '' }) => {
+  // A Gmail draft opens in your browser; you still press Send. One with a recipient
+  // filled in by the plan shows who it's to and the subject first.
+  handle('act:gmail', async (e, draft) => {
+    const d = draft && typeof draft === 'object' ? draft : {};
+    const [to, subject, body] = ['to', 'subject', 'body'].map((k) => String(d[k] || ''));
+    if (to.trim()) {
+      const yes = await confirm(e, {
+        ok: 'Open the draft',
+        message: 'Open this email draft in Gmail?',
+        detail: `To: ${to}\nSubject: ${subject || '(none)'}\n\n${body.slice(0, 400)}${body.length > 400 ? '…' : ''}\n\nNothing is sent until you press Send in Gmail.`,
+      });
+      if (!yes) return { ok: false, cancelled: true, error: 'Not opened' };
+    }
     openLink(
       e,
       `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     );
+    return { ok: true };
   });
-  // The task window's Chrome switch: look only, or let Claude work in Chrome.
-  handle('task:chromeDrive', (e, id, on) => {
-    state.update(id, { chromeDrive: !!on });
-    if (chat.isLive(id))
+  // The task window's Chrome button: 'off', 'look' or 'work' for this task.
+  // Chrome is given to Claude when the chat starts, so turning it on or off
+  // restarts a running chat (it resumes the same conversation). Between look
+  // and work, the running chat is just told.
+  handle('task:chrome', (e, id, mode) => {
+    if (!desk.findTask(id) || !chat.CHROME_MODES.includes(mode)) return null;
+    if (config.safeMode()) return { mode: 'off', locked: true };
+    const before = desk.chromeMode(id);
+    state.update(id, { chrome: mode, chromeDrive: undefined });
+    const now = desk.chromeMode(id);
+    const live = chat.isLive(id);
+    const restart = live && (before === 'off') !== (now === 'off');
+    if (live && !restart && before !== now)
       chat.send(
         id,
-        on
+        now === 'work'
           ? `(Task Desk) ${config.who()} turned on "Let Claude work in Chrome" for this task. ${chat.CHROME_WORK}`
           : `(Task Desk) "Let Claude work in Chrome" is off again. ${chat.CHROME_LOOK}`
       );
-    return desk.chromeDrive(id);
+    desk.broadcast();
+    return { mode: now, restart };
   });
+  // Open buttons open documents, never programs: only the types in safety.js
+  // (Markdown, text, PDF, pictures, Office files without macros…). One inside
+  // the task's own folder opens straight away; anywhere else, you see the full
+  // path and say yes first.
   handle('act:file', async (e, p) => {
     const f = resolvePath(p, e);
-    if (!f || !fs.existsSync(f)) return { ok: false, error: 'File not found: ' + f };
-    if (desk.RUNS.test(f)) return { ok: false, error: "Task Desk doesn't run programs. Use 'Show in folder' instead." };
+    if (!f || !fs.existsSync(f) || !fs.statSync(f).isFile()) return { ok: false, error: 'File not found: ' + (f || p) };
+    if (!safety.openable(f))
+      return {
+        ok: false,
+        error: `Task Desk only opens documents, not .${safety.typeOf(f) || '?'} files. Use the folder button to find it.`,
+      };
+    if (!inTaskFolder(f, e)) {
+      const yes = await confirm(e, {
+        ok: 'Open it',
+        message: "Open this file? It's outside the task's folder.",
+        detail: `${safety.real(f)}\n\nThe plan was written by the AI from the task's files. Open it only if you expected this file.`,
+      });
+      if (!yes) return { ok: false, cancelled: true, error: 'Not opened' };
+    }
     const err = await shell.openPath(f);
     return { ok: !err, error: err };
   });
+  // Shows a file in its folder, or opens a folder (the nearest one that exists), in File Explorer.
   handle('act:folder', async (e, p) => {
     let f = resolvePath(p, e);
-    if (f && fs.existsSync(f) && fs.statSync(f).isFile()) {
+    if (!f) return { ok: false, error: 'Task Desk only opens folders on this computer.' };
+    const ask = (where) =>
+      inTaskFolder(where, e) ||
+      confirm(e, {
+        ok: 'Show it',
+        message: "Open this folder? It's outside the task's folder.",
+        detail: `${safety.real(where)}\n\nThe plan was written by the AI from the task's files.`,
+      });
+    if (fs.existsSync(f) && fs.statSync(f).isFile()) {
+      if (!(await ask(f))) return { ok: false, cancelled: true, error: 'Not opened' };
       shell.showItemInFolder(f);
       return { ok: true };
     }
     while (f && !fs.existsSync(f) && path.dirname(f) !== f) f = path.dirname(f);
-    if (!f) return { ok: false };
+    if (!f || !fs.existsSync(f) || !fs.statSync(f).isDirectory()) return { ok: false };
+    if (!(await ask(f))) return { ok: false, cancelled: true, error: 'Not opened' };
     await shell.openPath(f);
     return { ok: true, path: f };
   });
@@ -439,27 +545,34 @@ function register() {
     const f = resolvePath(p, e);
     return !!f && fs.existsSync(f);
   });
+  // The drafts in an outreach emails.md (a Markdown file, at most 2 MB).
   handle('act:emails', (e, p) => {
     const f = resolvePath(p, e);
     try {
+      if (!f || !/\.(md|txt)$/i.test(f)) throw new Error('The drafts have to be in a .md or .txt file.');
+      if (fs.statSync(f).size > 2 * 1024 * 1024) throw new Error('That file is too big to be a list of drafts.');
       const r = parseEmails(fs.readFileSync(f, 'utf8'));
       return { ...r, file: f, attachPath: r.attach ? resolvePath(r.attach, e) : null };
     } catch (err) {
       return { emails: [], error: err.message };
     }
   });
-  handle('act:env', (e, id, envPath, name, value) => {
+  // Saving a key you paste: only into a .env (or .env.local) file inside the
+  // task's own folder, and only after you've seen the variable and the file.
+  handle('act:env', async (e, id, envPath, name, value) => {
     const f = resolvePath(envPath, e);
+    if (!f || !['.env', '.env.local'].includes(path.basename(f).toLowerCase()))
+      return { ok: false, error: 'Task Desk only writes keys into a .env file.' };
+    if (!safety.within(f, baseFor(e)))
+      return { ok: false, error: "That .env file isn't inside this task's folder, so Task Desk won't write to it." };
+    if (typeof name !== 'string' || !/^[A-Z_][A-Z0-9_]{0,99}$/.test(name)) return { ok: false, error: 'That variable name looks wrong.' };
     const inFactory = config.inFactory(f);
-    const r = dialog.showMessageBoxSync(winOf(e), {
-      type: 'warning',
-      buttons: ['Write the key', 'Cancel'],
-      defaultId: 1,
-      cancelId: 1,
+    const yes = await confirm(e, {
+      ok: 'Write the key',
       message: `Write ${name} into this .env file?`,
-      detail: `${f}${inFactory ? `\n\nThis file is inside ${config.factoryName()}.` : ''}\n\nThe key is not saved anywhere else (not in app data, logs or git).`,
+      detail: `Variable: ${name}\nFile: ${safety.real(f)}${inFactory ? `\n\nThis file is inside ${config.factoryName()}.` : ''}\n\nThe key is not saved anywhere else (not in app data, logs or git).`,
     });
-    if (r !== 0) return { ok: false, cancelled: true };
+    if (!yes) return { ok: false, cancelled: true };
     try {
       writeEnv(f, name, value);
       return { ok: true };

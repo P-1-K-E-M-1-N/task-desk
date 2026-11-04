@@ -38,6 +38,9 @@ const MACHINE_KEYS = [
   'linksFor',
   // This computer's own folder for a project ({ <project id>: path, factory: path }).
   'folders',
+  // Company-safe mode (see safeMode() below), and extra environment variables the AI apps may see.
+  'safeMode',
+  'passEnv',
 ];
 
 const DEFAULTS = {
@@ -72,13 +75,25 @@ const readJson = (f) => {
     return null;
   }
 };
+// Written to a temporary file first and then swapped in, so a crash mid-write never leaves half a file.
 const writeJson = (f, obj) => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, JSON.stringify(obj, null, 2));
+  fs.writeFileSync(f + '.tmp', JSON.stringify(obj, null, 2));
+  fs.renameSync(f + '.tmp', f);
 };
+// A settings file that's there but can't be read is kept aside (settings.json.broken-<time>)
+// before the app starts over with defaults, instead of being overwritten.
+function readOrKeep(f) {
+  const j = readJson(f);
+  if (j || !fs.existsSync(f)) return j;
+  try {
+    fs.copyFileSync(f, `${f}.broken-${Date.now()}`);
+  } catch {}
+  return null;
+}
 
 fs.mkdirSync(LOCAL_DIR, { recursive: true });
-let machine = readJson(MACHINE_FILE) || {};
+let machine = readOrKeep(MACHINE_FILE) || {};
 // Tests always use the folder next to the app, never a synced one.
 const wanted = process.env.TASKDESK_LOCAL_DATA ? null : machine.dataDir || null;
 const DATA_DIR = wanted && fs.existsSync(wanted) ? wanted : LOCAL_DIR;
@@ -91,8 +106,15 @@ fs.mkdirSync(PLANS_DIR, { recursive: true });
 
 let settings = load();
 
+// Updating by itself is off for new installs. Copies that already checked for
+// updates before this choice existed keep doing so.
+if (!('autoUpdate' in machine)) {
+  machine.autoUpdate = !!machine.lastUpdateCheck;
+  writeJson(MACHINE_FILE, machine);
+}
+
 function load() {
-  const saved = readJson(SETTINGS_FILE) || {};
+  const saved = readOrKeep(SETTINGS_FILE) || {};
   // Older versions kept the machine settings in settings.json: move them over once.
   let moved = false;
   for (const k of MACHINE_KEYS)
@@ -132,6 +154,16 @@ function set(patch) {
 }
 
 const synced = () => DATA_DIR !== LOCAL_DIR;
+
+// Company-safe mode, for a work computer. Set per computer (⋯ menu), or by IT
+// with the TASKDESK_SAFE_MODE=1 environment variable (then it can't be turned
+// off in the app). While it's on:
+//  - the desk never updates by itself (Check for updates still asks first),
+//  - chats never get Chrome,
+//  - only Claude Code is used (no Codex or Gemini),
+//  - the data folder can't be moved to OneDrive.
+const safeModeForced = () => process.env.TASKDESK_SAFE_MODE === '1';
+const safeMode = () => safeModeForced() || machine.safeMode === true;
 
 // A project's folder on this computer: its own, else the shared one. id is a project id or 'factory'.
 // An empty one means "none on this computer".
@@ -194,6 +226,8 @@ module.exports = {
   set,
   root,
   synced,
+  safeMode,
+  safeModeForced,
   folderFor,
   placeFolder,
   livePath,

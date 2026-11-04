@@ -91,6 +91,22 @@ const helper = () => {
 
   // ---- an update that changes the packages goes through the helper ----
   write(AUTHOR, 'package.json', JSON.stringify({ name: 'pretend-desk', version: '2.0.0', private: true }, null, 2));
+  // The helper installs exactly what the lockfile says (npm ci), so the pretend app has one too.
+  write(
+    AUTHOR,
+    'package-lock.json',
+    JSON.stringify(
+      {
+        name: 'pretend-desk',
+        version: '2.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: { '': { name: 'pretend-desk', version: '2.0.0' } },
+      },
+      null,
+      2
+    )
+  );
   push('New packages');
   s = await updater.status(MINE);
   ok('package change is spotted', s.canInstall && s.deps);
@@ -99,7 +115,7 @@ const helper = () => {
     'helper installs it',
     JSON.parse(read(MINE, 'package.json')).version === '2.0.0' && git(MINE, 'rev-parse', 'HEAD') === git(AUTHOR, 'rev-parse', 'HEAD')
   );
-  ok('helper ran npm install', /npm install done/.test(fs.readFileSync(LOG, 'utf8')));
+  ok('helper ran npm ci without install scripts', /npm ci --ignore-scripts .*done/.test(fs.readFileSync(LOG, 'utf8')));
 
   // ---- a broken update rolls back ----
   const good = git(MINE, 'rev-parse', 'HEAD');
