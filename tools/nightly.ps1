@@ -111,6 +111,9 @@ Say "dev is $($ahead.Count) commit(s) ahead of main:"
 # 4. Dependencies and the quick checks.
 $env:TASKDESK_NO_UPDATE = '1'
 $env:TASKDESK_LOCAL_DATA = '1'
+# Claude Code runs on Opus for the plans and the tests that start the real Claude (unless a test picks its own model).
+$env:ANTHROPIC_MODEL = 'opus'
+Say 'Claude model for this run: opus'
 # Exactly the locked versions, with no package install scripts; then Electron's own checked download.
 Run 'npm ci' 'npm ci --ignore-scripts --no-audit --no-fund --loglevel=error' | Out-Null
 Run 'electron' 'node node_modules/electron/install.js' | Out-Null

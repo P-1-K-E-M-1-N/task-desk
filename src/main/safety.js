@@ -154,6 +154,8 @@ const ENV_KEEP = new Set(
     'SSL_CERT_DIR',
     // Where each AI app keeps its own settings and sign-in
     'CLAUDE_CONFIG_DIR',
+    // Claude Code's default model (a setting, not a secret; the nightly check sets it)
+    'ANTHROPIC_MODEL',
     'CLAUDE_CODE_GIT_BASH_PATH',
     'CODEX_HOME',
     'GEMINI_CLI_HOME',
