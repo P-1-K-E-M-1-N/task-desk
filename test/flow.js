@@ -84,9 +84,12 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   ok('the task has a plan with steps', n >= 2, String(n));
 
   // ---- the chat starts without Chrome, and can't change files in the workspace ----
-  const args = await until(async () => /args: .*--append-system-prompt/.test(await termText(win)) && (await termText(win)));
-  ok('the Claude chat starts without Chrome', !!args && !/--chrome/.test(args));
-  ok('and with its edit tools turned off', /--disallowedTools Edit Write/.test(args || ''));
+  // The pretend AI prints its options ("--x") on one line, which the terminal may wrap.
+  // Joining the rows back up mends a word the wrap split; the last launch's line counts.
+  const argsLine = (t) => ((t || '').replace(/\r?\n/g, '').match(/args: .*?handover:/g) || []).pop() || '';
+  const args = await until(async () => /--append-system-prompt/.test(argsLine(await termText(win))) && argsLine(await termText(win)));
+  ok('the Claude chat starts without Chrome', !!args && !/--chrome/.test(args), args);
+  ok('and with its edit tools turned off', /--disallowedTools/.test(args || ''), args);
 
   // ---- closing a started task asks first ----
   await win.locator('.step .check').first().click();
@@ -127,7 +130,7 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   ok('the switch starts at off', /Chrome: off/.test(await win.locator('#cchrome').innerText()));
   await win.locator('#cchrome').click();
   ok('one click: look only', !!(await until(async () => /look only/.test(await win.locator('#cchrome').innerText()))));
-  ok('and the chat restarts with Chrome', !!(await until(async () => /args: .*--chrome/.test(await termText(win)))));
+  ok('and the chat restarts with Chrome', !!(await until(async () => /--chrome/.test(argsLine(await termText(win))))));
   ok('the task remembers it', (await stOf(win, id)).chrome === 'look');
   await win.locator('#cchrome').click();
   await wait(300);

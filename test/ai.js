@@ -27,9 +27,10 @@ const FAKE = `${process.execPath}|${path.join(__dirname, 'fake-claude.js')}`;
   const codexTools = ai.toolArgs(P.codex, spec, 't1').args.join(' ');
   ok(
     'Codex chats get the Task Desk tools',
-    /mcp_servers\.taskdesk\.command='C:\\App\\electron\.exe'/.test(codexTools) &&
-      /mcp_servers\.taskdesk\.args=\['C:\\App\\mcp\.js'\]/.test(codexTools) &&
-      /TASKDESK_TASK='t1'/.test(codexTools),
+    // Values are escaped TOML strings (the same as JSON strings).
+    codexTools.includes(`mcp_servers.taskdesk.command=${JSON.stringify(spec.command)}`) &&
+      codexTools.includes(`mcp_servers.taskdesk.args=[${JSON.stringify(spec.args[0])}]`) &&
+      codexTools.includes('TASKDESK_TASK="t1"'),
     codexTools
   );
   const gem = ai.toolArgs(P.gemini, spec, 't1');
@@ -48,8 +49,8 @@ const FAKE = `${process.execPath}|${path.join(__dirname, 'fake-claude.js')}`;
   ok('a Codex chat resumes its own session', ai.chatArgs(P.codex, { resume: true, sessionId: 'abc' }).join(' ').endsWith('resume abc'));
   ok(
     'a Gemini chat starts with the brief and resumes the latest',
-    ai.chatArgs(P.gemini, { brief: 'Hi' }).join(' ') === '--prompt-interactive Hi' &&
-      ai.chatArgs(P.gemini, { resume: true }).join(' ') === '--resume latest'
+    ai.chatArgs(P.gemini, { brief: 'Hi' }).join(' ') === '--approval-mode default --prompt-interactive Hi' &&
+      ai.chatArgs(P.gemini, { resume: true }).join(' ') === '--approval-mode default --resume latest'
   );
 
   // Codex picks its own session ids: find the one just started in this folder.

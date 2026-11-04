@@ -115,7 +115,11 @@ const helper = () => {
     'helper installs it',
     JSON.parse(read(MINE, 'package.json')).version === '2.0.0' && git(MINE, 'rev-parse', 'HEAD') === git(AUTHOR, 'rev-parse', 'HEAD')
   );
-  ok('helper ran npm ci without install scripts', /npm ci --ignore-scripts .*done/.test(fs.readFileSync(LOG, 'utf8')));
+  ok(
+    'helper ran npm ci without install scripts',
+    /npm ci --ignore-scripts .*done/.test(fs.readFileSync(LOG, 'utf8')),
+    fs.readFileSync(LOG, 'utf8')
+  );
 
   // ---- a broken update rolls back ----
   const good = git(MINE, 'rev-parse', 'HEAD');
