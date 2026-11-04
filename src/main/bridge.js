@@ -34,6 +34,35 @@ function taskFor(token) {
 }
 
 // Files from earlier runs (a crash, or an older version that never deleted them).
+// At most 120 tool calls a minute per chat (a chat uses a few); more means something's wrong.
+const LIMIT = 120;
+const recent = new Map(); // task id -> times of its calls in the last minute
+function tooMany(task) {
+  const now = Date.now();
+  const list = (recent.get(task) || []).filter((t) => now - t < 60 * 1000);
+  list.push(now);
+  recent.set(task, list);
+  return list.length > LIMIT;
+}
+
+// The folder holding the chats' tokens is readable by this Windows user only
+// (and Windows itself), not by other accounts on the computer. Done once per start.
+let locked = false;
+function lockFolder() {
+  if (locked || process.platform !== 'win32') return;
+  locked = true;
+  const icacls = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'icacls.exe');
+  const user = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}` : process.env.USERNAME;
+  if (!user || !fs.existsSync(icacls)) return;
+  try {
+    require('child_process').execFileSync(icacls, [MCP_DIR, '/inheritance:r', '/grant:r', `${user}:(OI)(CI)F`, '*S-1-5-18:(OI)(CI)F'], {
+      windowsHide: true,
+      stdio: 'ignore',
+      timeout: 10000,
+    });
+  } catch {}
+}
+
 function clearOld() {
   try {
     for (const f of fs.readdirSync(MCP_DIR)) if (/\.(json|token)$/.test(f)) fs.rmSync(path.join(MCP_DIR, f), { force: true });
@@ -66,6 +95,7 @@ function start(handle) {
       }
       const task = taskFor(msg && msg.token);
       if (!task) return reply(403, { ok: false, error: 'Not allowed' });
+      if (tooMany(task)) return reply(429, { ok: false, error: 'Too many requests; wait a moment.' });
       try {
         reply(200, await handle(task, String(msg.tool || ''), msg.args && typeof msg.args === 'object' ? msg.args : {}));
       } catch (e) {
@@ -89,6 +119,7 @@ function tokenFile(taskId) {
   tokens.set(taskId, token);
   byHash.set(key(token), taskId);
   fs.mkdirSync(MCP_DIR, { recursive: true });
+  lockFolder();
   const file = path.join(MCP_DIR, `${taskId}.token`);
   fs.writeFileSync(file, token, { mode: 0o600 });
   return file;
@@ -116,6 +147,7 @@ function forget(taskId) {
   const t = tokens.get(taskId);
   if (t) byHash.delete(key(t));
   tokens.delete(taskId);
+  recent.delete(taskId);
   if (!safeId(taskId)) return;
   for (const f of [`${taskId}.json`, `${taskId}.token`, `${taskId}.gemini.json`]) fs.rmSync(path.join(MCP_DIR, f), { force: true });
 }

@@ -16,6 +16,7 @@ Changes a user would notice, newest first. The format follows
 - **Company-safe mode** (⋯ menu, or `TASKDESK_SAFE_MODE=1` from an IT team) for a work computer: no automatic updates, no Chrome for chats, Claude Code only, and the data kept off OneDrive.
 
 ### Changed (security)
+- Updates must be signed with the maintainer's key (`tools/allowed_signers`), checked against the list already installed. An unsigned update is never installed, and only the exact version that was checked goes in.
 - Updating by itself is now off for new installs: **Check for updates now** shows what changed and asks first. Copies that already updated themselves keep doing so.
 - Updates that change the packages reinstall them with `npm ci --ignore-scripts` (exact locked versions, no install scripts), then Electron's own checked download. `git`, `node` and `npm` run by their full paths, never through a shell. A failed update goes back and tells you so.
 - Chats no longer get your Chrome browser unless you turn it on: a task's **Chrome** button goes off, look only, working; **Claude and Chrome** in the ⋯ menu sets the default.

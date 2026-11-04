@@ -1,7 +1,7 @@
 // Installs a Task Desk update after the app has quit (Windows can't replace
 // the app's files while it's running), then reopens the desk if asked.
 // Run by updater.js with the system Node.js:
-//   node update-helper.js <appFolder> <appPid> <relaunch 0|1> <electron.exe> <logFile>
+//   node update-helper.js <appFolder> <appPid> <relaunch 0|1> <electron.exe> <logFile> [<version to install>]
 // Steps: wait for the app to close, fast-forward to the newest version, and
 // reinstall the packages if they changed. If that fails, it goes back to the
 // version that was there before, so the desk still opens, and leaves a note the
@@ -18,7 +18,7 @@ const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const { where } = require('./sessions');
 
-const [root, pid, relaunch, electron, logFile] = process.argv.slice(2);
+const [root, pid, relaunch, electron, logFile, target] = process.argv.slice(2);
 const PROBLEM = path.join(path.dirname(logFile || '.'), 'update-problem.txt');
 const log = (msg) => {
   try {
@@ -94,7 +94,8 @@ const problem = (msg) => {
   let before = '';
   try {
     before = git(['rev-parse', 'HEAD']);
-    git(['pull', '--ff-only', '--quiet']);
+    // Exactly the version the desk checked (and whose signature it verified), else the branch's newest.
+    git(/^[0-9a-f]{40,64}$/.test(target || '') ? ['merge', '--ff-only', '--quiet', target] : ['pull', '--ff-only', '--quiet']);
     const after = git(['rev-parse', 'HEAD']);
     const changed = git(['diff', '--name-only', before, after]).split(/\r?\n/);
     log(`updated ${before.slice(0, 7)} -> ${after.slice(0, 7)}`);

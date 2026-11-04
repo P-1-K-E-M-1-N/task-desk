@@ -65,17 +65,57 @@ async function status(root, { fetch = true } = {}) {
   const dirty = (await git(root, ['status', '--porcelain', '--untracked-files=no'])).out !== '';
   const changes = behind ? (await git(root, ['log', '--format=%s', '-n', '8', 'HEAD..@{u}'])).out.split('\n').filter(Boolean) : [];
   const files = behind ? (await git(root, ['diff', '--name-only', 'HEAD', '@{u}'])).out.split('\n').filter(Boolean) : [];
+  // The exact version to install, and whether its signature is one this copy trusts.
+  const target = (await git(root, ['rev-parse', '@{u}'])).out;
+  const signed = behind ? await signedBy(root, target) : { required: false, ok: true };
   return {
     ok: true,
     upstream: up.out,
+    target,
     behind,
     ahead,
     dirty,
     changes,
+    signed,
     deps: files.some((f) => DEPS.includes(f)),
     kind: behind ? kindOf(files) : 'none',
-    canInstall: behind > 0 && ahead === 0 && !dirty,
+    canInstall: behind > 0 && ahead === 0 && !dirty && signed.ok,
   };
+}
+
+// ---------- signed updates ----------
+// tools/allowed_signers lists the keys whose signature an update needs (the
+// maintainer's signing keys). The list is read from the copy that's installed
+// now, never from the update being checked, so an update can't vouch for
+// itself: someone who could push to GitHub but doesn't have the key on the
+// maintainer's computer can't get code installed. The newest commit of the
+// update must carry a good signature from one of those keys; it covers
+// everything before it. A copy without the list (older installs, tests) skips
+// this check.
+const SIGNERS = (root) => path.join(root, 'tools', 'allowed_signers');
+async function signedBy(root, sha) {
+  const list = SIGNERS(root);
+  if (!fs.existsSync(list)) return { required: false, ok: true };
+  const keygen = where('ssh-keygen').find((h) => /\.exe$/i.test(h));
+  if (!keygen) return { required: true, ok: false, why: "ssh-keygen (part of Windows' OpenSSH, and of Git) wasn't found" };
+  const r = await git(root, [
+    '-c',
+    'gpg.format=ssh',
+    '-c',
+    `gpg.ssh.allowedSignersFile=${list}`,
+    '-c',
+    `gpg.ssh.program=${keygen}`,
+    'verify-commit',
+    '--raw',
+    sha,
+  ]);
+  const good = r.ok && /Good "git" signature/i.test(r.err) && !/No principal matched/i.test(r.err);
+  const why = good
+    ? ''
+    : /No principal matched|Good "git" signature/i.test(r.err)
+      ? `It's signed, but with a key that isn't on this copy's list (${sha.slice(0, 7)}).`
+      : `The newest commit (${sha.slice(0, 7)}) has no valid signature.`;
+  return { required: true, ok: good, why };
 }
 
 // The most recent 7 AM that has passed.
@@ -99,10 +139,12 @@ function findNode() {
 
 // Start the helper that installs the update once this app has quit, then
 // (optionally) reopens it. Returns false if it can't run here.
-function startHelper({ root, relaunch, electron, log }) {
+// target: the exact version that was checked (status().target); only that one is installed.
+function startHelper({ root, relaunch, electron, log, target }) {
   const node = findNode();
   if (!node) return false;
-  const child = spawn(node, [path.join(__dirname, 'update-helper.js'), root, String(process.pid), relaunch ? '1' : '0', electron, log], {
+  const args = [path.join(__dirname, 'update-helper.js'), root, String(process.pid), relaunch ? '1' : '0', electron, log, target || ''];
+  const child = spawn(node, args, {
     cwd: root,
     detached: true,
     stdio: 'ignore',
@@ -113,12 +155,14 @@ function startHelper({ root, relaunch, electron, log }) {
 }
 
 // Install while the app is running, when the packages didn't change: a plain
-// fast-forward of the app's files. The caller restarts the app afterwards.
-function pullNow(root) {
+// fast-forward of the app's files to the version that was checked (target), so
+// nothing pushed after the check gets in. The caller restarts the app afterwards.
+function pullNow(root, target) {
   const exe = gitExe();
   if (!exe) return { ok: false, error: "git wasn't found" };
   try {
-    execFileSync(exe, ['pull', '--ff-only', '--quiet'], { cwd: root, timeout: 120000, windowsHide: true });
+    const args = /^[0-9a-f]{40,64}$/.test(target || '') ? ['merge', '--ff-only', '--quiet', target] : ['pull', '--ff-only', '--quiet'];
+    execFileSync(exe, args, { cwd: root, timeout: 120000, windowsHide: true });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e.stderr || e.message).split('\n')[0] };

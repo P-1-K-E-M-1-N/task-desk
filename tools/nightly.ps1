@@ -90,7 +90,7 @@ Run 'update dev' 'git merge -q --ff-only origin/dev'
 $mainOnly = git rev-list dev..origin/main
 if ($mainOnly) {
   Say "main has $(@($mainOnly).Count) commit(s) dev lacks; merging main into dev"
-  git merge -q origin/main -m "Bring main's merged pull requests into dev" 2>&1 | ForEach-Object { Say "  $_" }
+  git merge -q --no-ff origin/main -m "Bring main's merged pull requests into dev" 2>&1 | ForEach-Object { Say "  $_" }
   if ($LASTEXITCODE -ne 0) {
     git merge --abort 2>$null
     Finish 'STOPPED: dev and main conflict' 'Merging main into dev hit a conflict. Someone has to resolve it by hand (`git merge origin/main` in this clone), then push dev.'

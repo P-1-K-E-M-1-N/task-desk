@@ -1,0 +1,5 @@
+# Keys whose signature a Task Desk update needs (see src/main/updater.js).
+# An installed copy checks updates against the list it already has, so a
+# change here only counts once it has arrived in a signed update.
+# Format: <name> namespaces="git" <public key>
+281815768+P-1-K-E-M-1-N@users.noreply.github.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC5cy/yFIMzmerK+v0eeJDz04GEKqINn9JcIEoplTR9k

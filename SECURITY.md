@@ -33,7 +33,9 @@ Knowing the boundaries makes it clear what counts as a bug.
   so a chat can only change the task it was opened for. The token reaches the
   tools in a file in `data\mcp\` (never on a command line), compared in constant
   time; requests also need the exact `Host`, a JSON body and no browser
-  `Origin`. The chat's config files are deleted when the chat stops.
+  `Origin`. The chat's config files are deleted when the chat stops. The folder holding them is
+  readable by the signed-in Windows user only (and Windows itself), and each chat
+  can make at most 120 tool calls a minute.
 - **The windows.** The three pages run in Chromium's sandbox with context
   isolation and a strict content security policy (`script-src 'self'`, no inline
   scripts, nothing from the network). Data from tasks, plans and settings is
@@ -62,8 +64,16 @@ by itself is off for new installs**: the user checks for updates from the menu,
 sees what changed, and says yes. If they turn **Update automatically** on, the
 app fast-forwards once a day to whatever `release` holds. Either way, **anyone
 who can push to `release` can run code on every copy that installs that
-update.** Only the maintainer can push to it, and the branch is protected. Commits
-are not signature-checked by the app.
+update.** Only the maintainer can push to it, and the branch is protected.
+
+**Updates must be signed.** `tools/allowed_signers` lists the maintainer's
+signing keys (SSH keys kept on the maintainer's computer). Before installing,
+the app checks that the newest commit of the update carries a good signature
+from one of those keys, using the list in the copy that is installed now, not
+the one in the update, so an update can't vouch for itself. It then installs
+exactly that commit, nothing pushed after the check. An unsigned update, or one
+signed by another key, is never installed, and the user is told. So pushing to
+GitHub is not enough to get code onto installed copies: it also takes the key.
 
 When an update changes the packages, the app reinstalls them with
 `npm ci --ignore-scripts` from the public npm registry: exactly the versions and

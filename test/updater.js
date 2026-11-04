@@ -132,6 +132,55 @@ const helper = () => {
     git(MINE, 'rev-parse', 'HEAD') === good && /going back/.test(fs.readFileSync(LOG, 'utf8'))
   );
 
+  // ---- signed updates: with tools/allowed_signers, only a commit signed by a listed key installs ----
+  {
+    const SIG = path.join(BASE, 'signed');
+    fs.mkdirSync(SIG, { recursive: true });
+    const key = (name) => {
+      execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-C', name, '-f', path.join(SIG, name)]);
+      return path.join(SIG, `${name}.pub`);
+    };
+    const mine = key('maintainer');
+    const other = key('someone-else');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', path.join(SIG, 'origin.git')]);
+    execFileSync('git', ['clone', '-q', path.join(SIG, 'origin.git'), path.join(SIG, 'author')]);
+    const A = path.join(SIG, 'author');
+    ident(A);
+    fs.mkdirSync(path.join(A, 'tools'));
+    const pub = fs.readFileSync(mine, 'utf8').trim().split(' ').slice(0, 2).join(' ');
+    write(A, path.join('tools', 'allowed_signers'), `test@example.com namespaces="git" ${pub}\n`);
+    write(A, 'app.txt', 'one\n');
+    git(A, 'add', '-A');
+    git(A, 'commit', '-q', '-m', 'first');
+    git(A, 'push', '-q', 'origin', 'main');
+    execFileSync('git', ['clone', '-q', path.join(SIG, 'origin.git'), path.join(SIG, 'installed')]);
+    const I = path.join(SIG, 'installed');
+    const commit = (text, signWith) => {
+      write(A, 'app.txt', text);
+      git(
+        A,
+        ...(signWith ? ['-c', 'gpg.format=ssh', '-c', `user.signingkey=${signWith}`] : []),
+        'commit',
+        '-q',
+        ...(signWith ? ['-S'] : []),
+        '-am',
+        text
+      );
+      git(A, 'push', '-q');
+    };
+    commit('unsigned\n');
+    s = await updater.status(I);
+    ok('an unsigned update is not installed', s.ok && s.behind === 1 && !s.canInstall && s.signed.required && !s.signed.ok, s.signed.why);
+    commit('wrong key\n', other);
+    s = await updater.status(I);
+    ok("one signed with a key that isn't listed is not installed", !s.canInstall && !s.signed.ok, s.signed.why);
+    commit('signed\n', mine);
+    s = await updater.status(I);
+    ok('one signed with a listed key is installed', s.canInstall && s.signed.ok, JSON.stringify(s.signed));
+    commit('pushed after the check\n');
+    ok('only the checked version goes in', updater.pullNow(I, s.target).ok && read(I, 'app.txt').trim() === 'signed');
+  }
+
   // ---- not a git copy ----
   const plain = path.join(BASE, 'plain');
   fs.mkdirSync(plain);

@@ -47,6 +47,15 @@ async function checkForUpdate(manual) {
     tell('Task Desk is up to date');
     return s;
   }
+  if (!s.signed.ok) {
+    // Not signed by a key this copy trusts: never installed, and always said (even on the daily check).
+    logUpdate(`check: ${s.behind} new, NOT installed: not signed by a trusted key (${s.signed.why})`);
+    const why =
+      "The newest version on GitHub is not signed by the maintainer's key, so Task Desk did not install it. If you didn't expect this, someone else may have changed the code on GitHub. Your copy is unchanged.";
+    if (manual) tell("There's a newer version, but it isn't signed", `${why}\n\n${s.signed.why}`);
+    else say('Task Desk skipped an unsigned update', why);
+    return s;
+  }
   if (!s.canInstall) {
     logUpdate(`check: ${s.behind} new, not installed (own changes: ${s.dirty}, own commits: ${s.ahead})`);
     tell(
@@ -145,7 +154,7 @@ function installUpdate(relaunch) {
   const note = s.changes[0] || 'A new version';
   if (s.kind !== 'deps') {
     // Only the app's own files changed: update them now.
-    const r = updater.pullNow(config.APP_ROOT);
+    const r = updater.pullNow(config.APP_ROOT, s.target);
     logUpdate(r.ok ? `installed (${s.kind})` : `install failed: ${r.error}`);
     if (!r.ok) {
       installing = false;
@@ -169,7 +178,7 @@ function installUpdate(relaunch) {
     return;
   }
   // The packages changed too: a helper installs them after the desk has closed.
-  if (!updater.startHelper({ root: config.APP_ROOT, relaunch, electron: process.execPath, log: UPDATE_LOG })) {
+  if (!updater.startHelper({ root: config.APP_ROOT, relaunch, electron: process.execPath, log: UPDATE_LOG, target: s.target })) {
     installing = false;
     say(
       'Task Desk update needs Node.js',

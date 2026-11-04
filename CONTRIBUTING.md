@@ -99,6 +99,8 @@ git tag -a v1.2.0 -m "v1.2.0"
 git push origin release --tags
 ```
 
+**Signed updates.** Installed copies only install a version whose newest commit is signed by a key in `tools/allowed_signers` (as listed in the copy they already have). So `release` must only ever point at a commit made on the maintainer's computer with signing on: a commit from the nightly check (it signs its merges and pushes `dev` to `main`), never one merged on GitHub's website. To add or replace a key, change `tools/allowed_signers` in a commit signed by a key that is already listed.
+
 Before promoting: the latest nightly report says PROMOTED (so `npm run test:all` was green on exactly this commit), `CHANGELOG.md` has moved the **Unreleased** lines under the new version, and `package.json`'s version matches the tag. Then every installed copy picks it up at 7 AM.
 
 ## Questions
