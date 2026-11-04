@@ -28,10 +28,30 @@ const log = (msg) => {
 const NODE = process.execPath;
 const NPM_CLI = path.join(path.dirname(NODE), 'node_modules', 'npm', 'bin', 'npm-cli.js');
 const GIT = where('git').find((h) => /\.exe$/i.test(h));
-const run = (exe, args) =>
-  execFileSync(exe, args, { cwd: root, timeout: 10 * 60 * 1000, windowsHide: true })
-    .toString()
-    .trim();
+// npm's own settings from whatever started the desk (e.g. "npm start" sets which
+// folder is the project) are left out, so npm works on this app folder only.
+const CLEAN_ENV = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^npm_/i.test(k)));
+// A failure says what the program itself printed (its last lines), not just "Command failed".
+const run = (exe, args) => {
+  try {
+    return execFileSync(exe, args, {
+      cwd: root,
+      env: CLEAN_ENV,
+      timeout: 10 * 60 * 1000,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+      .toString()
+      .trim();
+  } catch (e) {
+    const said = String(e.stderr || e.stdout || '')
+      .trim()
+      .split(/\r?\n/)
+      .slice(-4)
+      .join(' | ');
+    throw new Error(`${path.basename(exe)} ${args.slice(0, 2).join(' ')} failed${said ? `: ${said}` : ''}`);
+  }
+};
 const git = (args) => {
   if (!GIT) throw new Error("git wasn't found");
   return run(GIT, args);
