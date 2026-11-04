@@ -49,7 +49,7 @@ const run = (exe, args) => {
       .split(/\r?\n/)
       .slice(-4)
       .join(' | ');
-    throw new Error(`${path.basename(exe)} ${args.slice(0, 2).join(' ')} failed${said ? `: ${said}` : ''}`);
+    throw new Error(`${path.basename(exe)} ${args.slice(0, 2).join(' ')} failed${said ? `: ${said}` : ''}`, { cause: e });
   }
 };
 const git = (args) => {
