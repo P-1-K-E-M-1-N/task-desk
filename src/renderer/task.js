@@ -605,60 +605,6 @@ const term = new Terminal({
   scrollback: 5000,
   theme: termTheme(),
 });
-// Chat colors follow the theme and light/dark setting.
-function termTheme() {
-  const css = getComputedStyle(document.documentElement);
-  const v = (n) => css.getPropertyValue(n).trim();
-  const accent = v('--clay');
-  const sel = accent.startsWith('#') ? accent + '40' : 'rgba(127,127,127,.3)';
-  return document.documentElement.classList.contains('dark')
-    ? {
-        background: v('--term-bg'),
-        foreground: v('--term-fg'),
-        cursor: accent,
-        cursorAccent: v('--term-bg'),
-        selectionBackground: sel,
-        black: '#3a362f',
-        red: '#e5806e',
-        green: '#9cc58f',
-        yellow: '#e2b866',
-        blue: '#8fb0e0',
-        magenta: '#d39ad0',
-        cyan: '#80c4bd',
-        white: '#d9d1c5',
-        brightBlack: '#7d7468',
-        brightRed: '#f09a87',
-        brightGreen: '#b5d9a8',
-        brightYellow: '#f0cd84',
-        brightBlue: '#a9c5ee',
-        brightMagenta: '#e3b2e0',
-        brightCyan: '#9ad7d0',
-        brightWhite: '#f6f1e9',
-      }
-    : {
-        background: v('--term-bg'),
-        foreground: v('--term-fg'),
-        cursor: v('--clay'),
-        cursorAccent: v('--term-bg'),
-        selectionBackground: sel,
-        black: '#2a2723',
-        red: '#b8452f',
-        green: '#4e7a3a',
-        yellow: '#9a6a12',
-        blue: '#3a5f9a',
-        magenta: '#8a4a87',
-        cyan: '#2f7a73',
-        white: '#8a8276',
-        brightBlack: '#7a7266',
-        brightRed: '#c9583f',
-        brightGreen: '#5e8c48',
-        brightYellow: '#b07d1c',
-        brightBlue: '#4a70ad',
-        brightMagenta: '#9d5a9a',
-        brightCyan: '#3a8c84',
-        brightWhite: '#2a2723',
-      };
-}
 document.addEventListener('lookchange', () => {
   term.options.theme = termTheme();
   setTimeout(refit, 50);

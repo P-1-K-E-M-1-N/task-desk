@@ -79,4 +79,11 @@ contextBridge.exposeInMainWorld('desk', {
   onChatExit: on('chat:exit'),
   onChatInfo: on('chat:info'),
   onChatReset: on('chat:reset'),
+  // A project's main chat (its own window; the project comes from the window).
+  openMainChat: call('main:open'),
+  mainInfo: call('main:info'),
+  mainSessions: call('main:sessions'),
+  mainStart: call('main:start'),
+  mainWrite: call('main:write'),
+  mainResize: call('main:resize'),
 });

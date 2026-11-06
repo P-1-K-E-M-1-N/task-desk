@@ -12,6 +12,7 @@ const updater = require('./updater');
 const desk = require('./desk');
 const windows = require('./windows');
 const dataFolder = require('./data-folder');
+const mainchat = require('./mainchat');
 
 const UPDATE_LOG = path.join(config.LOCAL_DIR, 'update.log');
 let pendingUpdate = null,
@@ -129,7 +130,11 @@ function rememberWindows() {
       maximized: w.isMaximized(),
       minimized: w.isMinimized(),
     }));
-  config.set({ reopenAfterUpdate: { at: Date.now(), wins, boxHidden: !!box && !box.isVisible() } });
+  // Main chats too (their conversation resumes when the window opens).
+  const mains = [...windows.mainWins]
+    .filter(([, w]) => w && !w.isDestroyed())
+    .map(([key, w]) => ({ key, ...w.getNormalBounds(), maximized: w.isMaximized() }));
+  config.set({ reopenAfterUpdate: { at: Date.now(), wins, mains, boxHidden: !!box && !box.isVisible() } });
 }
 function reopenWindows() {
   const r = config.get().reopenAfterUpdate;
@@ -144,6 +149,7 @@ function reopenWindows() {
     const w = windows.taskWins.get(x.id);
     if (x.minimized && w) w.once('show', () => w.minimize());
   }
+  for (const m of r.mains || []) if (typeof m.key === 'string' && mainchat.target(m.key)) windows.openMainChat(m.key, m);
 }
 
 // Refresh every open window in place. Task windows reconnect to their running chats.

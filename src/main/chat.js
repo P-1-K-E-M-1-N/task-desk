@@ -275,6 +275,46 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
   run(0);
 }
 
+// A project's main chat (see mainchat.js): plain Claude Code in the folder its
+// session ran in, with no task tools and no task limits. id is the chat's own
+// key ("main-<project>"), so writing, resizing, stopping and reattaching work
+// as for a task's chat.
+function startPlain(id, { args, cwd, label }, { cols = 100, rows = 30, onData, onExit, onInfo }) {
+  stop(id);
+  const cb = { onData, onExit, onInfo };
+  const p = ai.PROVIDERS.claude;
+  const loc = ai.locate(p);
+  if (!loc) {
+    cb.onInfo && cb.onInfo({ label: `${p.app} isn't installed`, sessionId: null, ai: p.id });
+    setTimeout(() => {
+      cb.onData && cb.onData(ai.missingText(p) + '\r\n');
+      cb.onExit && cb.onExit(-2);
+    }, 50);
+    return;
+  }
+  cb.onInfo && cb.onInfo({ label, sessionId: null, ai: p.id });
+  const proc = pty.spawn(loc.exe, [...loc.pre, ...args], {
+    name: 'xterm-256color',
+    cols,
+    rows,
+    cwd,
+    env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env }),
+  });
+  const entry = { proc, sessionId: null, label, stopped: false, buf: '', lastOut: Date.now(), cb };
+  live.set(id, entry);
+  proc.onData((d) => {
+    entry.lastOut = Date.now();
+    entry.buf += d;
+    if (entry.buf.length > KEEP * 1.5) entry.buf = entry.buf.slice(-KEEP);
+    cb.onData && cb.onData(d);
+  });
+  proc.onExit(({ exitCode }) => {
+    if (entry.stopped) return;
+    live.delete(id);
+    cb.onExit && cb.onExit(exitCode);
+  });
+}
+
 function write(id, data) {
   const e = live.get(id);
   if (e) e.proc.write(data);
@@ -331,6 +371,8 @@ const quietFor = (ms) => [...live.values()].every((e) => Date.now() - e.lastOut 
 
 module.exports = {
   start,
+  startPlain,
+  ownSessionIds,
   switchAI,
   attach,
   write,

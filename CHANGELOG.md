@@ -6,6 +6,9 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- **Main chat**: with one project showing, the chat-bubble button at the top of the box reopens that project's own Claude Code session (the one that writes its tasks) in a Task Desk window, right where you left off. Task Desk finds it among your saved sessions (the newest one that wrote the project's checklist or got Task Desk's instructions), and you can pick another one or start a new one.
+
 ### Changed (security)
 - Writing plans and putting tasks in order run Claude Code with `--restricted --strict-mcp-config`, so a project folder's own settings, hooks and MCP servers never run there, and its file tools stay inside the folder.
 - A chat that may not change files also has its command tools turned off (Bash and PowerShell for Claude Code, shell commands for Gemini). The README now says plainly that chats can still read files and use the web.

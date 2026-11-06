@@ -20,6 +20,7 @@ const UI_HELPERS = [
   'placePopup',
   'applyLook',
   'lookPanel',
+  'termTheme',
   'autosave',
   'saveStatus',
   'isDark',
@@ -42,7 +43,7 @@ module.exports = [
     languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...globals.browser, desk: 'readonly' } },
   },
   {
-    files: ['src/renderer/box.js', 'src/renderer/project.js', 'src/renderer/task.js'],
+    files: ['src/renderer/box.js', 'src/renderer/project.js', 'src/renderer/task.js', 'src/renderer/mainchat.js'],
     languageOptions: { globals: Object.fromEntries(UI_HELPERS.map((n) => [n, 'readonly'])) },
   },
   {
@@ -51,8 +52,8 @@ module.exports = [
     languageOptions: { ecmaVersion: 2024, sourceType: 'commonjs', globals: { ...globals.node, ...globals.browser, desk: 'readonly' } },
   },
   {
-    // task.html loads xterm.js and its fit addon as plain scripts.
-    files: ['src/renderer/task.js'],
+    // task.html and mainchat.html load xterm.js and its fit addon as plain scripts.
+    files: ['src/renderer/task.js', 'src/renderer/mainchat.js'],
     languageOptions: { globals: { Terminal: 'readonly', FitAddon: 'readonly' } },
   },
   {

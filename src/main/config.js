@@ -41,6 +41,8 @@ const MACHINE_KEYS = [
   // Company-safe mode (see safeMode() below), and extra environment variables the AI apps may see.
   'safeMode',
   'passEnv',
+  // Each project's main chat on this computer ({ <project id>: { id, cwd, first, at } }, see mainchat.js).
+  'mainChats',
 ];
 
 const DEFAULTS = {

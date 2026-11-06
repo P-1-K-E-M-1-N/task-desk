@@ -54,6 +54,14 @@ Knowing the boundaries makes it clear what counts as a bug.
   to paste. It goes only into a `.env` or `.env.local` file inside the task's own
   folder, never through a link, after a dialog that shows the variable and the
   file. It is written atomically and never stored, logged or synced.
+- **Claude Code's saved sessions.** To find a project's main chat, the app reads
+  (never changes) the session files Claude Code keeps in
+  `%USERPROFILE%\.claude\projects`, on this computer only. Which session is a
+  project's main chat is a setting of this computer (`mainChats` in
+  `data\machine.json`), never taken from synced settings. The main chat runs as
+  the user's own unrestricted Claude Code session (`claude --resume`, as if they
+  ran it by hand), in a window that only it can type into: the other pages
+  can't send it keys.
 - **On the user's behalf.** The app opens pages and drafts. It never sends,
   posts, buys or signs up for anything itself.
 

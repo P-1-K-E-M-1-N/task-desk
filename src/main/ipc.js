@@ -12,6 +12,7 @@ const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
 const chat = require('./chat');
+const mainchat = require('./mainchat');
 const { parseEmails } = require('./tasks');
 const { appendFromNick, appendResults, projectHeader, writeEnv } = require('./handback');
 const projects = require('./projects');
@@ -22,8 +23,10 @@ const desk = require('./desk');
 const windows = require('./windows');
 const menu = require('./menu');
 
-// The app's own three pages, exactly (their ?id=… part aside).
-const PAGES = new Set(['box.html', 'task.html', 'project.html'].map((f) => pathToFileURL(path.join(desk.RENDERER, f)).href));
+// The app's own pages, exactly (their ?id=… part aside).
+const PAGES = new Set(
+  ['box.html', 'task.html', 'project.html', 'mainchat.html'].map((f) => pathToFileURL(path.join(desk.RENDERER, f)).href)
+);
 const fromOurPage = (e) => {
   const u = (e.senderFrame && e.senderFrame.url) || '';
   return PAGES.has(u.split(/[?#]/)[0]);
@@ -612,12 +615,92 @@ function register() {
     chat.start(t, c && c.plan, { mode, cols, rows, ...handlers });
     desk.broadcast();
   });
-  handle('chat:write', (e, id, d) => chat.write(id, d));
-  handle('chat:send', (e, id, text) => chat.send(id, text));
-  handle('chat:resize', (e, id, c, r) => chat.resize(id, c, r));
+  // A main chat (id "main-…") is only reached through the main: channels below, from its own window.
+  const taskChat = (id) => typeof id === 'string' && !id.startsWith('main-');
+  handle('chat:write', (e, id, d) => taskChat(id) && chat.write(id, d));
+  handle('chat:send', (e, id, text) => taskChat(id) && chat.send(id, text));
+  handle('chat:resize', (e, id, c, r) => taskChat(id) && chat.resize(id, c, r));
   handle('chat:stop', (e, id) => {
+    if (!taskChat(id)) return;
     chat.stop(id);
     desk.broadcast();
+  });
+
+  // ----- a project's main chat (see mainchat.js) -----
+  // The box opens it; everything else comes from the main chat window, and the
+  // project is taken from that window, not from what the page says.
+  handle('main:open', (e, key) => {
+    if (typeof key === 'string' && mainchat.target(key)) windows.openMainChat(key);
+  });
+  const mainOf = (e) => {
+    const key = windows.mainKeyOf(winOf(e));
+    return key && mainchat.target(key) ? key : null;
+  };
+  const describe = (key, s) => {
+    const t = mainchat.target(key);
+    return { name: t.name, folder: t.folder, session: s ? { id: s.id, cwd: s.cwd, first: s.first, at: s.at } : null };
+  };
+  handle('main:info', async (e) => {
+    const key = mainOf(e);
+    return key ? describe(key, (config.get().mainChats || {})[key] || null) : null;
+  });
+  handle('main:sessions', async (e) => {
+    const key = mainOf(e);
+    if (!key) return [];
+    return (await mainchat.choices(key, chat.ownSessionIds())).map((s) => ({
+      id: s.id,
+      first: s.first,
+      at: s.at,
+      cwd: s.cwd,
+      setUp: s.setUp,
+    }));
+  });
+  // mode: 'attach' (a refreshed window), 'auto' (the remembered or found session),
+  // 'new' (a brand-new one in the project's folder) or 'pick' (one from main:sessions, by id).
+  handle('main:start', async (e, mode, pickId, cols, rows) => {
+    const key = mainOf(e);
+    const w = winOf(e);
+    if (!key || !w) return { ok: false };
+    const id = `main-${key}`;
+    const send = (ch, ...a) => {
+      if (!w.isDestroyed()) w.webContents.send(ch, 'main', ...a);
+    };
+    const handlers = {
+      onData: (d) => send('chat:data', d),
+      onExit: (code) => send('chat:exit', code),
+      onInfo: (info) => send('chat:info', info),
+    };
+    if (mode === 'attach') {
+      const a = chat.attach(id, handlers);
+      if (a) {
+        send('chat:info', { label: a.label });
+        if (a.buffer) send('chat:data', a.buffer);
+        chat.resize(id, cols, rows);
+        return { ok: true, attached: true, ...describe(key, (config.get().mainChats || {})[key]) };
+      }
+      mode = 'auto';
+    }
+    let s = null;
+    if (mode === 'new') s = mainchat.fresh(key);
+    else if (mode === 'pick') {
+      const found = (await mainchat.choices(key, chat.ownSessionIds())).find((x) => x.id === pickId);
+      s = found ? mainchat.link(key, found) : null;
+    } else s = await mainchat.find(key, chat.ownSessionIds());
+    if (!s) return { ok: false, ...describe(key, null) };
+    chat.startPlain(
+      id,
+      { args: mainchat.argsFor(s), cwd: s.cwd, label: s.isNew ? 'New main chat' : 'Main chat' },
+      { cols, rows, ...handlers }
+    );
+    return { ok: true, ...describe(key, s) };
+  });
+  handle('main:write', (e, d) => {
+    const key = mainOf(e);
+    if (key) chat.write(`main-${key}`, d);
+  });
+  handle('main:resize', (e, c, r) => {
+    const key = mainOf(e);
+    if (key) chat.resize(`main-${key}`, c, r);
   });
   // Which AI: the pickers in the box footer (desk default) and the task chat panel (this task).
   handle('ai:choices', (e, id) => ai.choices(id ? desk.findTask(id) : null));

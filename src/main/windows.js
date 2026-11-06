@@ -35,6 +35,8 @@ let box = null;
 const taskWins = new Map();
 // The "Add a project" / "Edit project" windows, one per project ('new' for a new one).
 const projectWins = new Map();
+// Each project's main chat window (see openMainChat).
+const mainWins = new Map();
 
 const webPreferences = () => ({ preload: desk.PRELOAD, contextIsolation: true, sandbox: true });
 
@@ -54,6 +56,7 @@ function scopeOf(w) {
       return t ? t.project : null;
     }
   for (const [id, pw] of projectWins) if (pw === w) return id === 'new' ? null : id;
+  for (const [key, mw] of mainWins) if (mw === w) return key;
   return null;
 }
 const ownLookOf = (scope) => {
@@ -349,8 +352,53 @@ function openProjectEditor(id) {
   projectWins.set(key, w);
 }
 
+// A project's main chat (see mainchat.js), one window per project ('factory' for the workspace).
+// Closing the window stops the chat; the conversation is saved by Claude Code and resumes next time.
+function openMainChat(key, bounds) {
+  const existing = mainWins.get(key);
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    return;
+  }
+  const bb = box ? box.getBounds() : { x: 0, y: 0, width: 0 };
+  const wa = screen.getDisplayMatching(bb).workArea;
+  const W = Math.min(1000, wa.width),
+    H = Math.min(780, wa.height);
+  let x = bb.x - W - 16;
+  if (x < wa.x) x = Math.max(wa.x, Math.round(wa.x + (wa.width - W) / 2));
+  const w = new BrowserWindow({
+    x,
+    y: Math.max(wa.y, Math.min(bb.y, wa.y + wa.height - H)),
+    width: W,
+    height: H,
+    minWidth: 560,
+    minHeight: 420,
+    frame: false,
+    show: false,
+    icon: desk.ICON_PNG,
+    backgroundColor: windowBg(),
+    title: 'Main chat',
+    webPreferences: webPreferences(),
+  });
+  if (bounds) {
+    w.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
+    if (bounds.maximized) w.maximize();
+  }
+  w.loadFile(path.join(desk.RENDERER, 'mainchat.html'), { query: { project: key } });
+  w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
+  w.once('ready-to-show', () => w.show());
+  w.on('closed', () => {
+    chat.stop(`main-${key}`);
+    mainWins.delete(key);
+  });
+  mainWins.set(key, w);
+}
+// The project a main chat window is for, from the window itself (never from what the page says).
+const mainKeyOf = (w) => [...mainWins].find(([, x]) => x === w)?.[0] || null;
+
 // Every window that is still there.
-const liveWins = () => [box, ...taskWins.values(), ...projectWins.values()].filter((w) => w && !w.isDestroyed());
+const liveWins = () => [box, ...taskWins.values(), ...projectWins.values(), ...mainWins.values()].filter((w) => w && !w.isDestroyed());
 
 Object.assign(module.exports, {
   box: () => box,
@@ -371,5 +419,8 @@ Object.assign(module.exports, {
   setCollapsed,
   openTask,
   openProjectEditor,
+  openMainChat,
+  mainWins,
+  mainKeyOf,
   liveWins,
 });

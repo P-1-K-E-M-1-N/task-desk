@@ -167,6 +167,10 @@ function render() {
     $('#warn').querySelector('button').onclick = () => desk.pickWorkspaceFolder();
   }
   $('#quickadd').hidden = !up;
+  // The project's main chat: your own Claude Code session that writes its tasks.
+  const mainFor = up ? up.name : data.view === 'factory' && data.factory ? data.factory.name : '';
+  $('#mainchat').hidden = !mainFor;
+  $('#mainchat').title = mainFor ? `Open ${mainFor}'s main chat (your own Claude Code session that writes its tasks)` : '';
   if (up && $('#qtext').dataset.view !== data.view) {
     $('#qtext').dataset.view = data.view;
     $('#qtext').placeholder = `Add a task to ${up.name}…`;
@@ -363,6 +367,11 @@ function workspaceText() {
   const name = (data.factory && data.factory.name) || 'the workspace';
   return `I now finish NEEDS_NICK items for ${name} in a separate app (Task Desk). Every time I mark a task DONE or SKIP, it appends a dated entry to ops/FROM_NICK.md with the lane, the task text, my notes and any results I pasted. On every daily tick, read ops/FROM_NICK.md first. For each entry you haven't handled yet, continue that lane from my notes, tick the matching box in the lane's needs_nick.md (or ops/needs_nick_global.md) so it drops off NEEDS_NICK.md, and note in the lane log which FROM_NICK entry you acted on. Don't edit or reorder FROM_NICK.md itself: it's append-only and the app writes to it.`;
 }
+$('#mainchat').innerHTML = icon('chat');
+$('#mainchat').onclick = (e) => {
+  e.stopPropagation();
+  if (data && data.view !== 'all') desk.openMainChat(data.view);
+};
 $('#copyfor').innerHTML = icon('paste');
 $('#copyfor').onclick = async (e) => {
   e.stopPropagation();
