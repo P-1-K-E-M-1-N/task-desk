@@ -6,6 +6,8 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.2.1 - 2026-11-06
+
 ### Added
 - **Main chat**: with one project showing, the chat-bubble button at the top of the box reopens that project's own Claude Code session (the one that writes its tasks) in a Task Desk window, right where you left off. Task Desk finds it among your saved sessions (the newest one that wrote the project's checklist or got Task Desk's instructions), and you can pick another one or start a new one.
 
