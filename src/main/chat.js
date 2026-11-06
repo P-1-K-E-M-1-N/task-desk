@@ -101,10 +101,11 @@ function chromeNote(task) {
 }
 
 // May the chat change files? Only a project with "let the chat change files"
-// on (Edit project, box 5). Otherwise Claude Code itself refuses its edit tools,
-// so it doesn't depend on Claude following the brief.
+// on (Edit project, box 5). Otherwise Claude Code itself refuses its edit tools
+// and its command tools (a command could change files too), so it doesn't
+// depend on Claude following the brief. It can still read files and use the web.
 const mayEdit = (task) => isProject(task) && !!task.allowEdits;
-const NO_EDITS = ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
+const NO_EDITS = ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'MultiEdit', 'Bash', 'PowerShell'];
 
 function withTools(task, args) {
   // The model and effort picked for the task, its project or the desk (see ai.js).

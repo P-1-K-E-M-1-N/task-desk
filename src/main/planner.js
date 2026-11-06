@@ -243,8 +243,16 @@ function runAI(task, input = prompt(task), schema = SCHEMA) {
   if (!loc) return Promise.resolve({ error: `${p.app} (${p.name}) isn't installed on this computer` });
   if (p.id !== 'claude') return runOther(p, loc, task, input, schema);
   return new Promise((resolve) => {
+    // The plan writer runs inside a project folder nobody has said they trust,
+    // without Claude Code's trust prompt (-p skips it). --restricted makes Claude
+    // Code ignore that folder's settings (its hooks, permissions, plugins), keeps
+    // the file tools inside the folder and removes the tools that run commands;
+    // --strict-mcp-config ignores its .mcp.json servers. Checked against a
+    // folder with a planted hook and MCP server: neither runs.
     const args = [
       '-p',
+      '--restricted',
+      '--strict-mcp-config',
       '--output-format',
       'json',
       '--json-schema',

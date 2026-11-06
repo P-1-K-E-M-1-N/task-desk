@@ -90,12 +90,21 @@ async function status(root, { fetch = true } = {}) {
 // itself: someone who could push to GitHub but doesn't have the key on the
 // maintainer's computer can't get code installed. The newest commit of the
 // update must carry a good signature from one of those keys; it covers
-// everything before it. A copy without the list (older installs, tests) skips
-// this check.
+// everything before it. A copy without the list installs nothing: a missing
+// list never means "skip the check".
+//
+// Changing keys: a new key is added to the list in an update signed with the
+// current key, and a key is retired (lost, leaked, or replaced) by an update,
+// signed with a key that stays on the list, that removes it. See SECURITY.md.
 const SIGNERS = (root) => path.join(root, 'tools', 'allowed_signers');
 async function signedBy(root, sha) {
   const list = SIGNERS(root);
-  if (!fs.existsSync(list)) return { required: false, ok: true };
+  if (!fs.existsSync(list))
+    return {
+      required: true,
+      ok: false,
+      why: "This copy has no list of trusted signing keys (tools/allowed_signers), so it can't check updates. Reinstall it from GitHub (see the README).",
+    };
   const keygen = where('ssh-keygen').find((h) => /\.exe$/i.test(h));
   if (!keygen) return { required: true, ok: false, why: "ssh-keygen (part of Windows' OpenSSH, and of Git) wasn't found" };
   const r = await git(root, [

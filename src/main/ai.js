@@ -316,7 +316,8 @@ function missingText(p) {
 const toml = (s) => JSON.stringify(String(s));
 
 // Arguments that give a chat the Task Desk tools. spec = { command, args, env }.
-const GEMINI_EDIT_TOOLS = ['write_file', 'replace'];
+// Gemini's tools that change files: writing, replacing, and running commands.
+const GEMINI_EDIT_TOOLS = ['write_file', 'replace', 'run_shell_command'];
 function toolArgs(p, spec, taskId, { edits = false } = {}) {
   if (!spec) return { args: [], env: {} };
   if (p.id === 'codex') {

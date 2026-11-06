@@ -80,7 +80,11 @@ async function checkForUpdate(manual) {
       }`,
     });
     if (r.response === 0) installUpdate(true);
-    else installWhenIdle();
+    else {
+      // "Later" means not now: nothing installs by itself, and the next check asks again.
+      pendingUpdate = null;
+      logUpdate('check: you chose Later');
+    }
   } else installWhenIdle();
   return s;
 }

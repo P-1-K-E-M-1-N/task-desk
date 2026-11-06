@@ -74,6 +74,29 @@ the one in the update, so an update can't vouch for itself. It then installs
 exactly that commit, nothing pushed after the check. An unsigned update, or one
 signed by another key, is never installed, and the user is told. So pushing to
 GitHub is not enough to get code onto installed copies: it also takes the key.
+A copy without the list installs no updates at all; a missing list never means
+"skip the check". **Later** in the update window installs nothing: the next
+check asks again.
+
+**Changing or retiring a key.** The list travels with the app, so it changes
+the same way as any other code: a new key is added in an update signed with a
+key that is already listed, and a key is retired (lost, leaked or replaced) by
+an update, signed with a key that stays listed, that removes it. Each copy stops
+trusting the retired key as soon as it installs that update. Today there is one
+key, kept on the maintainer's computer; if it were stolen, the thief could sign
+updates until copies install the one that removes it, and if it were lost, the
+copies would need to be reinstalled by hand. A second, offline key is the
+planned fix for both.
+
+**Where trust starts.** The check protects every update after the version a
+copy already has. It can't vouch for that first version: a fresh `git clone`
+trusts whatever GitHub sends, and copies on 1.1.1 or earlier updated to 1.2.0
+before they had the check. To check a copy once, run
+`git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=tools/allowed_signers verify-commit HEAD`
+in its folder, and compare the key in `tools/allowed_signers` with the one
+GitHub publishes at <https://api.github.com/users/P-1-K-E-M-1-N/ssh_signing_keys>
+(fingerprint `SHA256:tvI6fgvVF6/o8ppEBu3s1dwg8LwLY/DJHkxBqGHc31w`). Release
+tags are signed with the same key.
 
 When an update changes the packages, the app reinstalls them with
 `npm ci --ignore-scripts` from the public npm registry: exactly the versions and
@@ -98,11 +121,26 @@ They read task lists and project files that other people may have written, so:
   comes back is checked strictly (web links only, plain strings of a sane length,
   at most eight steps, only the fields each button uses) before any button is
   made from it.
+- The plan writer and the task ordering run Claude Code without a window (`-p`),
+  which skips its "do you trust this folder?" prompt. So they run it with
+  `--restricted --strict-mcp-config`: the folder's own settings, hooks and MCP
+  servers are ignored, the file tools stay inside the folder, and there are no
+  tools that run commands. Tested against a folder with a planted hook and
+  `.mcp.json` server: without these switches both ran, with them neither did.
+  Codex writes plans in its read-only sandbox. Gemini has no equivalent switch,
+  which is one reason Company-safe mode allows only Claude Code.
 - Restrictions are enforced by the apps' own switches, not only by the prompt.
-  Unless the project allows it, Claude Code starts with its editing tools turned
-  off (`--disallowedTools`), Codex runs in a read-only sandbox, and Gemini
-  starts in its asking mode with its file-writing tools turned off. Claude Code's
-  other actions are governed by its own permission prompts.
+  Unless the project allows it, Claude Code starts with its editing tools and
+  its command tools (Bash, PowerShell) turned off (`--disallowedTools`), Codex
+  runs in a read-only sandbox, and Gemini starts in its asking mode with its
+  file-writing and command tools turned off. This limits *changes*, not
+  *reading*: a chat can read whatever the user's Windows account can read, as
+  Claude Code run by hand can, and can use the web. A chat runs in a visible
+  window, so Claude Code's own trust prompt and permission prompts apply.
+- Settings that change what runs on a computer (`passEnv`, `dataDir`, and the
+  rest of `data\machine.json`) are never taken from a synced `settings.json`:
+  the one-time move of older settings only reads the computer's own data folder,
+  and machine settings found in a shared file are ignored.
 - Claude gets the user's Chrome browser (`--chrome`) only when the user turns it
   on, for one task or the desk.
 - The AI apps start with only the environment variables they need to run, not

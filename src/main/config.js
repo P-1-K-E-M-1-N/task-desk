@@ -113,16 +113,25 @@ if (!('autoUpdate' in machine)) {
   writeJson(MACHINE_FILE, machine);
 }
 
+// Never taken from any settings.json: only ever set in machine.json, on this computer.
+const NEVER_MOVED = ['dataDir', 'passEnv'];
+
 function load() {
   const saved = readOrKeep(SETTINGS_FILE) || {};
-  // Older versions kept the machine settings in settings.json: move them over once.
+  // Older versions kept the machine settings in settings.json: move them over
+  // once, but only from this computer's own data folder. A synced settings.json
+  // is shared with other computers (and anyone who can write to that share), so
+  // nothing in it becomes a setting of this computer.
   let moved = false;
-  for (const k of MACHINE_KEYS)
-    if (!(k in machine) && k in saved && k !== 'dataDir') {
-      machine[k] = saved[k];
-      moved = true;
-    }
+  if (DATA_DIR === LOCAL_DIR)
+    for (const k of MACHINE_KEYS)
+      if (!(k in machine) && k in saved && !NEVER_MOVED.includes(k)) {
+        machine[k] = saved[k];
+        moved = true;
+      }
   if (moved) writeJson(MACHINE_FILE, machine);
+  // Machine settings found in settings.json are ignored: get() only takes them from machine.json.
+  for (const k of MACHINE_KEYS) delete saved[k];
   // Desks set up before the workspace became optional had a folder saved: keep it on for them.
   if (saved.factory === undefined && saved.livePath) saved.factory = true;
   return { ...DEFAULTS, ...saved, look: { ...DEFAULTS.look, ...saved.look } };

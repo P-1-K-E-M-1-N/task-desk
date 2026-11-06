@@ -25,6 +25,19 @@ const ident = (dir) => {
   git(dir, 'config', 'user.name', 'Test');
   git(dir, 'config', 'user.email', 'test@example.com');
 };
+// A signing key for the pretend maintainer (updates only install when signed with a listed key).
+const KEYS = path.join(BASE, 'keys');
+const newKey = (name) => {
+  execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-C', name, '-f', path.join(KEYS, name)]);
+  return path.join(KEYS, `${name}.pub`);
+};
+const listed = (pubFile) =>
+  `test@example.com namespaces="git" ${fs.readFileSync(pubFile, 'utf8').trim().split(' ').slice(0, 2).join(' ')}\n`;
+const signsWith = (dir, pubFile) => {
+  git(dir, 'config', 'gpg.format', 'ssh');
+  git(dir, 'config', 'user.signingkey', pubFile);
+  git(dir, 'config', 'commit.gpgsign', 'true');
+};
 const push = (msg) => {
   git(AUTHOR, 'add', '-A');
   git(AUTHOR, 'commit', '-q', '-m', msg);
@@ -39,11 +52,15 @@ const helper = () => {
 
 (async () => {
   fs.rmSync(BASE, { recursive: true, force: true });
-  fs.mkdirSync(BASE, { recursive: true });
+  fs.mkdirSync(KEYS, { recursive: true });
+  const maintainer = newKey('maintainer');
   execFileSync('git', ['init', '-q', '--bare', '-b', 'main', ORIGIN]);
   execFileSync('git', ['clone', '-q', ORIGIN, AUTHOR]);
   ident(AUTHOR);
+  signsWith(AUTHOR, maintainer);
   git(AUTHOR, 'checkout', '-q', '-b', 'main');
+  fs.mkdirSync(path.join(AUTHOR, 'tools'));
+  write(AUTHOR, path.join('tools', 'allowed_signers'), listed(maintainer));
   write(AUTHOR, 'package.json', JSON.stringify({ name: 'pretend-desk', version: '1.0.0', private: true }, null, 2));
   write(AUTHOR, 'app.txt', 'version 1\n');
   // The lockfile is part of the app, as in the real repo: updates install exactly what it says.
@@ -136,19 +153,14 @@ const helper = () => {
   {
     const SIG = path.join(BASE, 'signed');
     fs.mkdirSync(SIG, { recursive: true });
-    const key = (name) => {
-      execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-C', name, '-f', path.join(SIG, name)]);
-      return path.join(SIG, `${name}.pub`);
-    };
-    const mine = key('maintainer');
-    const other = key('someone-else');
+    const mine = maintainer;
+    const other = newKey('someone-else');
     execFileSync('git', ['init', '-q', '--bare', '-b', 'main', path.join(SIG, 'origin.git')]);
     execFileSync('git', ['clone', '-q', path.join(SIG, 'origin.git'), path.join(SIG, 'author')]);
     const A = path.join(SIG, 'author');
     ident(A);
     fs.mkdirSync(path.join(A, 'tools'));
-    const pub = fs.readFileSync(mine, 'utf8').trim().split(' ').slice(0, 2).join(' ');
-    write(A, path.join('tools', 'allowed_signers'), `test@example.com namespaces="git" ${pub}\n`);
+    write(A, path.join('tools', 'allowed_signers'), listed(mine));
     write(A, 'app.txt', 'one\n');
     git(A, 'add', '-A');
     git(A, 'commit', '-q', '-m', 'first');
@@ -179,6 +191,11 @@ const helper = () => {
     ok('one signed with a listed key is installed', s.canInstall && s.signed.ok, JSON.stringify(s.signed));
     commit('pushed after the check\n');
     ok('only the checked version goes in', updater.pullNow(I, s.target).ok && read(I, 'app.txt').trim() === 'signed');
+    // A copy without the list of keys never skips the check: it installs nothing.
+    commit('newer, signed\n', mine);
+    fs.rmSync(path.join(I, 'tools', 'allowed_signers'));
+    s = await updater.status(I);
+    ok('a copy without the list of keys installs nothing', !s.canInstall && !s.signed.ok && /no list/.test(s.signed.why), s.signed.why);
   }
 
   // ---- not a git copy ----

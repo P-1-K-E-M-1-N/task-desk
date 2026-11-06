@@ -6,6 +6,14 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Changed (security)
+- Writing plans and putting tasks in order run Claude Code with `--restricted --strict-mcp-config`, so a project folder's own settings, hooks and MCP servers never run there, and its file tools stay inside the folder.
+- A chat that may not change files also has its command tools turned off (Bash and PowerShell for Claude Code, shell commands for Gemini). The README now says plainly that chats can still read files and use the web.
+- A copy without its list of trusted signing keys installs no updates, instead of skipping the check.
+- **Later** in the update window no longer installs the update once you're idle; the next check asks again.
+- Settings that belong to one computer (`passEnv`, folders, auto-update and the rest of `machine.json`) are never taken from a settings file shared through OneDrive.
+- The README and SECURITY.md explain how to check your copy's signature once, and how a signing key is changed or retired.
+
 ## 1.2.0 - 2026-11-04
 
 ### Added
