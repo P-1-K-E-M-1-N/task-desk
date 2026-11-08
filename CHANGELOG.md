@@ -6,6 +6,8 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.2.2 - 2026-11-07
+
 ### Fixed
 - At the box's default width, a project's name could vanish from the top of the box when all the buttons were showing (the main chat button made it one too many). The name now always keeps some room; the gap and the buttons give way first.
 
