@@ -16,6 +16,18 @@ const ok = (name, cond, extra = '') => {
   console.log(cond ? 'PASS' : 'FAIL', name, extra);
 };
 const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
+// True once the state file says `fn`, checking for up to `ms` (autosave waits 350 ms
+// after the last keystroke, and a busy computer can stretch that).
+const onDisk = async (page, fn, ms = 4000) => {
+  const end = Date.now() + ms;
+  for (;;) {
+    try {
+      if (fn(readState())) return true;
+    } catch {}
+    if (Date.now() > end) return false;
+    await page.waitForTimeout(150);
+  }
+};
 
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -52,18 +64,16 @@ const readState = () => JSON.parse(fs.readFileSync(STATE, 'utf8'));
   await win.locator('#notes').fill('');
   await win.locator('#notes').pressSequentially('Autosave check one', { delay: 5 });
   ok('shows Saving… while typing', /Saving/.test(await win.locator('#savestate').innerText()));
-  await win.waitForTimeout(900);
+  ok('notes are on disk', await onDisk(win, (st) => st.tasks[tid].notes === 'Autosave check one'));
   ok('notes show Saved after a pause', /Saved/.test(await win.locator('.notes-head .saved').innerText()));
-  ok('notes are on disk', readState().tasks[tid].notes === 'Autosave check one');
   const paste = win.locator('.sact textarea').first();
   if (await paste.count()) {
     await paste.fill('Pasted reply for autosave');
-    await win.waitForTimeout(900);
-    ok('paste box shows Saved', /Saved/.test(await win.locator('.sact .field-head .saved').first().innerText()));
     ok(
       'paste box text on disk',
-      Object.values(readState().tasks[tid].pastes).some((p) => p.value === 'Pasted reply for autosave')
+      await onDisk(win, (st) => Object.values(st.tasks[tid].pastes).some((p) => p.value === 'Pasted reply for autosave'))
     );
+    ok('paste box shows Saved', /Saved/.test(await win.locator('.sact .field-head .saved').first().innerText()));
   }
   // Close the window immediately after typing: the text must still be saved.
   await win.locator('#notes').fill('Typed then closed right away');
