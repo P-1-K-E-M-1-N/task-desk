@@ -12,6 +12,7 @@ const config = require('./config');
 const state = require('./state');
 const planner = require('./planner');
 const chat = require('./chat');
+const attention = require('./attention');
 const { readTasks, normType } = require('./tasks');
 const projects = require('./projects');
 const ai = require('./ai');
@@ -68,6 +69,7 @@ function decorate(t) {
     status: st.status,
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
+    needs: chat.needs(t.id),
     aiName: ai.pick(t).app,
     // Claude's model and effort for this task's chat, and its own choice (when per task is on).
     claude:
@@ -109,6 +111,7 @@ function payload() {
     // How far the project on show is toward its end goal (a rough AI guess, or the share of tasks done).
     goal: view === 'all' ? null : order.progress(view, counts),
     totalOpen: openAll.length,
+    totalNeeds: openAll.filter((t) => t.needs).length,
     view,
     projects: projects.summary().map((p) => ({ ...p, open: openAll.filter((t) => t.project === p.id).length })),
     mode: s.mode,
@@ -135,8 +138,44 @@ function payload() {
 function broadcast() {
   const p = payload();
   for (const w of [windows.box(), ...windows.taskWins.values()]) if (w && !w.isDestroyed()) w.webContents.send('tasks', p);
-  menu.updateTray(p.totalOpen);
+  menu.updateTray(p.totalOpen, p.totalNeeds);
 }
+
+// The settings for a chat that's waiting on the user (⋯ menu, "When a chat needs you").
+const cueSettings = () => ({ flash: true, notify: true, sound: 'off', ...(config.get().cue || {}) });
+
+// A chat started or stopped waiting on the user: the box marks its card and
+// counts it on the tray; its window's taskbar button flashes; and unless that
+// window is in front, a notification and the chosen sound.
+attention.onChange((id, kind) => {
+  broadcast();
+  const key = id.startsWith('main-') ? id.slice(5) : null;
+  const w = key ? windows.mainWins.get(key) : windows.taskWins.get(id);
+  const open = !!w && !w.isDestroyed();
+  const cue = cueSettings();
+  if (open) w.flashFrame(!!kind && cue.flash && !w.isFocused());
+  if (!kind || (open && w.isFocused())) return;
+  const t = key ? null : findTask(id);
+  const name = t ? t.title : 'The main chat';
+  if (cue.notify && Notification.isSupported()) {
+    const n = new Notification({
+      title: kind === 'question' ? 'Waiting on you: a yes or no' : 'Your turn',
+      body: name,
+      icon: ICON_PNG,
+      silent: true,
+    });
+    n.on('click', () => {
+      if (open) {
+        if (w.isMinimized()) w.restore();
+        w.show();
+        w.focus();
+      } else if (!key) windows.openTask(id);
+    });
+    n.show();
+  }
+  const b = windows.box();
+  if (cue.sound !== 'off' && b && !b.isDestroyed()) b.webContents.send('cue', { sound: cue.sound, kind });
+});
 
 // Reads every project's tasks: the lanes workspace first (when it's on), then the others.
 function refresh() {

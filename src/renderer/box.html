@@ -94,6 +94,11 @@
   .ring .fg { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .4s; }
   .drafting { color: var(--clay); animation: pulse 1.4s infinite; }
   .live { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  /* The chat is waiting on you: a yes/no (orange, pulsing) or just your next message (quiet green). */
+  .needs { flex: none; font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .needs.question { background: var(--clay); color: #fff; animation: pulse 1.4s infinite; }
+  .needs.turn { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .card.needs-question { border-color: var(--clay); box-shadow: 0 0 0 2px color-mix(in srgb, var(--clay) 35%, transparent); }
   .empty { margin: auto; text-align: center; padding: 30px 20px; color: var(--ink-2); }
   .empty b { display: block; font-family: var(--serif); font-size: 22px; font-weight: 500; color: var(--ink); margin: 10px 0 4px; }
   .empty .tile { margin: 0 auto; width: 44px; height: 44px; border-radius: 14px; --tc: var(--ok); }

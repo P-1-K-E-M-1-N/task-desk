@@ -22,10 +22,26 @@ function createTray() {
   tray.on('right-click', () => tray.popUpContextMenu(menu()));
 }
 
-function updateTray(count) {
+function updateTray(count, needs = 0) {
   if (!tray) return;
-  tray.setToolTip(`Task Desk · ${count} open task${count === 1 ? '' : 's'}${projects.list().length ? ' (all projects)' : ''}`);
+  const waiting = needs ? ` · ${needs} waiting on you` : '';
+  tray.setToolTip(`Task Desk · ${count} open task${count === 1 ? '' : 's'}${waiting}${projects.list().length ? ' (all projects)' : ''}`);
 }
+
+// "When a chat needs you": flash its window, a Windows notification, a sound.
+const cueNow = () => ({ flash: true, notify: true, sound: 'off', ...(config.get().cue || {}) });
+function setCue(patch, preview) {
+  const cue = { ...cueNow(), ...patch };
+  config.set({ cue });
+  const b = windows.box();
+  if (preview && cue.sound !== 'off' && b && !b.isDestroyed()) b.webContents.send('cue', { sound: cue.sound, kind: 'preview' });
+}
+const SOUNDS = [
+  ['off', 'No sound'],
+  ['chime', 'Chime'],
+  ['ping', 'Ping'],
+  ['knock', 'Knock'],
+];
 
 // The box draws the tray icon with the open-task count on it.
 function setTrayImage(dataUrl) {
@@ -258,6 +274,15 @@ function menu() {
       type: 'checkbox',
       checked: config.get().catchUp !== false,
       click: (i) => config.set({ catchUp: i.checked }),
+    },
+    {
+      label: 'When a chat needs you',
+      submenu: [
+        { label: 'Flash its window', type: 'checkbox', checked: cueNow().flash, click: (i) => setCue({ flash: i.checked }) },
+        { label: 'Windows notification', type: 'checkbox', checked: cueNow().notify, click: (i) => setCue({ notify: i.checked }) },
+        { type: 'separator' },
+        ...SOUNDS.map(([v, label]) => ({ label, type: 'radio', checked: cueNow().sound === v, click: () => setCue({ sound: v }, true) })),
+      ],
     },
     {
       label: config.safeMode() ? 'Start with Windows (off in Company-safe mode)' : 'Start with Windows',

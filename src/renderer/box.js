@@ -228,7 +228,7 @@ function render() {
     lastKey = key;
     list.replaceChildren(...shown.map((t, i) => card(t, i)));
   }
-  drawBadge(data.totalOpen);
+  drawBadge(data.totalOpen, data.totalNeeds || 0);
   drawAIPick();
   if (data.me && !data.me.asked && !render.askedOnce) {
     render.askedOnce = true;
@@ -253,7 +253,11 @@ function chipEl(key, label, n, color, plain) {
 
 function card(t, i) {
   let right = '';
-  if (t.chatLive) right = '<span class="live" title="Chat open"></span>';
+  if (t.needs === 'question')
+    right = '<span class="needs question" title="The chat is waiting for a yes or no (or a choice)">Needs a yes/no</span>';
+  else if (t.needs === 'turn')
+    right = '<span class="needs turn" title="The chat finished and is waiting for your next message">Your turn</span>';
+  else if (t.chatLive) right = '<span class="live" title="Chat open"></span>';
   else if (t.planStatus === 'drafting' || t.planStatus === 'queued')
     right = `<span class="drafting" title="Claude is drafting the plan">${icon('sparkle')}</span>`;
   else if (t.ticked && t.steps) right = ring(t.ticked, t.steps);
@@ -262,7 +266,7 @@ function card(t, i) {
   const showProject = data.view === 'all' && many();
   const tag = showProject ? { color: t.projectColor, name: t.projectName } : { color: laneColor(t.lane), name: laneName(t.lane) };
   const el = h('button', {
-    class: `card${t.important ? ' urgent' : ''}${t.low ? ' low' : ''}`,
+    class: `card${t.important ? ' urgent' : ''}${t.low ? ' low' : ''}${t.needs ? ` needs-${t.needs}` : ''}`,
     style: `animation-delay:${Math.min(i, 10) * 25}ms`,
     title: t.text,
     onclick: () => desk.openTask(t.id),
@@ -293,24 +297,59 @@ function card(t, i) {
 }
 
 // Tray icon with the open-task count drawn on it.
+// A short sound when a chat starts waiting on you (⋯ menu, "When a chat needs you").
+// Made here, so there are no sound files: 'chime' (two rising notes), 'ping' (one
+// bright note), 'knock' (two low taps).
+let actx = null;
+function playCue(kind) {
+  if (!kind || kind === 'off') return;
+  try {
+    actx = actx || new AudioContext();
+    const t0 = actx.currentTime;
+    const tone = (hz, at, dur, vol, type = 'sine') => {
+      const o = actx.createOscillator();
+      const g = actx.createGain();
+      o.type = type;
+      o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+      o.connect(g).connect(actx.destination);
+      o.start(t0 + at);
+      o.stop(t0 + at + dur + 0.05);
+    };
+    if (kind === 'chime') {
+      tone(880, 0, 0.2, 0.16);
+      tone(1318.5, 0.17, 0.32, 0.16);
+    } else if (kind === 'ping') tone(1568, 0, 0.4, 0.14, 'triangle');
+    else if (kind === 'knock') {
+      tone(170, 0, 0.08, 0.35, 'square');
+      tone(150, 0.14, 0.08, 0.35, 'square');
+    }
+  } catch {}
+}
+desk.onCue(({ sound }) => playCue(sound));
+
 const badgeImg = new Image();
 badgeImg.src = '../../assets/icon.png';
 let lastBadge = null;
-function drawBadge(n) {
+// n open tasks; with `needs` chats waiting on the user, the pill turns orange and counts those instead.
+function drawBadge(n, needs = 0) {
   if (!badgeImg.complete) {
-    badgeImg.onload = () => drawBadge(n);
+    badgeImg.onload = () => drawBadge(n, needs);
     return;
   }
-  if (lastBadge === n) return;
-  lastBadge = n;
+  if (lastBadge === `${n}/${needs}`) return;
+  lastBadge = `${n}/${needs}`;
   const c = $('#badge');
   const x = c.getContext('2d');
   x.clearRect(0, 0, 32, 32);
   x.drawImage(badgeImg, 0, 0, 32, 32);
+  if (needs > 0) n = needs;
   if (n > 0) {
     const label = n > 99 ? '99' : String(n);
     const w = label.length > 1 ? 22 : 17;
-    x.fillStyle = '#1f1d1a';
+    x.fillStyle = needs > 0 ? '#d9742b' : '#1f1d1a';
     x.beginPath();
     x.roundRect(32 - w, 32 - 17, w, 17, 8.5);
     x.fill();

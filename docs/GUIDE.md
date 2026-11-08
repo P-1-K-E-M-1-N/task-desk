@@ -44,7 +44,7 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
 - A connected lanes workspace stays read-only, apart from its own results file. A project pointing at a workspace folder can only keep its notes in Task Desk.
 - If a project's folder isn't on this computer, the box says so and offers **Fix the folder**.
 
-Every task gets a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next.
+Every task gets a plan, buttons, autosave, a chat that ticks steps for you, and Done / Skip / Snooze / Done & next. When a chat is waiting on you (a yes/no, or just your next message), its window's taskbar button flashes and its card in the box says so; see **When a chat needs you** in the ⋯ menu for the notification and sound.
 
 **Your name.** On a new desk, Task Desk asks what to call you, plus an optional line about you (say, "a designer who doesn't write code"). The AI uses both, and "Only show lines that mention me" (box 3) looks for your name. Change them any time with **Your name…** in the ⋯ menu.
 

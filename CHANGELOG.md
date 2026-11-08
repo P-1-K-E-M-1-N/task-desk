@@ -6,6 +6,9 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- **See which chat needs you.** With several task windows open, the one waiting on you stands out: its taskbar button flashes, its card in the box gets an orange **Needs a yes/no** badge (or a quiet **Your turn** once the chat has finished and is waiting for your next message), the tray count turns orange, and a Windows notification names the task; click it to bring that window up. Under **When a chat needs you** in the ⋯ menu, turn the flash or the notification off and pick a sound (Chime, Ping or Knock; off to start with). Task Desk reads this from the chat's screen, so it works with Claude Code, Codex and Gemini.
+
 ## 1.2.3 - 2026-11-08
 
 ### Added

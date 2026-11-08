@@ -16,6 +16,8 @@ const { sessionFile, newestSession, cleanEnv } = require('./sessions');
 const bridge = require('./bridge');
 const ai = require('./ai');
 
+const attention = require('./attention');
+
 const live = new Map(); // taskId -> { proc, sessionId, label, buf, lastOut, cb }
 const KEEP = 400 * 1024; // recent chat output kept per task, so a refreshed window can redraw it
 
@@ -259,10 +261,12 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
       entry.lastOut = Date.now();
       entry.buf += d;
       if (entry.buf.length > KEEP * 1.5) entry.buf = entry.buf.slice(-KEEP);
+      attention.feed(task.id, d);
       cb.onData && cb.onData(d);
     });
     proc.onExit(({ exitCode }) => {
       if (entry.stopped) return;
+      attention.forget(task.id);
       // A launch that dies within a few seconds means that start method failed: try the next one.
       if (exitCode !== 0 && Date.now() - startedAt < 8000 && i + 1 < tries.length) {
         cb.onData && cb.onData(`\r\n\x1b[2m(${a.label.toLowerCase()} didn't work, trying the next option…)\x1b[0m\r\n`);
@@ -307,10 +311,12 @@ function startPlain(id, { args, cwd, label }, { cols = 100, rows = 30, onData, o
     entry.lastOut = Date.now();
     entry.buf += d;
     if (entry.buf.length > KEEP * 1.5) entry.buf = entry.buf.slice(-KEEP);
+    attention.feed(id, d);
     cb.onData && cb.onData(d);
   });
   proc.onExit(({ exitCode }) => {
     if (entry.stopped) return;
+    attention.forget(id);
     live.delete(id);
     cb.onExit && cb.onExit(exitCode);
   });
@@ -318,7 +324,9 @@ function startPlain(id, { args, cwd, label }, { cols = 100, rows = 30, onData, o
 
 function write(id, data) {
   const e = live.get(id);
-  if (e) e.proc.write(data);
+  if (!e) return;
+  attention.input(id, data);
+  e.proc.write(data);
 }
 
 // Paste text as a single block (bracketed paste) and press Enter.
@@ -327,6 +335,7 @@ function send(id, text) {
   if (!e) return false;
   // The text can't end the paste early: any "end of paste" marker inside it is removed.
   const safe = String(text).replace(/\x1b\[20[01]~/g, '');
+  attention.input(id, safe);
   e.proc.write('\x1b[200~' + safe + '\x1b[201~');
   setTimeout(() => e.proc.write('\r'), 120);
   return true;
@@ -345,6 +354,7 @@ function stop(id) {
   if (!e) return;
   e.stopped = true;
   live.delete(id);
+  attention.forget(id);
   // Its link to the app goes too: the token stops working and its config files are deleted.
   bridge.forget(id);
   try {
@@ -357,6 +367,8 @@ function stopAll() {
 }
 
 const isLive = (id) => live.has(id);
+// What the chat is waiting for: 'question' (a yes/no or a choice), 'turn' (finished, waiting for a message) or null.
+const needs = (id) => attention.needs(id);
 
 // A refreshed task window picks its running chat back up instead of restarting
 // it: new handlers, plus the recent output so the window can redraw the chat.
@@ -382,6 +394,7 @@ module.exports = {
   stop,
   stopAll,
   isLive,
+  needs,
   quietFor,
   firstMessage,
   chromeWork,

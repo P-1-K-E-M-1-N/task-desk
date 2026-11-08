@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('desk', {
   onAskFinish: on('task:askFinish'),
   onLookOpen: on('look:open'),
   onTasks: on('tasks'),
+  onCue: on('cue'),
   onPlan: on('plan'),
   onChatData: on('chat:data'),
   onChatExit: on('chat:exit'),

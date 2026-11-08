@@ -68,6 +68,8 @@ const DEFAULTS = {
   // Projects besides the lanes workspace (see projects.js), and which one the box shows.
   projects: [],
   view: 'all',
+  // When a chat is waiting on the user (see attention.js): flash its window, a notification, a sound ('off', 'chime', 'ping', 'knock').
+  cue: { flash: true, notify: true, sound: 'off' },
 };
 
 const readJson = (f) => {
