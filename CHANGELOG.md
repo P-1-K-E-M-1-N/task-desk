@@ -6,6 +6,8 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.2.4 - 2026-11-08
+
 ### Added
 - **Several chats in one project work together.** Each task's chat can say what it's doing (one line, on the task's card and visible to the project's other chats), sees the others' lines, progress and files when it starts, and gets a "Meanwhile" note when they change. A chat that may edit files asks Task Desk before every edit: a file another chat is in right now is off limits (the edit is stopped and the chat is told who has it), and a file a chat has finished with changes hands. No more two chats changing the same file.
 - **Task chats report to the main chat.** When a task is done, and when a chat has something the plan should know, a note goes to the project's main chat (the chat-bubble button at the top of the box). It's handed in as a message when that chat is open and free, else it waits, and the button shows how many notes are waiting.
