@@ -26,9 +26,16 @@ Knowing the boundaries makes it clear what counts as a bug.
   daily, if they turned that on). It has no accounts, telemetry or API keys. The
   AI apps it starts (Claude Code, Codex, Gemini CLI) talk to their own services
   with their own sign-in.
-- **The chat's tools.** Each task's chat gets four tools (read the plan, tick a
-  step, add a note, and snooze the task until a day the user asked for) through
-  a local server on `127.0.0.1` with a random port.
+- **The chat's tools.** Each task's chat gets six tools (read the plan, tick a
+  step, add a note, snooze the task until a day the user asked for, say what
+  it's doing, send a note to the project's main chat) through a local server
+  on `127.0.0.1` with a random port. A chat that may edit files also gets a
+  Claude Code settings file (`data\mcp\<task>.hooks.json`) with one hook: before
+  every edit, `src/mcp/taskdesk-hook.js` asks the app, over the same link,
+  whether another task's chat holds that file, and stops the edit if so. The
+  hook can only ask; it changes nothing, and if the app can't be reached the
+  edit goes ahead. Notes for the main chat are handed into that chat as a
+  message marked as a record, not instructions.
   Each chat gets its own token, made when the chat starts and dropped when it
   stops, and the app decides which task a request is for from that token alone,
   so a chat can only change the task it was opened for. The token reaches the

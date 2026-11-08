@@ -66,6 +66,8 @@ function task(id) {
 }
 const has = (id) => !!store(projectOf(id)).tasks[id];
 const allTasks = () => [...stores.values()].flatMap((s) => Object.values(s.data.tasks));
+// Projects (loaded this session) with notes waiting for their main chat (see handoff.js).
+const projectsWithQueue = () => [...stores].filter(([, s]) => Array.isArray(s.data.mainQueue) && s.data.mainQueue.length).map(([k]) => k);
 
 function update(id, patch) {
   Object.assign(task(id), patch);
@@ -91,6 +93,7 @@ use(config.get().mode);
 module.exports = Object.assign(api, {
   use,
   store,
+  projectsWithQueue,
   projectOf,
   task,
   has,

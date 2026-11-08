@@ -17,6 +17,7 @@ const bridge = require('./bridge');
 const ai = require('./ai');
 
 const attention = require('./attention');
+const claims = require('./claims');
 
 const live = new Map(); // taskId -> { proc, sessionId, label, buf, lastOut, cb }
 const KEEP = 400 * 1024; // recent chat output kept per task, so a refreshed window can redraw it
@@ -65,6 +66,8 @@ function systemNote(task) {
     `update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or ${config.who()} says they did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).`,
     "add_note appends a line to the task's notes box (results, replies, dates). Do not repeat what is already there.",
     `snooze_task puts this task away until a day (it leaves the box and comes back that morning at 8). Only when ${config.who()} asks to come back to it later: agree the day with them, then call it with that day (YYYY-MM-DD, tomorrow or next week) and a one-line reason for their notes.`,
+    `Other task chats may be working in this project at the same time. get_task lists them under others, with what each is doing and the files it is editing: do not redo work they report done, and leave their files alone. Before an edit, Task Desk checks the file; if another chat is in it, your edit is stopped and you are told who has it: do your other steps first, or tell ${config.who()}. Call set_status with one line when you start on something and when it is done, so the other chats know. Tool results may end with a "Meanwhile" note about them.`,
+    `tell_main_chat sends a short note to the project's main chat (${config.whose()} own Claude Code session that plans this project) when this task changed or found something that matters for the plan; Task Desk also sends one when the task is finished.`,
     'Never press Done/Skip for them; they finish the task themselves.',
   ].join(' ');
 }
@@ -117,8 +120,11 @@ function withTools(task, args) {
   const edits = mayEdit(task) ? [] : NO_EDITS;
   // Options that take lists go first: the next "--" option ends each list.
   const tools = bridge.ready() ? ['--mcp-config', bridge.configFor(task.id), '--allowedTools', 'mcp__taskdesk'] : [];
+  // A chat that may edit asks the app before each edit (see claims.js); after configFor, which makes the token.
+  const guard = tools.length && mayEdit(task) ? ['--settings', bridge.hooksFor(task.id)] : [];
   return [
     ...tools,
+    ...guard,
     ...edits,
     '--append-system-prompt',
     `${systemNote(task)}${chrome ? ` ${chromeNote(task)}` : ''}`,
@@ -231,7 +237,13 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
       cols,
       rows,
       cwd: task.workDir,
-      env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env, ...tools.env }),
+      env: cleanEnv({
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+        ...loc.env,
+        ...tools.env,
+        ...(claude && bridge.ready() ? bridge.hookEnv(task.id) : {}),
+      }),
     });
     const entry = { proc, sessionId: a.sid, label: a.label, stopped: false, buf: '', lastOut: Date.now(), cb };
     live.set(task.id, entry);
@@ -355,6 +367,7 @@ function stop(id) {
   e.stopped = true;
   live.delete(id);
   attention.forget(id);
+  claims.release(id);
   // Its link to the app goes too: the token stops working and its config files are deleted.
   bridge.forget(id);
   try {

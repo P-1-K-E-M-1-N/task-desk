@@ -1,7 +1,8 @@
 // Tiny MCP server that the chat's `claude` starts for one task. It gives Claude
-// four tools to keep that task's plan up to date: read the plan, tick a step /
-// comment on it, add to the user's notes, and snooze the task until a day the
-// user asked for. Every call is forwarded to the Task
+// six tools to keep that task's plan up to date: read the plan, tick a step /
+// comment on it, add to the user's notes, snooze the task until a day the
+// user asked for, say what it's doing (for the project's other chats), and
+// send a note to the project's main chat. Every call is forwarded to the Task
 // Desk app over a local connection (127.0.0.1 + a secret token), and the app
 // only lets it change the task it was started for.
 // Runs under Electron's Node (ELECTRON_RUN_AS_NODE=1); no dependencies.
@@ -64,6 +65,28 @@ const TOOLS = [
         reason: { type: 'string', description: 'Optional one line for their notes, e.g. "Waiting for the quote from Mike, due Nov 14".' },
       },
       required: ['until'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'set_status',
+    description:
+      "One line on what this chat is doing now, or just finished (e.g. 'Editing src/app.js: adding the login form', 'Login form done, tests pass'). The project's other task chats see it (get_task, under others) and so does the user's box. Call it when you start on something and when it's done, so nobody does the same work twice.",
+    inputSchema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: 'What you are doing or just did, one line.' } },
+      required: ['text'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'tell_main_chat',
+    description:
+      "Send a short note (two or three lines) to the project's main chat: the user's own Claude Code session that plans this project and writes its task list. Use it when this task changed or found something the plan should know (a decision, a file that moved, a blocker), not for routine progress. Task Desk delivers it when that chat is open and free, else keeps it until it opens. Task Desk sends its own note when the task is finished, so don't repeat the Done summary.",
+    inputSchema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: 'The note, as plain text.' } },
+      required: ['text'],
       additionalProperties: false,
     },
   },

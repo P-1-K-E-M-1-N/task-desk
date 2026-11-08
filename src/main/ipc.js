@@ -20,6 +20,8 @@ const ai = require('./ai');
 const log = require('./log');
 const safety = require('./safety');
 const snooze = require('./snooze');
+const claims = require('./claims');
+const handoff = require('./handoff');
 const desk = require('./desk');
 const windows = require('./windows');
 const menu = require('./menu');
@@ -93,6 +95,48 @@ function resultsKind(t) {
 // What the chat's AI can do to its own task: read the plan, tick/comment a
 // step, add to the notes. Changes show up live in the task window and the box.
 
+// A file's path as the project sees it (inside the project's folder), else as is.
+function rel(t, file) {
+  const base = t.workDir || t.projectFolder || '';
+  if (!base) return file;
+  const r = path.relative(base, file);
+  return r && !r.startsWith('..') && !path.isAbsolute(r) ? r : file;
+}
+
+// The project's other tasks whose chats are running right now: what each is
+// doing, how far it is, which files it holds. What one chat needs to know to
+// work alongside the others without redoing or undoing their work.
+function othersView(t) {
+  return desk
+    .tasks()
+    .filter((x) => x.project === t.project && x.id !== t.id && chat.isLive(x.id))
+    .map((x) => {
+      const sx = state.task(x.id);
+      const c = planner.cached(x);
+      const steps = c && c.plan ? c.plan.steps : [];
+      const ticked = steps.filter((_, i) => sx.ticks['s' + i]).length;
+      const comments = steps.map((s, i) => (sx.stepNotes || {})['s' + i]).filter(Boolean);
+      return {
+        task: x.title,
+        doing: sx.doing ? sx.doing.text : '',
+        steps: steps.length ? `${ticked}/${steps.length} done` : 'no plan yet',
+        last_comment: comments[comments.length - 1] || '',
+        editing: claims.holdings(x.id).map((h) => rel(t, h.file)),
+        waiting_on_user: chat.needs(x.id) || false,
+      };
+    });
+}
+
+// One line about the others, when something changed since this chat last asked.
+const seen = new Map(); // task id -> claims.version it last saw
+function meanwhile(t) {
+  const v = claims.version(t.project);
+  if ((seen.get(t.id) || 0) === v) return '';
+  seen.set(t.id, v);
+  const lines = othersView(t).map((o) => `${o.task}: ${o.doing || o.steps}${o.editing.length ? ` (editing ${o.editing.join(', ')})` : ''}`);
+  return lines.length ? `\n\nMeanwhile in this project: ${lines.join('; ')}.` : '';
+}
+
 function planView(t) {
   const c = planner.cached(t);
   const st = state.task(t.id);
@@ -107,6 +151,8 @@ function planView(t) {
     planReady: !!steps.length,
     opened_pages: (st.opened || []).map((o) => ({ url: o.url, at: o.at })),
     chrome: desk.chromeDrive(t.id) ? 'work' : 'look',
+    others: othersView(t),
+    main_chat: { open: chat.isLive(`main-${t.project}`), notes_waiting: handoff.pending(t.project) },
   };
 }
 
@@ -115,11 +161,57 @@ function toWindow(id, change) {
   if (w && !w.isDestroyed()) w.webContents.send('task:changed', id, change);
 }
 
+// The chat tools, with a "Meanwhile" line about the project's other chats when
+// something changed since this chat last heard (get_task carries it all anyway).
 async function chatTool(id, tool, args) {
+  const r = await toolCall(id, tool, args);
+  const t = desk.findTask(id);
+  if (!t || !r.ok || tool === 'get_task' || tool === 'claim_file' || typeof r.result !== 'string') return r;
+  const m = meanwhile(t);
+  return m ? { ...r, result: r.result + m } : r;
+}
+
+async function toolCall(id, tool, args) {
   const t = desk.findTask(id);
   if (!t) return { ok: false, error: 'This task is no longer open in Task Desk.' };
   const st = state.task(id);
-  if (tool === 'get_task') return { ok: true, result: planView(t) };
+  if (tool === 'get_task') {
+    seen.set(id, claims.version(t.project));
+    return { ok: true, result: planView(t) };
+  }
+  // Before an edit (the hook in the chat's settings): may this chat change the file?
+  if (tool === 'claim_file') {
+    const file = String(args.file || '');
+    if (!file) return { ok: true };
+    const r = claims.claim(t.project, id, file);
+    if (r.ok) return { ok: true, result: 'ok' };
+    const h = desk.findTask(r.holder.task);
+    const since = new Date(r.holder.since).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return {
+      ok: false,
+      error: `Task Desk: ${rel(t, file)} is being edited by the chat for "${h ? h.title : 'another task'}" (since ${since}). Leave that file alone: do your other steps first, or tell ${config.who()} so they can decide.`,
+    };
+  }
+  if (tool === 'set_status') {
+    const text = String(args.text || '')
+      .trim()
+      .slice(0, 300);
+    if (!text) return { ok: false, error: 'Nothing to note.' };
+    st.doing = { text, at: new Date().toISOString() };
+    state.flush();
+    claims.bump(t.project);
+    desk.broadcast();
+    return { ok: true, result: 'Noted; the other chats and the box see it.' };
+  }
+  if (tool === 'tell_main_chat') {
+    const text = String(args.text || '')
+      .trim()
+      .slice(0, 2000);
+    if (!text) return { ok: false, error: 'Nothing to send.' };
+    const sent = handoff.queue(t.project, { from: t.title, text });
+    desk.broadcast();
+    return { ok: true, result: sent ? 'Handed to the main chat.' : "Kept for the main chat; it gets it when it's open and free." };
+  }
   if (tool === 'update_step') {
     const c = planner.cached(t);
     const steps = c && c.plan ? c.plan.steps : [];
@@ -183,6 +275,7 @@ async function chatTool(id, tool, args) {
 // ---------- the channels ----------
 
 function register() {
+  handoff.watch();
   // ----- tasks -----
   handle('tasks:list', () => desk.payload());
   handle('task:get', (e, id) => {
@@ -269,6 +362,13 @@ function register() {
       return { ok: false, error: err.message };
     }
     state.update(id, { status: status === 'done' ? 'done' : 'skipped', notes, finishedAt: new Date().toISOString() });
+    claims.release(id);
+    // The project's main chat hears about it (when it's open and free; else when it opens).
+    const gist = [status === 'done' ? 'Done' : 'Skipped', entry.ticked ? `${entry.ticked} steps` : '', notes ? `Notes: ${notes}` : '']
+      .filter(Boolean)
+      .join('. ');
+    const pasted = results.map((r) => `${r.label}: ${String(r.value).replace(/\s+/g, ' ').slice(0, 300)}`).join('; ');
+    handoff.queue(t.project, { from: t.title, text: `${gist}${pasted ? `. ${pasted}` : ''}`.slice(0, 2000) });
     const next = goNext ? desk.payload().tasks.find((x) => x.id !== id) : null;
     desk.broadcast();
     const w = windows.taskWins.get(id);

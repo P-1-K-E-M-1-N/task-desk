@@ -17,6 +17,7 @@ const { safeId } = require('./safety');
 
 const MCP_DIR = path.join(config.LOCAL_DIR, 'mcp');
 const SCRIPT = path.join(__dirname, '..', 'mcp', 'taskdesk-mcp.js');
+const HOOK = path.join(__dirname, '..', 'mcp', 'taskdesk-hook.js');
 let port = 0;
 // sha256(token) -> task id, and task id -> its token
 const byHash = new Map();
@@ -142,6 +143,37 @@ function configFor(taskId) {
   return file;
 }
 
+// Claude Code's settings for one task's chat: before every edit, ask the app
+// (src/mcp/taskdesk-hook.js) whether another task's chat holds that file.
+// The hook runs through a small .cmd so Electron runs it as Node. Returns the
+// settings file's path, for --settings. Call after configFor (same token).
+function hooksFor(taskId) {
+  if (!safeId(taskId)) throw new Error('Bad task id');
+  fs.mkdirSync(MCP_DIR, { recursive: true });
+  const cmd = path.join(MCP_DIR, 'taskdesk-hook.cmd');
+  fs.writeFileSync(cmd, `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${HOOK}"\r\n`, { mode: 0o600 });
+  const settings = {
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Edit|Write|MultiEdit|NotebookEdit',
+          hooks: [{ type: 'command', command: `"${cmd.replace(/\\/g, '/')}"`, timeout: 10 }],
+        },
+      ],
+    },
+  };
+  const file = path.join(MCP_DIR, `${taskId}.hooks.json`);
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2), { mode: 0o600 });
+  return file;
+}
+
+// What the hook needs from the chat's environment: where the app listens, and
+// where this chat's token is (the file, never the token itself).
+function hookEnv(taskId) {
+  if (!safeId(taskId) || !port) return {};
+  return { TASKDESK_PORT: String(port), TASKDESK_TOKEN_FILE: path.join(MCP_DIR, `${taskId}.token`), TASKDESK_TASK: taskId };
+}
+
 // The chat stopped: its token no longer works and its files are deleted.
 function forget(taskId) {
   const t = tokens.get(taskId);
@@ -149,7 +181,8 @@ function forget(taskId) {
   tokens.delete(taskId);
   recent.delete(taskId);
   if (!safeId(taskId)) return;
-  for (const f of [`${taskId}.json`, `${taskId}.token`, `${taskId}.gemini.json`]) fs.rmSync(path.join(MCP_DIR, f), { force: true });
+  for (const f of [`${taskId}.json`, `${taskId}.token`, `${taskId}.gemini.json`, `${taskId}.hooks.json`])
+    fs.rmSync(path.join(MCP_DIR, f), { force: true });
 }
 
-module.exports = { start, configFor, spec, forget, taskFor, MCP_DIR, ready: () => port > 0 };
+module.exports = { start, configFor, hooksFor, hookEnv, spec, forget, taskFor, MCP_DIR, ready: () => port > 0 };

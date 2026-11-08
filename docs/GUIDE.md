@@ -171,7 +171,7 @@ Task chats and plans run on Claude Code by default. They can also run on **OpenA
   - **Fresh start:** only Claude starts out with a copy of the folder's latest session. The others start fresh with the task brief.
   - **Codex** works read-only unless the project allows file changes (box 5). Even then it asks before anything else.
   - **Gemini** asks before every file change.
-  - **The plan tools** (tick a step, comment, add a note, snooze until a day) work with all three.
+  - **The plan tools** (tick a step, comment, add a note, snooze until a day, say what it's doing, note to the main chat) work with all three. The before-every-edit check that keeps two chats out of one file is Claude Code only.
 
 ## Updates (every day at 7 AM)
 

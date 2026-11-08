@@ -57,11 +57,17 @@ function classify(output) {
 // new state: 'question', 'turn' or null.
 function step(e, output) {
   const c = classify(output);
-  if (c === 'question') e.state = 'question';
-  else if (c === 'busy') {
+  if (c === 'question') {
+    e.state = 'question';
+    e.idle = false;
+  } else if (c === 'busy') {
     e.armed = true;
     e.state = null;
-  } else if (c === 'idle') e.state = e.armed ? 'turn' : null;
+    e.idle = false;
+  } else if (c === 'idle') {
+    e.state = e.armed ? 'turn' : null;
+    e.idle = true;
+  }
   return e.state;
 }
 
@@ -77,7 +83,7 @@ const onChange = (fn) => (listener = fn);
 
 const entry = (id) => {
   let e = entries.get(id);
-  if (!e) entries.set(id, (e = { state: null, armed: false, chunk: '', timer: null }));
+  if (!e) entries.set(id, (e = { state: null, armed: false, idle: false, chunk: '', timer: null }));
   return e;
 };
 function tell(id, e, before) {
@@ -109,6 +115,7 @@ function input(id, data) {
   const before = e.state;
   e.armed = false;
   e.state = null;
+  e.idle = false;
   tell(id, e, before);
 }
 
@@ -122,5 +129,7 @@ function forget(id) {
 }
 
 const needs = (id) => (entries.get(id) || {}).state || null;
+// The chat shows its empty input line (whether or not that counts as "your turn"): a message can go in.
+const isIdle = (id) => !!(entries.get(id) || {}).idle;
 
-module.exports = { classify, step, strip, userTyped, feed, input, forget, needs, onChange, QUIET_MS };
+module.exports = { classify, step, strip, userTyped, feed, input, forget, needs, isIdle, onChange, QUIET_MS };

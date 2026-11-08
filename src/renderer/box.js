@@ -170,7 +170,11 @@ function render() {
   // The project's main chat: your own Claude Code session that writes its tasks.
   const mainFor = up ? up.name : data.view === 'factory' && data.factory ? data.factory.name : '';
   $('#mainchat').hidden = !mainFor;
-  $('#mainchat').title = mainFor ? `Open ${mainFor}'s main chat (your own Claude Code session that writes its tasks)` : '';
+  const notes = data.mainNotes || 0;
+  $('#mainchat').dataset.count = notes ? String(Math.min(notes, 99)) : '';
+  $('#mainchat').title = mainFor
+    ? `Open ${mainFor}'s main chat (your own Claude Code session that writes its tasks)${notes ? `. ${notes} note${notes === 1 ? '' : 's'} from task chats waiting for it` : ''}`
+    : '';
   if (up && $('#qtext').dataset.view !== data.view) {
     $('#qtext').dataset.view = data.view;
     $('#qtext').placeholder = `Add a task to ${up.name}…`;
@@ -276,12 +280,13 @@ function card(t, i) {
         <div class="ttl"></div>
         <div class="meta">
           <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${safeColor(tag.color)}"></span><span class="nm"></span></span>
-          <span class="sep">·</span><span>${esc(fmtMin(t.minutes))}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${esc(ownModel(t))}</span>` : ''}
+          <span class="sep">·</span><span>${esc(fmtMin(t.minutes))}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${esc(ownModel(t))}</span>` : ''}${t.doing ? `<span class="doing" title="What its chat is doing now (it said so)">${icon('sparkle')}<span class="dtxt"></span></span>` : ''}
         </div>
       </div>
       <div class="right">${right}</div>`,
   });
   el.querySelector('.ttl').textContent = t.title;
+  if (t.doing) el.querySelector('.doing .dtxt').textContent = t.doing;
   el.querySelector('.lane .nm').textContent = tag.name;
   if (t.updatedAfter) el.querySelector('.upd').title = `Updated after you finished "${t.updatedAfter.title}": ${t.updatedAfter.why}`;
   if (t.waitsOn)

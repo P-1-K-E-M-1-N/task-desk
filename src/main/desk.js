@@ -13,6 +13,8 @@ const state = require('./state');
 const planner = require('./planner');
 const chat = require('./chat');
 const attention = require('./attention');
+const claims = require('./claims');
+const handoff = require('./handoff');
 const { readTasks, normType } = require('./tasks');
 const projects = require('./projects');
 const ai = require('./ai');
@@ -70,6 +72,9 @@ function decorate(t) {
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
     needs: chat.needs(t.id),
+    // What its chat says it's doing (set_status), and how many files that chat holds.
+    doing: st.doing && chat.isLive(t.id) ? st.doing.text : '',
+    editing: claims.holdings(t.id).length,
     aiName: ai.pick(t).app,
     // Claude's model and effort for this task's chat, and its own choice (when per task is on).
     claude:
@@ -112,6 +117,8 @@ function payload() {
     goal: view === 'all' ? null : order.progress(view, counts),
     totalOpen: openAll.length,
     totalNeeds: openAll.filter((t) => t.needs).length,
+    // Notes from task chats waiting for the main chat of the project on show.
+    mainNotes: view === 'all' ? 0 : handoff.pending(view),
     view,
     projects: projects.summary().map((p) => ({ ...p, open: openAll.filter((t) => t.project === p.id).length })),
     mode: s.mode,
@@ -176,6 +183,9 @@ attention.onChange((id, kind) => {
   const b = windows.box();
   if (cue.sound !== 'off' && b && !b.isDestroyed()) b.webContents.send('cue', { sound: cue.sound, kind });
 });
+
+// Notes handed into a main chat: the box's count on the main-chat button goes down.
+handoff.onDeliver(() => broadcast());
 
 // Reads every project's tasks: the lanes workspace first (when it's on), then the others.
 function refresh() {

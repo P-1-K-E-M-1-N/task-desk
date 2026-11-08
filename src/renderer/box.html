@@ -44,7 +44,9 @@
   /* The empty space in the header is where you grab the box to move it, so it never shrinks to nothing. */
   /* The gap gives way first, then the buttons slim down, so the project's name always keeps some room. */
   header .sp { flex: 1; min-width: 12px; align-self: stretch; }
-  header .iconbtn { width: 27px; flex: none; }
+  header .iconbtn { width: 27px; flex: none; position: relative; }
+  /* Notes from task chats waiting for the main chat. */
+  #mainchat[data-count]:not([data-count=""])::after { content: attr(data-count); position: absolute; top: 1px; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--clay); color: #fff; font-size: 9.5px; font-weight: 700; line-height: 14px; text-align: center; }
   .narrow header .iconbtn { width: 24px; }
   header .pill { margin-left: 4px; }
   .hero { position: relative; padding: 4px 18px 12px; flex: none; }
@@ -87,7 +89,7 @@
   .meta .sep { opacity: .5; }
   .quick { display: inline-flex; align-items: center; gap: 2px; color: var(--ok); font-weight: 650; }
   .quick svg.i { width: 11px; height: 11px; fill: currentColor; stroke: none; }
-  .right { flex: none; display: grid; place-items: center; width: 26px; }
+  .right { flex: none; display: grid; place-items: center; min-width: 26px; }
   .ring { width: 24px; height: 24px; transform: rotate(-90deg); }
   .ring circle { fill: none; stroke-width: 3; }
   .ring .bg { stroke: var(--surface-2); }
@@ -178,6 +180,10 @@
   .card .waits { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--ink-3); font-weight: 600; }
   .card .waits svg.i { width: 11px; height: 11px; }
   .card .ownmodel { margin-left: 6px; padding: 0 5px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-3); font-size: 9.5px; font-weight: 650; }
+  /* What the task's chat says it's doing right now (set_status). */
+  .card .doing { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--ink-2); font-weight: 560; flex: 0 1 auto; min-width: 0; max-width: 45%; }
+  .card .doing svg.i { width: 11px; height: 11px; flex: none; }
+  .card .doing .dtxt { overflow: hidden; text-overflow: ellipsis; }
   /* The project's goal line: a rough AI guess, so the bar is striped rather than solid. */
   .meter.goal .bar i { background: repeating-linear-gradient(90deg, var(--clay) 0 6px, var(--clay-2) 6px 9px); }
   .goaltxt { margin-top: 4px; color: var(--ink-3); font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
