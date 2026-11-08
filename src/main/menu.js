@@ -259,7 +259,13 @@ function menu() {
       checked: config.get().catchUp !== false,
       click: (i) => config.set({ catchUp: i.checked }),
     },
-    { label: 'Start with Windows', type: 'checkbox', checked: shortcuts.autostartOn(), click: (i) => shortcuts.setAutostart(i.checked) },
+    {
+      label: config.safeMode() ? 'Start with Windows (off in Company-safe mode)' : 'Start with Windows',
+      type: 'checkbox',
+      checked: shortcuts.autostartOn(),
+      enabled: !config.safeMode(),
+      click: (i) => shortcuts.setAutostart(i.checked),
+    },
     {
       label: 'Show in the taskbar',
       type: 'checkbox',
@@ -298,6 +304,7 @@ async function setSafeMode(on) {
   updateFlow.scheduleUpdates();
   desk.broadcast();
   if (!on) return;
+  shortcuts.setAutostart(false);
   const r = await dialog.showMessageBox({
     type: 'info',
     buttons: config.synced() ? ['Move my data back now', 'Later'] : ['OK'],
@@ -308,6 +315,7 @@ async function setSafeMode(on) {
       '  • never updates by itself (Check for updates still asks first),',
       '  • starts chats without your Chrome browser,',
       '  • uses only Claude Code (no Codex or Gemini),',
+      "  • doesn't start with Windows,",
       '  • keeps its data off OneDrive.',
       '',
       'Chats that are already running keep going as they are until they restart.',

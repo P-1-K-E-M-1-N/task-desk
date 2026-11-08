@@ -3,7 +3,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { aiEnv, safeId } = require('./safety');
 
 const PROJECTS = path.join(os.homedir(), '.claude', 'projects');
@@ -33,23 +32,39 @@ function newestSession(folder, exclude = new Set()) {
   }
 }
 
-// Windows' own "where", by its full path, so a where.exe in some other folder is never used.
-const WHERE = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'where.exe');
-
-// Every match for a program name on PATH, as full paths ([] when there's none).
-// A match in the folder the desk was started from doesn't count.
+// Every match for a program name on PATH, as full paths ([] when there's none),
+// in PATH order and then PATHEXT order, as Windows' own `where` lists them. The
+// folders are looked at from here rather than by starting where.exe: a hidden
+// console reading a pipe is one of the things endpoint security (SentinelOne
+// and the like) reports as suspicious, see SECURITY.md. A match in the folder
+// the desk was started from doesn't count, and neither does a relative PATH entry.
 function where(cmd) {
-  let out = '';
-  try {
-    out = execFileSync(fs.existsSync(WHERE) ? WHERE : 'where', [cmd], { encoding: 'utf8', windowsHide: true });
-  } catch {
-    return [];
-  }
+  if (!cmd || /[\\/]/.test(cmd)) return [];
   const here = path.resolve(process.cwd()).toLowerCase();
-  return out
-    .split(/\r?\n/)
-    .map((h) => h.trim())
-    .filter((h) => h && path.isAbsolute(h) && path.dirname(path.resolve(h)).toLowerCase() !== here);
+  const exts = path.extname(cmd) ? [''] : (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean);
+  const hits = [];
+  const seen = new Set();
+  for (const entry of (process.env.PATH || '').split(path.delimiter)) {
+    const dir = entry.trim().replace(/^"|"$/g, '');
+    if (!dir || !path.isAbsolute(dir) || path.resolve(dir).toLowerCase() === here) continue;
+    let items;
+    try {
+      items = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    // By lower-cased name, so the match is spelled as it is on disk.
+    const files = new Map(items.filter((d) => d.isFile() || d.isSymbolicLink()).map((d) => [d.name.toLowerCase(), d.name]));
+    for (const ext of exts) {
+      const name = files.get((cmd + ext).toLowerCase());
+      if (!name) continue;
+      const p = path.join(dir, name);
+      if (seen.has(p.toLowerCase())) continue;
+      seen.add(p.toLowerCase());
+      hits.push(p);
+    }
+  }
+  return hits;
 }
 
 // The program an npm .cmd shim starts ("%dp0%\node_modules\...\x.exe"), when

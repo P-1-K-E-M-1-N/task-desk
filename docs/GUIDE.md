@@ -63,7 +63,7 @@ Some things stay separate on each computer:
 **Setting up another computer:**
 1. Install Node.js and Claude Code, and sign in to Claude Code.
 2. Clone the repo (`git clone -b release https://github.com/P-1-K-E-M-1-N/task-desk.git`), then run `npm install` inside it. A clone keeps itself up to date (see "Updates"). A copied folder works too, but it can't update itself.
-3. Start it with `npm start`. It makes its own desktop and Startup shortcuts.
+3. Start it with `npm start`. It makes its own desktop shortcut; tick **Start with Windows** in the ⋯ menu if you want it in the tray when you log in.
 
 **Folders can be in different places on each computer.** Your projects' folders don't have to be at the same path, or in OneDrive. On a computer where a project's folder isn't found, the box says "This project's folder isn't on this computer". Click **Fix the folder** and choose where the project is on that computer (or leave the folder empty if it isn't there at all). That choice is kept for that computer only; your other computers keep theirs. The lanes workspace works the same way: **Pick its folder** in the box, or **<name>'s folder on this computer…** in the ⋯ menu. Projects whose folders are in OneDrive simply work everywhere.
 
@@ -200,9 +200,9 @@ The task box has its own button on the taskbar while it's showing.
 
 ## Starting with Windows
 
-On first run the app put a shortcut on your desktop and one in your Startup folder, so it starts quietly in the tray when you log in. It also keeps one in the Start menu.
+Tick **Start with Windows** in the ⋯ menu (or right-click the tray icon) and the app starts quietly in the tray when you log in, through a shortcut in your Startup folder. The first run makes a desktop shortcut and a Start menu entry and nothing in the Startup folder: that's your choice to make. Company-safe mode keeps it off.
 
-**To turn auto-start off:** open the ⋯ menu (or right-click the tray icon) and untick **Start with Windows**. Or press Win+R, type `shell:startup`, and delete "Task Desk".
+**To turn auto-start off:** untick **Start with Windows**. Or press Win+R, type `shell:startup`, and delete "Task Desk".
 
 ## Where things live
 

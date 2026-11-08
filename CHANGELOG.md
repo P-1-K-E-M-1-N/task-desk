@@ -6,6 +6,11 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Changed
+- **Start with Windows is a choice now.** The first start makes a desktop shortcut and a Start menu entry, and nothing in the Startup folder until you tick **Start with Windows** in the ⋯ menu. Copies that already start with Windows keep doing so. Company-safe mode keeps it off and removes a Startup shortcut that's there. A program that adds itself to Startup on its first run is what endpoint security calls persistence, and SentinelOne said so on a work computer.
+- Task Desk finds `claude`, `git` and the other AI apps by looking along PATH itself, instead of running Windows' `where.exe` in a hidden console (another thing endpoint security reports).
+- SECURITY.md has a new section, **What endpoint security sees**: what SentinelOne reported about the app, what each item really was, and what to ask an IT team for. The README's work-computer notes point to it.
+
 ## 1.2.1 - 2026-11-06
 
 ### Added

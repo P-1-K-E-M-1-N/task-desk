@@ -37,20 +37,21 @@ What the two install lines do:
 
 To change the code or run the tests, use `npm ci --ignore-scripts` without `--omit=dev`; that adds the code checker, the formatter and the test tools. Updates keep whichever you chose.
 
-**On a work computer,** read [Company-safe mode](#company-safe-mode) first, and expect your security software (SentinelOne, CrowdStrike, Defender for Endpoint…) to notice the install: one window downloads and unpacks many files, including programs (`electron.exe`, `ffmpeg.dll`). That's your IT team's call, not something to work around. Ask them to allow it, and tell them what it does:
+**On a work computer,** read [Company-safe mode](#company-safe-mode) first, and expect your security software (SentinelOne, CrowdStrike, Defender for Endpoint…) to notice the install: one window downloads and unpacks many files, including programs (`electron.exe`, `ffmpeg.dll`), none of them carrying a publisher's signature. It will notice the app running, too: Electron starts its windows the way Chrome does, which these tools report as "process hollowing" or "code injection", and the app starts `git` and the AI app from a program with no signature. That's your IT team's call, not something to work around. Ask them to allow it **before** you install (on one work computer, SentinelOne killed the install and quarantined the files), and tell them what it does. [SECURITY.md](SECURITY.md#what-endpoint-security-sees) lists what gets reported, what each item really is, and what to ask for.
 - it runs from the folder you cloned it to, as you, with no admin rights and no installer;
 - `node_modules\electron\dist\electron.exe` is the app; it starts `git` and the AI app you installed (`claude`);
 - it never updates itself unless you turn **Update automatically** on (Company-safe mode keeps it off);
-- it adds a desktop, Startup and Start-menu shortcut, and talks to nothing on the internet itself (the AI app uses its own sign-in).
+- it adds a desktop and a Start-menu shortcut, and nothing to the Startup folder unless you tick **Start with Windows** (Company-safe mode keeps that off too);
+- it talks to nothing on the internet itself (the AI app uses its own sign-in).
 
 `-b release` puts you on the release branch, which is what the daily self-update follows. Without it you get `main`, which holds the changes that passed the last full test run but haven't been released yet. Day-to-day work happens on `dev`.
 
 The first start does three things:
 - creates a `data\` folder next to the app,
-- puts a shortcut on the desktop and one in the Startup folder (so it starts with Windows, in the tray),
+- puts a shortcut on the desktop,
 - adds a Start menu entry.
 
-To pin it to the taskbar, right-click its taskbar button and choose **Pin to taskbar**.
+To pin it to the taskbar, right-click its taskbar button and choose **Pin to taskbar**. To have it start with Windows (quietly, in the tray), tick **Start with Windows** in the ⋯ menu.
 
 On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows **Add your first project**. The form has nine numbered boxes, and only the name is required.
 
@@ -97,6 +98,7 @@ For a work computer: tick **Company-safe mode (for a work computer)** in the ⋯
 - never updates by itself (**Check for updates now** still asks before installing anything),
 - starts every chat without your Chrome browser,
 - uses only Claude Code, never Codex or Gemini,
+- doesn't start with Windows (a Startup shortcut that's there is removed),
 - keeps its data on this computer instead of OneDrive (it offers to move it back if it's there).
 
 An IT team can switch it on for good with the environment variable `TASKDESK_SAFE_MODE=1`; it then can't be turned off in the app. The rest applies everywhere: the Open buttons, the chats' edit limits, and what the AI apps can see (below).

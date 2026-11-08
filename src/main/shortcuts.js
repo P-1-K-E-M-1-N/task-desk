@@ -1,6 +1,11 @@
 // The Windows shortcuts: desktop, Startup (start with Windows) and Start menu.
 // They carry the app id and icon, so pins and the taskbar show Task Desk, not
 // plain Electron. Tests never touch this computer's shortcuts.
+//
+// The Startup one is only ever made when the user ticks "Start with Windows":
+// a program that puts itself in the Startup folder on its first run is what
+// endpoint security calls persistence (see SECURITY.md). Company-safe mode
+// keeps it off and removes one that's there.
 const { app, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -52,13 +57,16 @@ function writeLink(file, hidden) {
     appUserModelId: desk.APP_ID,
   });
 }
+// Returns what it's set to now (false when Company-safe mode refused).
 function setAutostart(on) {
+  on = !!on && !config.safeMode();
   if (on) writeLink(startupLink(), true);
   else
     try {
       fs.unlinkSync(startupLink());
     } catch {}
   config.set({ autostart: on });
+  return on;
 }
 const autostartOn = () => fs.existsSync(startupLink());
 
@@ -69,6 +77,10 @@ function ensureShortcuts() {
   // the existing shortcuts are rewritten so pins and the taskbar pick it up.
   const LINKS = `${desk.APP_ID}/${LINK_NAME}`;
   const stale = config.get().linksFor !== LINKS;
+  if (config.safeMode() && autostartOn())
+    try {
+      setAutostart(false);
+    } catch {}
   if (stale || !fs.existsSync(startMenuLink()))
     try {
       writeLink(startMenuLink(), false);
@@ -97,12 +109,10 @@ function ensureShortcuts() {
     }
     config.set({ linksFor: LINKS });
   }
+  // First start: a desktop shortcut. Starting with Windows is the user's choice (the menu).
   if (config.get().shortcutsDone) return;
   try {
     writeLink(desktopLink(), false);
-  } catch {}
-  try {
-    setAutostart(true);
   } catch {}
   config.set({ shortcutsDone: true });
 }

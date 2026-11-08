@@ -163,8 +163,40 @@ that folder, and only add project folders you trust.
 
 A per-computer switch in the menu (or `TASKDESK_SAFE_MODE=1`, which the user
 can't turn off) for a work computer: no automatic updates, no Chrome for chats,
-Claude Code only (no Codex or Gemini), and the data kept off OneDrive. See the
-README.
+Claude Code only (no Codex or Gemini), no Startup shortcut, and the data kept
+off OneDrive. See the README.
+
+## What endpoint security sees
+
+Nothing Task Desk runs is signed by a publisher: `electron.exe` comes from the
+Electron package on npm without a signature, and so do the native parts of the
+terminal (`conpty.node`). Free signing for open source through SignPath
+Foundation wasn't available to this project, and a certificate of our own is
+being looked into. Until then, endpoint security on a managed computer will
+report the app. Here is what SentinelOne reported on one work computer, in its
+own words, and what each item was:
+
+| Reported | What it was |
+| --- | --- |
+| Process hollowing; code injection during the target process's initialization; PE injection | Chromium's sandbox. Electron starts each window's process suspended, patches that process's copy of `ntdll` so the sandbox holds, then lets it run. Every Chromium-based program (Chrome, Edge, Teams, VS Code) does the same. |
+| A vectored exception handler was registered | Chromium's and Node's crash handler. |
+| Startup file created; persistence through a startup directory; persistence registered by an LNK process | Task Desk 1.2.1 and earlier put a shortcut in the Startup folder on its first run. It no longer does: **Start with Windows** is a choice in the menu, and Company-safe mode keeps it off. |
+| Redirection of data to a pipe from an interpreter with a hidden window | Task Desk 1.2.1 and earlier ran Windows' `where.exe` in a hidden console to find `claude` and `git`. It now looks along PATH itself. The chat's terminal (ConPTY, `OpenConsole.exe`) still works through pipes: that is how every terminal program runs a shell. |
+| Indirect command execution; obfuscated PowerShell command from an LNK file | The way it was started: `npm start` typed in a PowerShell window that was opened from a taskbar shortcut, which goes through npm's `.cmd` shim and `cmd.exe`. The desktop shortcut starts `electron.exe` directly. |
+
+Because the install had been started from a PowerShell window, SentinelOne
+named that window the threat, killed it with everything under it, and
+quarantined the files it had written (the clone and its packages).
+
+What to ask the security team for, in their console's terms:
+
+- Mark the detection a false positive, and exclude the folder the app is cloned
+  to (by path, or by the hash of `node_modules\electron\dist\electron.exe` from
+  `Get-FileHash`; the hash changes with each Electron version).
+- Let the install run from that folder, or have IT run the four install lines
+  from the README themselves.
+- Set `TASKDESK_SAFE_MODE=1` for the computer, which also keeps the Startup
+  folder clear.
 
 ## What a company should still decide
 
