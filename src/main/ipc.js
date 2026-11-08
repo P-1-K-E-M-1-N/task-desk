@@ -19,6 +19,7 @@ const projects = require('./projects');
 const ai = require('./ai');
 const log = require('./log');
 const safety = require('./safety');
+const snooze = require('./snooze');
 const desk = require('./desk');
 const windows = require('./windows');
 const menu = require('./menu');
@@ -156,6 +157,26 @@ async function chatTool(id, tool, args) {
     toWindow(id, { kind: 'note', text, notes: st.notes });
     return { ok: true, result: 'Added to his notes.' };
   }
+  // The chat puts the task away until a day the user asked for. The window stays
+  // open (closing it would end the chat mid-sentence); the task leaves the box.
+  if (tool === 'snooze_task') {
+    const d = snooze.until(args.until);
+    if (!d) return { ok: false, error: `Can't use "${String(args.until || '').slice(0, 40)}". ${snooze.HELP}` };
+    const reason = String(args.reason || '')
+      .trim()
+      .slice(0, 1000);
+    if (reason) {
+      st.notes = st.notes ? `${st.notes.trimEnd()}\n${reason}` : reason;
+      toWindow(id, { kind: 'note', text: reason, notes: st.notes });
+    }
+    state.update(id, { status: 'snoozed', snoozeUntil: d.toISOString() });
+    toWindow(id, { kind: 'snoozed', until: d.toISOString() });
+    desk.broadcast();
+    return {
+      ok: true,
+      result: `Snoozed until ${snooze.dayName(d)}, 8 in the morning. The task is out of the box until then; this window stays open as long as ${config.who()} wants it. Tell them.`,
+    };
+  }
   return { ok: false, error: 'Unknown tool ' + tool };
 }
 
@@ -210,10 +231,10 @@ function register() {
     const t = desk.findTask(id);
     if (t) planner.regenerate(t);
   });
+  // when: 'tomorrow', 'week' or a day as YYYY-MM-DD (see snooze.js). null when it can't be used.
   handle('task:snooze', (e, id, when) => {
-    const d = new Date();
-    d.setDate(d.getDate() + (when === 'week' ? 7 : 1));
-    d.setHours(8, 0, 0, 0);
+    const d = snooze.until(when);
+    if (!d) return null;
     state.update(id, { status: 'snoozed', snoozeUntil: d.toISOString() });
     desk.broadcast();
     return d.toISOString();

@@ -62,6 +62,7 @@ function systemNote(task) {
     'get_task shows the numbered steps, which are done, comments, and their notes. Call it when you start or resume, so you know what is already done.',
     `update_step ticks a step done (or not) and/or leaves a short comment on it. Use it as soon as a step is finished or ${config.who()} says they did one, with a one-line comment on the outcome (who, what, date, result, or what is still open).`,
     "add_note appends a line to the task's notes box (results, replies, dates). Do not repeat what is already there.",
+    `snooze_task puts this task away until a day (it leaves the box and comes back that morning at 8). Only when ${config.who()} asks to come back to it later: agree the day with them, then call it with that day (YYYY-MM-DD, tomorrow or next week) and a one-line reason for their notes.`,
     'Never press Done/Skip for them; they finish the task themselves.',
   ].join(' ');
 }

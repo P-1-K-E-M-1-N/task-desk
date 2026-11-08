@@ -8,7 +8,7 @@ Everything about using Task Desk day to day. For what it is and how to install i
    - **To move the box,** drag its top bar (the empty space between the project name and the buttons) or the summary area under it.
 2. Click a task. The plan is on the left, Claude Code is on the right and already knows the task.
 3. Work down the steps: tick each one, and use the buttons (Copy, Open, Gmail draft, paste boxes). Click the chat bubble on any step to ask Claude about it. Tell the chat what you did ("sent it") and it ticks the step and adds a comment for you.
-4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too.
+4. Type what happened into the notes box and press **Done** (or **Done & next** to go straight to the next task). **Skip** and **Snooze** are there too: snooze until tomorrow, next week or a day you pick, and it comes back that morning at 8. Or tell the chat "snooze this until the 14th" and it does it for you, with a line in your notes about why.
 5. Use **Clear** in the chat header to wipe the conversation, or **Fresh chat** to start over on a clean slate. Your Done notes go where the project says (box 4 of its form).
 
 ## One desk for all your projects
@@ -171,7 +171,7 @@ Task chats and plans run on Claude Code by default. They can also run on **OpenA
   - **Fresh start:** only Claude starts out with a copy of the folder's latest session. The others start fresh with the task brief.
   - **Codex** works read-only unless the project allows file changes (box 5). Even then it asks before anything else.
   - **Gemini** asks before every file change.
-  - **The plan tools** (tick a step, comment, add a note) work with all three.
+  - **The plan tools** (tick a step, comment, add a note, snooze until a day) work with all three.
 
 ## Updates (every day at 7 AM)
 

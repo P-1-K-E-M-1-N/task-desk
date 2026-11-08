@@ -574,6 +574,19 @@ function taskMenu(t, e) {
       },
     },
     {
+      label: 'Snooze until a day…',
+      icon: 'calendar',
+      run: () =>
+        pickDay(at, async (day) => {
+          const until = await desk.snooze(t.id, day);
+          toast(
+            until
+              ? `Snoozed until ${new Date(until).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}.`
+              : 'Pick a day from tomorrow on, up to a year away.'
+          );
+        }),
+    },
+    {
       label: 'Redraft its plan',
       icon: 'refresh',
       run: () => {

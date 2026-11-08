@@ -1256,3 +1256,23 @@ a {
   color: var(--ink-3);
   text-align: center;
 }
+
+/* The "pick a day" popup (pickDay in ui.js): a calendar box and one button. */
+.popmenu.pickday .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px 6px;
+}
+.popmenu.pickday .dayin {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+.popmenu.pickday .btn {
+  height: 32px;
+}

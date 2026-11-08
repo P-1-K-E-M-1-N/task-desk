@@ -345,6 +345,11 @@ desk.onTaskChanged((id, ch) => {
       ch.done === true ? `Claude ticked step ${n}` : ch.done === false ? `Claude un-ticked step ${n}` : `Claude commented on step ${n}`
     );
   }
+  if (ch.kind === 'snoozed') {
+    // The chat snoozed it (the user asked). The window stays open; the task is out of the box.
+    $('#bsnooze').innerHTML = `${icon('moon')}<span>Snoozed until ${esc(dayName(ch.until))}</span>${icon('chevDown')}`;
+    toast(`Claude snoozed this until ${dayName(ch.until)}. Close this window whenever you're done here.`);
+  }
   if (ch.kind === 'note') {
     const ta = $('#notes');
     // Keep anything typed but not saved yet, then add Claude's line and save it all.
@@ -585,10 +590,14 @@ $('#bsnooze').onclick = (e) =>
   popMenu(e.currentTarget, [
     { label: 'Tomorrow morning', icon: 'moon', run: () => snooze('tomorrow') },
     { label: 'Next week', icon: 'clock', run: () => snooze('week') },
+    { label: 'Pick a day…', icon: 'calendar', run: () => pickDay($('#bsnooze'), snooze) },
   ]);
+const dayName = (d) => new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+// when: 'tomorrow', 'week' or a day as YYYY-MM-DD. The task comes back that morning at 8.
 async function snooze(when) {
   const until = await desk.snooze(ID, when);
-  toast(`Snoozed until ${new Date(until).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`);
+  if (!until) return toast('Pick a day from tomorrow on, up to a year away.');
+  toast(`Snoozed until ${dayName(until)}`);
   setTimeout(() => desk.close(), 900);
 }
 

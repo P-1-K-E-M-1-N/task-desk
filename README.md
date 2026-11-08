@@ -60,7 +60,7 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 1. **Open the box:** press **Ctrl+Alt+T**, or click the taskbar or tray icon.
 2. **Open a task:** click it. The plan is on the left and the chat on the right.
 3. **Work the steps:** tell the chat what you did ("sent it") and it ticks the step and leaves a comment. You can also tick steps yourself.
-4. **Finish:** type what happened into the notes box and press **Done** (or **Skip**, or **Snooze**).
+4. **Finish:** type what happened into the notes box and press **Done** (or **Skip**, or **Snooze** until tomorrow, next week or a day you pick). If you're waiting on something, you can also tell the chat "snooze this until the 14th": it agrees the day with you, puts the task away and leaves a line in your notes.
 
 `npm run hidden` starts it straight to the tray without showing the box.
 
@@ -80,7 +80,7 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 
 **Which Claude model, and how hard it thinks.** Click the AI button at the bottom of the box, then **Claude model and effort…**. In **All projects** that sets the choice for every project; with one project showing it sets that project's. Tick **Let a task have its own** to give single tasks their own: right-click a task in the box and pick **Claude model and effort…**. A task uses its own choice first, then its project's, then the desk's, and "Usual" means "whatever comes next in that line". Bigger models and higher effort use more of your Claude plan. A chat that's already open keeps its model until you close the task and open it again.
 
-**Right-click a task** for more: open it, choose its Claude model, snooze it until tomorrow, redraft its plan, or copy its text.
+**Right-click a task** for more: open it, choose its Claude model, snooze it until tomorrow or a day you pick, redraft its plan, or copy its text.
 
 **A project's main chat.** With one project showing, the chat-bubble button at the top of the box opens that project's *main chat*: your own Claude Code session that writes the project's tasks (the one you set the project up with), not a task's chat. Task Desk finds it among the Claude Code sessions saved on this computer. It's the newest session that wrote the project's checklist file, or that you gave Task Desk's instructions to (the **Copy for another AI chat** text), wherever you started it. It reopens right where you left off, in a Task Desk window, as plain Claude Code with your normal settings: none of the task chats' limits apply. **Other sessions** lets you pick a different one, and **New main chat** starts one in the project's folder; Task Desk remembers your choice on this computer. If the same session is also open in a terminal, close it there first, so the two don't both write to it. Closing the window stops the chat; it resumes next time.
 

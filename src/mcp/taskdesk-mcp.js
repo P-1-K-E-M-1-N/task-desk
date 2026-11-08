@@ -1,6 +1,7 @@
 // Tiny MCP server that the chat's `claude` starts for one task. It gives Claude
-// three tools to keep that task's plan up to date: read the plan, tick a step /
-// comment on it, and add to the user's notes. Every call is forwarded to the Task
+// four tools to keep that task's plan up to date: read the plan, tick a step /
+// comment on it, add to the user's notes, and snooze the task until a day the
+// user asked for. Every call is forwarded to the Task
 // Desk app over a local connection (127.0.0.1 + a secret token), and the app
 // only lets it change the task it was started for.
 // Runs under Electron's Node (ELECTRON_RUN_AS_NODE=1); no dependencies.
@@ -49,6 +50,20 @@ const TOOLS = [
       type: 'object',
       properties: { text: { type: 'string', description: 'The text to add.' } },
       required: ['text'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'snooze_task',
+    description:
+      'Put this task away until a day, when the user asks for that (for example the work is done for now and something is due back on a date). Agree the day with the user first, then call this. The task leaves their box and comes back that morning at 8; this window stays open until they close it. Never snooze on your own.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        until: { type: 'string', description: 'The day it comes back: YYYY-MM-DD, or "tomorrow" or "next week".' },
+        reason: { type: 'string', description: 'Optional one line for their notes, e.g. "Waiting for the quote from Mike, due Nov 14".' },
+      },
+      required: ['until'],
       additionalProperties: false,
     },
   },

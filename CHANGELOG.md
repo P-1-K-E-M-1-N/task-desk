@@ -6,6 +6,10 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- **Snooze until a day you pick.** The Snooze button in the task window (and "Snooze until a day…" when you right-click a task) now has a calendar: pick any day from tomorrow up to a year away, and the task comes back that morning at 8, like the other snoozes.
+- **The chat can snooze a task for you.** When you tell it to come back to this later ("snooze this until the 14th"), it agrees the day with you, puts the task away with its new `snooze_task` tool, and leaves a line in your notes about why. It never snoozes on its own, and the task window stays open until you close it.
+
 ## 1.2.2 - 2026-11-07
 
 ### Fixed

@@ -18,6 +18,7 @@ const UI_HELPERS = [
   'actBtn',
   'popMenu',
   'placePopup',
+  'pickDay',
   'applyLook',
   'lookPanel',
   'termTheme',

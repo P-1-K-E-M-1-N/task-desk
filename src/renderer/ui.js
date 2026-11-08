@@ -1,5 +1,5 @@
 // Small shared helpers: icons, element builder, lane colors, toasts.
-/* exported icon, esc, safeColor, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, applyLook, lookPanel, termTheme, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
+/* exported icon, esc, safeColor, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, pickDay, applyLook, lookPanel, termTheme, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
 const ICONS = {
   // The eight kinds of task.
   outreach: '<path d="M20.5 3.5 3.5 10.2l6.8 3.5 3.5 6.8z"/><path d="m20.5 3.5-10.2 10.2"/>',
@@ -38,6 +38,7 @@ const ICONS = {
   bolt: '<path d="M13 3.5 5.5 13.5h6l-1 7 7.5-10h-6z"/>',
   star: '<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
   moon: '<path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10z"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/>',
   skip: '<path d="m6 6.5 7 5.5-7 5.5zM16.5 6.5v11"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="m10.9 12.1 8.6-8.6M16 7l2.5 2.5"/>',
   paste: '<rect x="5.5" y="5" width="13" height="15.5" rx="2"/><path d="M9 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 11h6M9 14.5h4"/>',
@@ -165,6 +166,37 @@ function popMenu(anchor, items, { head, notes = [] } = {}) {
     ...notes.filter(Boolean).map((n) => h('div', { class: 'popnote' }, n))
   );
   placePopup(anchor, m);
+  return m;
+}
+
+// A small popup with a calendar box: pick a day from tomorrow on, up to a year
+// away. onPick gets the day as YYYY-MM-DD. label: the button's text (plain).
+function pickDay(anchor, onPick, { head = 'Come back on', label = 'Snooze' } = {}) {
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const min = new Date();
+  min.setDate(min.getDate() + 1);
+  const max = new Date();
+  max.setFullYear(max.getFullYear() + 1);
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'dayin';
+  input.min = iso(min);
+  input.max = iso(max);
+  input.value = iso(min);
+  const go = () => {
+    if (!input.value) return;
+    m.remove();
+    onPick(input.value);
+  };
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+  const m = h(
+    'div',
+    { class: 'popmenu pickday' },
+    h('div', { class: 'pophead' }, head),
+    h('div', { class: 'row' }, input, h('button', { class: 'btn primary sm', onclick: go }, label))
+  );
+  placePopup(anchor, m);
+  setTimeout(() => input.focus(), 0);
   return m;
 }
 
