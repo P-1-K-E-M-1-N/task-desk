@@ -6,6 +6,9 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Fixed
+- At the box's default width, a project's name could vanish from the top of the box when all the buttons were showing (the main chat button made it one too many). The name now always keeps some room; the gap and the buttons give way first.
+
 ### Changed
 - **Start with Windows is a choice now.** The first start makes a desktop shortcut and a Start menu entry, and nothing in the Startup folder until you tick **Start with Windows** in the ⋯ menu. Copies that already start with Windows keep doing so. Company-safe mode keeps it off and removes a Startup shortcut that's there. A program that adds itself to Startup on its first run is what endpoint security calls persistence, and SentinelOne said so on a work computer.
 - Task Desk finds `claude`, `git` and the other AI apps by looking along PATH itself, instead of running Windows' `where.exe` in a hidden console (another thing endpoint security reports).

@@ -42,8 +42,10 @@
   .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 650; font-size: 12px; letter-spacing: .01em; color: var(--ink-2); }
   .brand img { width: 18px; height: 18px; border-radius: 5px; }
   /* The empty space in the header is where you grab the box to move it, so it never shrinks to nothing. */
-  header .sp { flex: 1; min-width: 40px; align-self: stretch; }
+  /* The gap gives way first, then the buttons slim down, so the project's name always keeps some room. */
+  header .sp { flex: 1; min-width: 12px; align-self: stretch; }
   header .iconbtn { width: 27px; flex: none; }
+  .narrow header .iconbtn { width: 24px; }
   header .pill { margin-left: 4px; }
   .hero { position: relative; padding: 4px 18px 12px; flex: none; }
   .hello { color: var(--ink-3); font-size: 12px; font-weight: 500; }
@@ -116,7 +118,7 @@
   }
   .switch:hover { background: rgba(127,127,127,.14); }
   .switch img { width: 18px; height: 18px; border-radius: 5px; flex: none; }
-  .switch .lbl { overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+  .switch .lbl { overflow: hidden; text-overflow: ellipsis; min-width: 36px; max-width: 120px; }
   .switch svg.i { width: 14px; height: 14px; color: var(--ink-3); }
   :root:not([data-material=paper]) header .switch, :root:not([data-material=paper]) header .switch svg.i { color: var(--bar-ink); }
   .bar-mode .switch .lbl, .bar-mode .switch svg.i { display: none; }
