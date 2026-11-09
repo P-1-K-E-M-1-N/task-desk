@@ -194,6 +194,25 @@ function menu() {
     { label: 'Refresh tasks now', click: desk.refresh },
     { label: 'Reset all chats…', click: resetAllChats },
     {
+      label: 'Chat scrolling',
+      submenu: [
+        {
+          label: 'Smooth (best with a touchpad)',
+          type: 'radio',
+          checked: s.chatScroll !== 'claude',
+          click: () => config.set({ chatScroll: 'smooth' }),
+        },
+        {
+          label: "Claude Code's full-screen view",
+          type: 'radio',
+          checked: s.chatScroll === 'claude',
+          click: () => config.set({ chatScroll: 'claude' }),
+        },
+        { type: 'separator' },
+        { label: 'Chats started from now on use it', enabled: false },
+      ],
+    },
+    {
       label: 'Show snoozed & done again',
       click: () => {
         for (const t of state.allTasks()) if (t.status === 'snoozed') t.status = 'open';

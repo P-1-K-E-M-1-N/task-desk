@@ -55,3 +55,16 @@ test('userTyped: keys yes, terminal answers no', () => {
   for (const k of ['y', '1', '\r', '\x1b[A', '\x1b[B', '\x1b', 'hello', '\x1b[H']) assert.ok(userTyped(k), JSON.stringify(k));
   for (const r of ['\x1b[12;1R', '\x1b[?1;2c', '\x1b[<0;10;5M', '\x1b[5~', '\x1b[I', '\x1b[O']) assert.ok(!userTyped(r), JSON.stringify(r));
 });
+
+// Claude Code 2.1 spaces words by moving the cursor right instead of printing spaces.
+test('strip: cursor-right moves become spaces, so real Claude Code screens are read', () => {
+  const C = '\x1b[1C';
+  const busy = `\x1b[38;2;153;153;153m✻ Thinking…${C}(esc${C}to${C}interrupt)\x1b[39m`;
+  const idle = `\x1b[38;2;153;153;153m(shift+tab${C}to${C}cycle)\x1b[59C◐${C}medium`;
+  const question = `Do${C}you${C}want${C}to${C}proceed?\x1b[3;1H❯${C}1.${C}Yes\x1b[4;3H2.${C}No`;
+  assert.match(strip(busy), /esc to interrupt/);
+  assert.equal(classify(busy), 'busy');
+  assert.equal(classify(idle), 'idle');
+  assert.equal(classify(question), 'question');
+  assert.equal(strip('a\x1b[5;1Hb'), 'a\nb', 'placing the cursor on another line starts a new line');
+});

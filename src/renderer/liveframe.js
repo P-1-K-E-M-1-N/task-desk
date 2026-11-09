@@ -853,6 +853,12 @@
       return;
     } // the slim bar
     const t = now || performance.now();
+    // Held still while you scroll (see ui.js), so the window only moves the list.
+    if (moving && document.documentElement.classList.contains('scrolling')) {
+      lastT = t;
+      raf = requestAnimationFrame(loop);
+      return;
+    }
     const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 1 / 60;
     lastT = t;
     if (moving) E.step(dt);

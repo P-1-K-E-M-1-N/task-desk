@@ -16,9 +16,14 @@ const QUIET_MS = 500;
 const KEEP = 4000;
 
 // Terminal output without its colours, cursor moves and other control sequences.
+// Claude Code spaces words by moving the cursor right ("esc\x1b[1Cto\x1b[1Cinterrupt"),
+// and starts lines by placing the cursor: those become spaces and line breaks
+// first, so the words stay apart.
 const strip = (s) =>
   String(s)
     .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '') // OSC (titles, hyperlinks)
+    .replace(/\x1b\[(\d*)C/g, (m, n) => ' '.repeat(Math.min(Number(n) || 1, 200))) // cursor right
+    .replace(/\x1b\[\d*(;\d*)?[HfEF]|\x1b\[\d*[ABd]/g, '\n') // cursor to another line
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '') // CSI (colours, cursor)
     .replace(/\x1b[()#][A-Za-z0-9]/g, '')
     .replace(/\x1b[=>]/g, '')

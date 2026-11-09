@@ -1,5 +1,5 @@
 // Small shared helpers: icons, element builder, lane colors, toasts.
-/* exported icon, esc, safeColor, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, pickDay, applyLook, lookPanel, termTheme, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
+/* exported touchpadScroll, icon, esc, safeColor, h, laneColor, laneName, TYPE_LABEL, tileClass, typeHint, fmtMin, toast, actBtn, popMenu, placePopup, pickDay, applyLook, lookPanel, termTheme, autosave, saveStatus, isDark, LOOK, THEMES, MATERIALS, MOVING */
 const ICONS = {
   // The eight kinds of task.
   outreach: '<path d="M20.5 3.5 3.5 10.2l6.8 3.5 3.5 6.8z"/><path d="m20.5 3.5-10.2 10.2"/>',
@@ -63,6 +63,48 @@ function safeColor(c, fallback = 'var(--ink-3)') {
   const s = String(c ?? '');
   return /^#[0-9a-f]{3,8}$/i.test(s) || /^hsl\(\d+ \d+% \d+%\)$/.test(s) || s === 'var(--ink-3)' ? s : fallback;
 }
+
+// A touchpad sends many small wheel steps measured in pixels, and the chat
+// panel (xterm) turned them into about half as many lines as the fingers moved.
+// Here they scroll the chat's history by those pixels, 1:1, carrying the
+// leftover part of a line to the next step. A mouse wheel's whole notches, and
+// an AI app that reads the mouse itself (full-screen view), keep xterm's own
+// handling. Ctrl+wheel is left alone too. It listens on the way down
+// (capture), before xterm's own scroll area sees the step.
+function touchpadScroll(term) {
+  let carry = 0;
+  const onWheel = (e) => {
+    if (e.ctrlKey || e.deltaMode !== 0 || !e.deltaY) return;
+    if (term.modes.mouseTrackingMode !== 'none' || term.buffer.active.type !== 'normal') return;
+    if (e.wheelDeltaY && e.wheelDeltaY % 120 === 0) return; // a mouse notch
+    const screen = term.element.querySelector('.xterm-screen');
+    const lineH = (screen && term.rows && screen.getBoundingClientRect().height / term.rows) || 17;
+    carry += e.deltaY / lineH;
+    const n = Math.trunc(carry);
+    if (n) {
+      term.scrollLines(n);
+      carry -= n;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  if (term.element) term.element.addEventListener('wheel', onWheel, { capture: true, passive: false });
+}
+
+// While you scroll, the moving frames (aurora, lava, rainbow, stars and the
+// drawn ones) hold still, so the window only has to move the list, not repaint
+// itself every frame as well. They carry on a moment after the scrolling stops.
+(() => {
+  let t = 0;
+  const on = () => {
+    const r = document.documentElement;
+    if (!r.classList.contains('scrolling')) r.classList.add('scrolling');
+    clearTimeout(t);
+    t = setTimeout(() => r.classList.remove('scrolling'), 250);
+  };
+  window.addEventListener('wheel', on, { capture: true, passive: true });
+  window.addEventListener('scroll', on, { capture: true, passive: true });
+})();
 
 function h(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);

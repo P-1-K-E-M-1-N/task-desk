@@ -676,6 +676,7 @@ document.addEventListener('lookchange', () => {
 const fit = new FitAddon.FitAddon();
 term.loadAddon(fit);
 term.open($('#term'));
+touchpadScroll(term);
 // Ctrl+C copies when text is selected (otherwise it goes to Claude); Ctrl+V pastes.
 term.attachCustomKeyEventHandler((e) => {
   if (e.type !== 'keydown') return true;

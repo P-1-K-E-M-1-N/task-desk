@@ -25,6 +25,8 @@ const MACHINE_FILE = path.join(LOCAL_DIR, 'machine.json');
 // Settings that belong to this computer, not to the shared data.
 const MACHINE_KEYS = [
   'dataDir',
+  // How chats scroll here: 'smooth' or 'claude' (see chat.js scrollEnv).
+  'chatScroll',
   'boxBounds',
   'boxLocked',
   'collapsed',

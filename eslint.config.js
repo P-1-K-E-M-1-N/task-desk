@@ -19,6 +19,7 @@ const UI_HELPERS = [
   'popMenu',
   'placePopup',
   'pickDay',
+  'touchpadScroll',
   'applyLook',
   'lookPanel',
   'termTheme',

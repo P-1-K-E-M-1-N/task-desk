@@ -12,10 +12,12 @@ Changes a user would notice, newest first. The format follows
 - **Stop buttons.** **Stop** above a task's chat (and above a main chat) stops what Claude is doing, like pressing Esc in the chat. The chat stays open, so you can tell it what to do instead. **Stop all** at the bottom of the box (and in the tray menu) does that for every chat at once, and right-clicking a task offers **Stop its chat**. A stopped main chat isn't handed task notes until you type in it again.
 
 ### Changed
+- **Smoother scrolling, especially on a touchpad.** In the chat panels, Claude Code now runs in its classic view, so the panel scrolls the conversation itself, right away, instead of passing every touchpad movement to Claude Code and waiting for it to redraw. A touchpad scrolls as far as your fingers move, where before it went about half as far. A mouse wheel scrolls as before. To go back to Claude Code's full-screen view, use **Chat scrolling** in the ⋯ menu; it applies to chats started after the change, and each computer keeps its own choice. In the box and the task window, the moving frames (aurora, lava, rainbow, stars and the drawn ones) hold still while you scroll, and the bar under a task's plan is no longer frosted glass, so lists respond faster.
 - **Writing plans looks like writing plans.** When a project is added, a line at the top of the box says plans are being written, that Claude only reads the project for this, and that no task is worked on until you open it. A task waiting for its plan shows a dim sparkle, and the one being written shows a pulsing one.
 - ⋯ **Stop the chat** in a task's chat panel is now **Close the chat**, since **Stop** is its own button.
 
 ### Fixed
+- Task Desk couldn't always tell when a Claude Code chat was working or waiting for you. Newer Claude Code versions space their words with cursor moves, which Task Desk read as no space at all. The **Needs a yes/no** and **Your turn** cues read them correctly now.
 - Clicking into a chat window no longer counts as typing, so a "Your turn" badge stays until you actually type.
 ## 1.2.4 - 2026-11-08
 

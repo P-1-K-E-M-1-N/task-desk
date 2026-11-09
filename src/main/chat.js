@@ -111,6 +111,13 @@ function chromeNote(task) {
 // and its command tools (a command could change files too), so it doesn't
 // depend on Claude following the brief. It can still read files and use the web.
 const mayEdit = (task) => isProject(task) && !!task.allowEdits;
+
+// How a chat scrolls (⋯ menu, "Chat scrolling"). 'smooth' (the default): Claude
+// Code keeps its classic view, so what it prints stays in the chat panel's own
+// history and the panel scrolls it at once, a touchpad 1:1 (see touchpadScroll
+// in ui.js). 'claude': Claude Code's full-screen view, which takes over the
+// mouse and scrolls itself, one round trip per wheel step (slow on a touchpad).
+const scrollEnv = () => (config.get().chatScroll === 'claude' ? {} : { CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' });
 const NO_EDITS = ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'MultiEdit', 'Bash', 'PowerShell'];
 
 function withTools(task, args) {
@@ -243,6 +250,7 @@ function start(task, plan, { mode = 'auto', cols = 100, rows = 30, onData, onExi
         ...loc.env,
         ...tools.env,
         ...(claude && bridge.ready() ? bridge.hookEnv(task.id) : {}),
+        ...(claude ? scrollEnv() : {}),
       }),
     });
     const entry = { proc, sessionId: a.sid, label: a.label, stopped: false, buf: '', lastOut: Date.now(), cb };
@@ -315,7 +323,7 @@ function startPlain(id, { args, cwd, label }, { cols = 100, rows = 30, onData, o
     cols,
     rows,
     cwd,
-    env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env }),
+    env: cleanEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...loc.env, ...scrollEnv() }),
   });
   const entry = { proc, sessionId: null, label, stopped: false, buf: '', lastOut: Date.now(), cb };
   live.set(id, entry);

@@ -6,7 +6,9 @@ process.stdout.write(
   `FAKE CLAUDE pid=${process.pid}\r\nargs: ${process.argv
     .slice(2)
     .filter((a) => a.startsWith('--'))
-    .join(' ')}\r\nhandover: ${handover ? 'yes' : 'no'}\r\n> `
+    .join(
+      ' '
+    )}\r\nhandover: ${handover ? 'yes' : 'no'}\r\nscreen: ${process.env.CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN === '1' ? 'classic' : 'full'}\r\n> `
 );
 let line = '';
 let busy = null;
@@ -28,6 +30,9 @@ process.stdin.on('data', (d) => {
         process.stdout.write(
           '\r\n\x1b[1mDo you want to proceed?\x1b[0m\r\n \x1b[36m❯ 1. Yes\x1b[0m\r\n   2. No\r\n \x1b[2mEsc to cancel\x1b[0m'
         );
+      else if (line === 'mouse')
+        // Reads the mouse itself, like Claude Code's full-screen view.
+        process.stdout.write('\x1b[?1000h\x1b[?1006h\r\nmouse on\r\n> ');
       else if (line === 'long') {
         process.stdout.write('\r\n✻ Working on it… \x1b[2m(esc to interrupt)\x1b[0m');
         busy = setTimeout(() => {
