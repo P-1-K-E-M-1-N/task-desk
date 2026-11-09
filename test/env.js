@@ -60,4 +60,30 @@ const launchOpts = (env = {}) => ({
   env: { ...process.env, TASKDESK_LOCAL_DIR: DATA, TASKDESK_LOCAL_DATA: '1', TASKDESK_USERDATA: PROFILE, ...env, TASKDESK_TEST: '1' },
 });
 
-module.exports = { ROOT, DATA, SETTINGS, HOTKEY, WORKSPACE, useTestSettings, launchOpts };
+// A task's chat waits for Start (unless its project starts chats on their own):
+// press it. True when it was pressed, false when the chat was already going.
+async function pressStart(win, timeout = 120000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (
+      await win
+        .locator('#cstart')
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await win.locator('#cstart').click();
+      return true;
+    }
+    if (
+      await win
+        .locator('#cstop')
+        .isVisible()
+        .catch(() => false)
+    )
+      return false;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error('the task window showed neither Start nor a running chat');
+}
+
+module.exports = { ROOT, DATA, SETTINGS, HOTKEY, WORKSPACE, useTestSettings, launchOpts, pressStart };

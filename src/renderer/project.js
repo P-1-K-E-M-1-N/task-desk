@@ -54,6 +54,7 @@ const draft = () => ({
   results: radio('results'),
   resultsFile: $('#resultsFile').value.trim(),
   allowEdits: $('#allowEdits').checked,
+  autoStart: $('#autoStart').checked,
   ownLook: $('#ownLook').checked,
   ai: $('#ai').value,
   notes: $('#notes').value,
@@ -224,6 +225,7 @@ async function init() {
   $('#onlyMine').checked = !!p.onlyMine;
   $('#resultsFile').value = p.resultsFile || 'TASK_RESULTS.md';
   $('#allowEdits').checked = !!p.allowEdits;
+  $('#autoStart').checked = !!p.autoStart;
   $('#ownLook').checked = !!p.ownLook;
   $('#ai').value = p.ai || '';
   $('#notes').value = p.notes || '';

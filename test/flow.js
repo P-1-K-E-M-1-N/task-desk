@@ -6,7 +6,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA } = require('./env');
+const { useTestSettings, launchOpts, DATA, pressStart } = require('./env');
 
 const results = [];
 const ok = (name, cond, extra = '') => {
@@ -72,6 +72,7 @@ const termText = (win) => win.evaluate(() => document.querySelector('.xterm-rows
   const openCard = async (re) => {
     const [w] = await Promise.all([app.waitForEvent('window'), box.locator('.card', { hasText: re }).first().click()]);
     await w.waitForSelector('.step', { timeout: 15000 });
+    await pressStart(w);
     return w;
   };
   const taskWins = () => app.windows().filter((w) => /task\.html/.test(w.url()));

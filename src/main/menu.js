@@ -164,6 +164,15 @@ function menu() {
   };
   return Menu.buildFromTemplate([
     { label: box && box.isVisible() ? 'Hide task box' : 'Show task box', accelerator: 'Ctrl+Alt+T', click: windows.toggleBox },
+    // Every chat stops what it's doing and waits (see chat.interrupt).
+    {
+      label: 'Stop all chats',
+      enabled: chat.liveIds().length > 0,
+      click: () => {
+        chat.interruptAll();
+        desk.broadcast();
+      },
+    },
     { type: 'separator' },
     { label: 'All projects', type: 'radio', checked: view === 'all', click: show('all') },
     ...projects.summary().map((p) => ({ label: p.name, type: 'radio', checked: view === p.id, click: show(p.id) })),

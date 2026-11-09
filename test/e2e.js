@@ -4,7 +4,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA, HOTKEY } = require('./env');
+const { useTestSettings, launchOpts, DATA, HOTKEY, pressStart } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'shots');
@@ -51,6 +51,7 @@ async function openTaskByTitle(app, box, re) {
   win.on('pageerror', (e) => ok('no task page errors', false, e.message));
   await win.waitForSelector('h1');
   await win.waitForSelector('.step', { timeout: 15000 });
+  await pressStart(win);
   return win;
 }
 

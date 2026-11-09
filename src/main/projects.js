@@ -85,6 +85,7 @@ function read(p) {
     projectName: p.name,
     planNotes: p.notes || '',
     allowEdits: !!p.allowEdits,
+    autoStart: !!p.autoStart,
     ai: p.ai || '',
     sourceFile: f,
     projectFolder: p.folder || '',
@@ -120,6 +121,8 @@ function clean(d) {
     results: d.results === 'file' ? 'file' : 'app',
     resultsFile: String(d.resultsFile || DEFAULT_RESULTS).trim() || DEFAULT_RESULTS,
     allowEdits: !!d.allowEdits,
+    // Opening a task starts its chat at once; off, the chat waits for Start.
+    autoStart: !!d.autoStart,
     // Which AI runs its chats and plans ('' = the desk's choice). See ai.js.
     ai: ['claude', 'codex', 'gemini'].includes(d.ai) ? d.ai : '',
     notes: String(d.notes || '').slice(0, 4000),
@@ -184,6 +187,16 @@ function setOwnLook(id, on) {
   p.ownLook = on;
   if (on && !p.look) p.look = { accent: p.color };
   config.set({ projects: all });
+}
+
+// The task window's "start chats on their own" switch.
+function setAutoStart(id, on) {
+  const all = raw();
+  const p = all.find((x) => x.id === id);
+  if (!p) return false;
+  p.autoStart = !!on;
+  config.set({ projects: all });
+  return true;
 }
 
 function remove(id) {
@@ -256,6 +269,7 @@ function summary() {
 const colorOf = (id) => (id === 'factory' ? FACTORY_COLOR : (get(id) || {}).color || FACTORY_COLOR);
 
 module.exports = {
+  setAutoStart,
   COLORS,
   list,
   get,

@@ -338,6 +338,7 @@ function write(id, data) {
   const e = live.get(id);
   if (!e) return;
   attention.input(id, data);
+  if (attention.userTyped(data)) held.delete(id);
   e.proc.write(data);
 }
 
@@ -366,6 +367,7 @@ function stop(id) {
   if (!e) return;
   e.stopped = true;
   live.delete(id);
+  held.delete(id);
   attention.forget(id);
   claims.release(id);
   // Its link to the app goes too: the token stops working and its config files are deleted.
@@ -378,6 +380,23 @@ function stop(id) {
 function stopAll() {
   for (const id of [...live.keys()]) stop(id);
 }
+
+// Stop what a chat is doing but keep it open: the Esc key, as if pressed in the
+// chat (Claude Code, Codex and Gemini all end their current turn on Esc). Then
+// it waits for the user: Task Desk sends it nothing more (no main-chat notes)
+// until they type in it or send it something.
+const held = new Set();
+function interrupt(id) {
+  const e = live.get(id);
+  if (!e) return false;
+  held.add(id);
+  e.proc.write('\x1b');
+  return true;
+}
+const interruptAll = () => [...live.keys()].filter(interrupt).length;
+const isHeld = (id) => held.has(id);
+const unhold = (id) => held.delete(id);
+const liveIds = () => [...live.keys()];
 
 const isLive = (id) => live.has(id);
 // What the chat is waiting for: 'question' (a yes/no or a choice), 'turn' (finished, waiting for a message) or null.
@@ -406,6 +425,11 @@ module.exports = {
   resize,
   stop,
   stopAll,
+  interrupt,
+  interruptAll,
+  isHeld,
+  unhold,
+  liveIds,
   isLive,
   needs,
   quietFor,

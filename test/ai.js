@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { _electron } = require('playwright-core');
-const { useTestSettings, launchOpts, DATA } = require('./env');
+const { useTestSettings, launchOpts, DATA, pressStart } = require('./env');
 
 const results = [];
 const ok = (name, cond, extra = '') => {
@@ -127,6 +127,7 @@ const FAKE = `${process.execPath}|${path.join(__dirname, 'fake-claude.js')}`;
       .click(),
   ]);
   await win.waitForSelector('.step', { timeout: 15000 });
+  await pressStart(win);
   const term = () => win.evaluate(() => document.querySelector('.xterm-rows')?.innerText || '');
   const waitFor = async (re) => {
     let x = '';
@@ -190,6 +191,7 @@ const FAKE = `${process.execPath}|${path.join(__dirname, 'fake-claude.js')}`;
         .click(),
     ]);
     await win.waitForSelector('.step', { timeout: 15000 });
+    await pressStart(win);
     t = '';
     for (let i = 0; i < 40 && !/isn't installed/.test(t); i++) {
       await win.waitForTimeout(250);

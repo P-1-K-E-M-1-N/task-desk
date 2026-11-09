@@ -6,7 +6,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA } = require('./env');
+const { useTestSettings, launchOpts, DATA, pressStart } = require('./env');
 
 const results = [];
 const ok = (name, cond, extra = '') => {
@@ -61,6 +61,8 @@ const pids = (t) => [...t.matchAll(/FAKE CLAUDE pid=(\d+)/g)].map((m) => m[1]);
       .first()
       .click(),
   ]);
+  await win.waitForSelector('.step', { timeout: 15000 });
+  await pressStart(win);
   let t = await waitTerm(win, /FAKE CLAUDE pid=\d+/);
   const pid = pids(t)[0];
   ok('the chat starts', !!pid, pid);

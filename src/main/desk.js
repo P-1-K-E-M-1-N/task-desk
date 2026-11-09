@@ -71,6 +71,8 @@ function decorate(t) {
     status: st.status,
     snoozeUntil: st.snoozeUntil || null,
     chatLive: chat.isLive(t.id),
+    // Whether opening it starts its chat at once (the project's switch), or waits for Start.
+    autoStart: t.project === 'factory' ? !!config.get().factoryAutoStart : !!t.autoStart,
     needs: chat.needs(t.id),
     // What its chat says it's doing (set_status), and how many files that chat holds.
     doing: st.doing && chat.isLive(t.id) ? st.doing.text : '',
@@ -117,6 +119,8 @@ function payload() {
     goal: view === 'all' ? null : order.progress(view, counts),
     totalOpen: openAll.length,
     totalNeeds: openAll.filter((t) => t.needs).length,
+    // Chats running (task chats and main chats), for the box's stop-all button.
+    liveChats: chat.liveIds().length,
     // Notes from task chats waiting for the main chat of the project on show.
     mainNotes: view === 'all' ? 0 : handoff.pending(view),
     view,

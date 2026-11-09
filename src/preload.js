@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('desk', {
   chatSend: call('chat:send'),
   chatResize: call('chat:resize'),
   chatStop: call('chat:stop'),
+  chatInterrupt: call('chat:interrupt'),
+  interruptAll: call('chat:interruptAll'),
+  setAutoStart: call('task:autostart'),
   close: call('win:close'),
   minimize: call('win:min'),
   maximize: call('win:max'),
@@ -86,5 +89,6 @@ contextBridge.exposeInMainWorld('desk', {
   mainSessions: call('main:sessions'),
   mainStart: call('main:start'),
   mainWrite: call('main:write'),
+  mainInterrupt: call('main:interrupt'),
   mainResize: call('main:resize'),
 });

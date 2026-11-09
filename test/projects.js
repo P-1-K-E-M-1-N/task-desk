@@ -6,7 +6,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA } = require('./env');
+const { useTestSettings, launchOpts, DATA, pressStart } = require('./env');
 
 const BASE = path.dirname(DATA);
 const PROJ = path.join(BASE, 'rental-houses');
@@ -143,6 +143,7 @@ const until = async (page, fn, ms) => {
   const [win] = await Promise.all([app.waitForEvent('window'), card.click()]);
   win.on('pageerror', (e) => ok('no task page errors', false, e.message));
   await win.waitForSelector('.step', { timeout: 20000 });
+  ok('the chat waits for Start', await pressStart(win));
   ok('task window shows the project name', /Rental Houses/.test(await win.locator('#tname').innerText()));
   ok('notes box is labelled for the project', /^notes and results$/i.test(await win.locator('#notesHead').innerText()));
   const term = () => win.evaluate(() => document.querySelector('.xterm-rows')?.innerText || '');

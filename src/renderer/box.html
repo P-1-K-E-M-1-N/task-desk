@@ -95,6 +95,11 @@
   .ring .bg { stroke: var(--surface-2); }
   .ring .fg { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .4s; }
   .drafting { color: var(--clay); animation: pulse 1.4s infinite; }
+  .drafting.queued { color: var(--ink-3); opacity: .55; animation: none; }
+  .aipick.stopall { color: var(--clay); border-color: color-mix(in srgb, var(--clay) 45%, transparent); font-weight: 650; }
+  .aipick.stopall svg.i { fill: currentColor; }
+  .stopall:not([hidden]) + .aipick { margin-left: 0; }
+  .bar-mode .warnline.planning { display: none; }
   .live { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
   /* The chat is waiting on you: a yes/no (orange, pulsing) or just your next message (quiet green). */
   .needs { flex: none; font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
@@ -210,10 +215,11 @@
       <div class="goaltxt" id="goaltxt" hidden></div>
     </section>
     <div class="warnline" id="warn" hidden></div>
+    <div class="warnline planning" id="planning" hidden></div>
     <nav class="chips" id="chips"></nav>
     <form class="quickadd" id="quickadd" hidden><input id="qtext" maxlength="1000" autocomplete="off"><button class="btn primary" type="submit" id="qadd" title="Add this task"></button></form>
     <main class="list" id="list"></main>
-    <footer><span id="updated">Loading…</span><button class="aipick" id="aipick" title="Default AI for task chats and plans"></button><span class="keys"><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
+    <footer><span id="updated">Loading…</span><button class="aipick stopall" id="stopall" hidden></button><button class="aipick" id="aipick" title="Default AI for task chats and plans"></button><span class="keys"><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd></span></footer>
     <!-- Hold the mouse here for 3 seconds: a lock appears that frees or fixes the box's size. -->
     <div class="corner" id="corner"><button class="lockbtn" id="lockbtn"></button><div class="grip" id="grip" title="Drag to resize"></div></div>
   </div>

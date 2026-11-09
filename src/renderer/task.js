@@ -1,6 +1,8 @@
 /* global esc, safeColor */ // from ui.js
 const $ = (s) => document.querySelector(s);
 const ID = new URLSearchParams(location.search).get('id');
+// Reopened after an update with its chat running: it carries on without waiting for Start.
+const RESUME = new URLSearchParams(location.search).get('resume') === '1';
 let T = null; // task
 let P = null; // plan
 let ST = null; // saved state for this task
@@ -24,6 +26,7 @@ $('#bdone').innerHTML = `${icon('check')}<span>Done</span>`;
 $('#bnext').innerHTML = `<span>Done &amp; next</span>${icon('send')}`;
 $('#bskip').innerHTML = `${icon('skip')}<span>Skip</span>`;
 $('#bsnooze').innerHTML = `${icon('moon')}<span>Snooze</span>${icon('chevDown')}`;
+$('#cstop').innerHTML = `${icon('square')}<span>Stop</span>`;
 $('#cclear').innerHTML = `${icon('eraser')}<span>Clear</span>`;
 $('#cfresh').innerHTML = `${icon('plus')}<span>Fresh chat</span>`;
 $('#cmore').innerHTML = icon('more');
@@ -71,8 +74,60 @@ async function load() {
     if (ST.notes) notesSaved.markSaved();
   }
   renderPlan(r.planOk);
-  // 'attach' reconnects to a chat that is still running (the window was refreshed by an update).
-  if (!chatStarted && (P || T.planStatus === 'ready' || T.chatLive)) startChat('attach');
+  // A chat that's still running is picked back up ('attach': the window was refreshed or
+  // opened again). Otherwise it waits for Start, unless the project starts chats on their own.
+  if (chatStarted) return;
+  if (T.chatLive) startChat('attach');
+  else if (P || T.planStatus === 'ready') T.autoStart || RESUME ? startChat('auto') : showReady();
+}
+
+// Before the chat starts: read the plan, then press Start. The switch is the
+// project's "start chats on their own" setting (also box 5 in Edit project).
+function showReady() {
+  const before = !!(ST && (ST.chatSessionId || Object.values(ST.chats || {}).some(Boolean)));
+  const auto = h('input', { type: 'checkbox' });
+  auto.checked = !!T.autoStart;
+  auto.onchange = async () => {
+    const r = await desk.setAutoStart(ID, auto.checked);
+    if (!r) {
+      auto.checked = !auto.checked;
+      return;
+    }
+    T.autoStart = r.on;
+    toast(
+      r.on
+        ? `Chats in ${T.projectName} now start as soon as you open a task.`
+        : `Chats in ${T.projectName} now wait for you to press Start.`
+    );
+  };
+  $('#overlay').replaceChildren(
+    h(
+      'div',
+      { class: 'inner' },
+      h('b', {}, before ? 'Pick up where you left off?' : 'Ready when you are'),
+      before
+        ? 'This task has a chat from before. It carries on when you press Resume.'
+        : 'Read the plan first. Claude does nothing on this task until you press Start.',
+      h(
+        'div',
+        { class: 'row' },
+        h('button', {
+          class: 'btn primary',
+          id: 'cstart',
+          html: `${icon('play')}<span>${before ? 'Resume' : 'Start'}</span>`,
+          onclick: () => startChat('auto'),
+        })
+      ),
+      h(
+        'label',
+        { class: 'autostart', title: 'For every task in this project. Also in Edit project, box 5.' },
+        auto,
+        h('span', {}, `Start chats on their own in ${T.projectName}`)
+      )
+    )
+  );
+  $('#overlay').hidden = false;
+  setStat('', 'Waiting for you to press Start');
 }
 
 function renderPlan(planOk) {
@@ -685,6 +740,7 @@ async function switchTo(id, x) {
 function startChat(mode) {
   chatStarted = true;
   $('#overlay').hidden = true;
+  $('#cstop').hidden = false;
   term.reset();
   refit();
   setStat('connecting', `Starting ${(T && T.aiName) || 'the chat'}…`);
@@ -732,6 +788,7 @@ desk.onChatExit((id, code) => {
 });
 function showEnded(title) {
   setStat('', title);
+  $('#cstop').hidden = true;
   const o = $('#overlay');
   o.replaceChildren(
     h(
@@ -761,6 +818,12 @@ $('#cclear').onclick = () => {
   term.focus();
 };
 $('#cfresh').onclick = () => startChat('fresh');
+// Stop: Esc for the chat. It ends what it's doing and stays open for your next message.
+$('#cstop').onclick = async () => {
+  const ok = await desk.chatInterrupt(ID);
+  toast(ok ? 'Stopped. The chat is still open: tell it what to do next.' : "The chat isn't running.");
+  term.focus();
+};
 $('#cmore').onclick = (e) =>
   popMenu(e.currentTarget, [
     { label: 'Fresh chat (clean slate)', icon: 'plus', run: () => startChat('fresh') },
@@ -777,7 +840,7 @@ $('#cmore').onclick = (e) =>
           `Reminder of what we're doing. Task: ${T.text}${P ? ' Plan: ' + P.steps.map((s, i) => `${i + 1}) ${s.text}`).join(' ') : ''}`
         ),
     },
-    { label: 'Stop the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat stopped')) },
+    { label: 'Close the chat', icon: 'x', run: () => desk.chatStop(ID).then(() => showEnded('Chat closed')) },
   ]);
 
 // Chrome: off by default (the chat has no access to your browser). Each click

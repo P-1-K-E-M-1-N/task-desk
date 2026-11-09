@@ -9,8 +9,18 @@ process.stdout.write(
     .join(' ')}\r\nhandover: ${handover ? 'yes' : 'no'}\r\n> `
 );
 let line = '';
+let busy = null;
 if (process.stdin.isTTY) process.stdin.setRawMode(true);
 process.stdin.on('data', (d) => {
+  // Esc on its own (not the start of a paste or an arrow key) stops what it's doing.
+  if (d.toString() === '\x1b') {
+    if (busy) {
+      clearTimeout(busy);
+      busy = null;
+      process.stdout.write('\r\n  ⎿  Interrupted · What should Claude do instead?\r\n> \r\n\x1b[2m? for shortcuts\x1b[0m');
+    }
+    return;
+  }
   for (const ch of d.toString()) {
     if (ch === '\r' || ch === '\n') {
       // "ask" shows a Claude Code-style yes/no; "work" is busy for a moment, then done.
@@ -18,7 +28,13 @@ process.stdin.on('data', (d) => {
         process.stdout.write(
           '\r\n\x1b[1mDo you want to proceed?\x1b[0m\r\n \x1b[36m❯ 1. Yes\x1b[0m\r\n   2. No\r\n \x1b[2mEsc to cancel\x1b[0m'
         );
-      else if (line === 'work') {
+      else if (line === 'long') {
+        process.stdout.write('\r\n✻ Working on it… \x1b[2m(esc to interrupt)\x1b[0m');
+        busy = setTimeout(() => {
+          busy = null;
+          process.stdout.write('\r\nlong job finished\r\n> \r\n\x1b[2m? for shortcuts\x1b[0m');
+        }, 60000);
+      } else if (line === 'work') {
         process.stdout.write('\r\n✻ Working… \x1b[2m(esc to interrupt)\x1b[0m');
         setTimeout(() => process.stdout.write('\r\ndone\r\n> \r\n\x1b[2m? for shortcuts\x1b[0m'), 900);
       } else if (line) process.stdout.write(`\r\nyou said: ${line}\r\n> `);

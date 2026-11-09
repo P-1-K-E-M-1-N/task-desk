@@ -129,6 +129,8 @@ function rememberWindows() {
       ...w.getNormalBounds(),
       maximized: w.isMaximized(),
       minimized: w.isMinimized(),
+      // Its chat was running: it carries on after the restart without waiting for Start.
+      chat: chat.isLive(id),
     }));
   // Main chats too (their conversation resumes when the window opens).
   const mains = [...windows.mainWins]

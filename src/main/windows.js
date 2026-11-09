@@ -293,7 +293,9 @@ function openTask(id, bounds) {
     w.setBounds({ x, y, width, height });
     if (bounds.maximized) w.maximize();
   }
-  w.loadFile(path.join(desk.RENDERER, 'task.html'), { query: { id } });
+  // resume: reopened after an update with its chat running (notes from older versions don't say: yes).
+  const resume = !!bounds && bounds.chat !== false;
+  w.loadFile(path.join(desk.RENDERER, 'task.html'), { query: resume ? { id, resume: '1' } : { id } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
   // Closing a task you've started but not finished asks "Did you finish it?"

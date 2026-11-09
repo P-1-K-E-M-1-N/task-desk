@@ -739,12 +739,34 @@ function register() {
   // A main chat (id "main-…") is only reached through the main: channels below, from its own window.
   const taskChat = (id) => typeof id === 'string' && !id.startsWith('main-');
   handle('chat:write', (e, id, d) => taskChat(id) && chat.write(id, d));
-  handle('chat:send', (e, id, text) => taskChat(id) && chat.send(id, text));
+  handle('chat:send', (e, id, text) => taskChat(id) && (chat.unhold(id), chat.send(id, text)));
   handle('chat:resize', (e, id, c, r) => taskChat(id) && chat.resize(id, c, r));
   handle('chat:stop', (e, id) => {
     if (!taskChat(id)) return;
     chat.stop(id);
     desk.broadcast();
+  });
+  // Stop: the chat stops what it's doing and waits for you (see chat.interrupt).
+  handle('chat:interrupt', (e, id) => {
+    if (!taskChat(id)) return false;
+    const r = chat.interrupt(id);
+    desk.broadcast();
+    return r;
+  });
+  // The box's stop-all: every chat, main chats too. How many were stopped.
+  handle('chat:interruptAll', () => {
+    const n = chat.interruptAll();
+    desk.broadcast();
+    return n;
+  });
+  // Whether opening a task starts its chat at once, for the task's whole project.
+  handle('task:autostart', (e, id, on) => {
+    const t = desk.findTask(id);
+    if (!t) return null;
+    if (t.project === 'factory') config.set({ factoryAutoStart: !!on });
+    else if (!projects.setAutoStart(t.project, on)) return null;
+    desk.refresh();
+    return { on: !!on };
   });
 
   // ----- a project's main chat (see mainchat.js) -----
@@ -818,6 +840,10 @@ function register() {
   handle('main:write', (e, d) => {
     const key = mainOf(e);
     if (key) chat.write(`main-${key}`, d);
+  });
+  handle('main:interrupt', (e) => {
+    const key = mainOf(e);
+    return key ? chat.interrupt(`main-${key}`) : false;
   });
   handle('main:resize', (e, c, r) => {
     const key = mainOf(e);

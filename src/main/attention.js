@@ -74,7 +74,8 @@ function step(e, output) {
 // Keys the user pressed, as against the terminal answering a query from the AI
 // app (cursor position "\x1b[12;1R", device attributes "\x1b[?1;2c", mouse
 // reports): those carry digits after the bracket; arrow keys and the like don't.
-const userTyped = (data) => !/^\x1b\[[?<]?\d[\d;]*[A-Za-z~]$/.test(String(data));
+// Focus reports ("\x1b[I" in, "\x1b[O" out, sent when the window is clicked) aren't typing either.
+const userTyped = (data) => !/^\x1b\[([?<]?\d[\d;]*[A-Za-z~]|[IO])$/.test(String(data));
 
 const entries = new Map(); // chat id -> { state, armed, chunk, timer }
 let listener = null;

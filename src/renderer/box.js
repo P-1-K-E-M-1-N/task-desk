@@ -167,6 +167,16 @@ function render() {
     $('#warn').querySelector('button').onclick = () => desk.pickWorkspaceFolder();
   }
   $('#quickadd').hidden = !up;
+  // Plans being written: that's all it is. Claude reads the project; the tasks wait for you.
+  const drafting = tasks.filter((t) => t.planStatus === 'drafting' || t.planStatus === 'queued').length;
+  $('#planning').hidden = !drafting;
+  if (drafting)
+    $('#planning').textContent =
+      `Writing plans for ${drafting} task${drafting === 1 ? '' : 's'}, two at a time. Claude only reads the project for this. No task is worked on until you open it${tasks.some((t) => t.autoStart) ? '' : ' and press Start'}.`;
+  // Stop all: shown while any chat is running.
+  $('#stopall').hidden = !data.liveChats;
+  $('#stopall').innerHTML = `${icon('square')}<span>Stop all${data.liveChats > 1 ? ` (${data.liveChats})` : ''}</span>`;
+  $('#stopall').title = data.liveChats ? `Stop all chats (${data.liveChats} running). Each stops what it's doing and waits for you.` : '';
   // The project's main chat: your own Claude Code session that writes its tasks.
   const mainFor = up ? up.name : data.view === 'factory' && data.factory ? data.factory.name : '';
   $('#mainchat').hidden = !mainFor;
@@ -261,9 +271,11 @@ function card(t, i) {
     right = '<span class="needs question" title="The chat is waiting for a yes or no (or a choice)">Needs a yes/no</span>';
   else if (t.needs === 'turn')
     right = '<span class="needs turn" title="The chat finished and is waiting for your next message">Your turn</span>';
-  else if (t.chatLive) right = '<span class="live" title="Chat open"></span>';
-  else if (t.planStatus === 'drafting' || t.planStatus === 'queued')
-    right = `<span class="drafting" title="Claude is drafting the plan">${icon('sparkle')}</span>`;
+  else if (t.chatLive) right = '<span class="live" title="Its chat is running"></span>';
+  else if (t.planStatus === 'drafting')
+    right = `<span class="drafting" title="Claude is writing this task's plan. It only reads the project: nothing is done on the task until you open it.">${icon('sparkle')}</span>`;
+  else if (t.planStatus === 'queued')
+    right = `<span class="drafting queued" title="Waiting its turn for a plan (Claude writes two at a time, reading only)">${icon('sparkle')}</span>`;
   else if (t.ticked && t.steps) right = ring(t.ticked, t.steps);
   const quick = t.minutes && t.minutes <= 10 ? `<span class="quick" title="Quick win">${icon('bolt')}</span>` : '';
   // In "All projects" the card names its project; inside a project it names the lane.
@@ -411,6 +423,10 @@ function workspaceText() {
   const name = (data.factory && data.factory.name) || 'the workspace';
   return `I now finish NEEDS_NICK items for ${name} in a separate app (Task Desk). Every time I mark a task DONE or SKIP, it appends a dated entry to ops/FROM_NICK.md with the lane, the task text, my notes and any results I pasted. On every daily tick, read ops/FROM_NICK.md first. For each entry you haven't handled yet, continue that lane from my notes, tick the matching box in the lane's needs_nick.md (or ops/needs_nick_global.md) so it drops off NEEDS_NICK.md, and note in the lane log which FROM_NICK entry you acted on. Don't edit or reorder FROM_NICK.md itself: it's append-only and the app writes to it.`;
 }
+$('#stopall').onclick = async () => {
+  const n = await desk.interruptAll();
+  toast(n ? `Stopped ${n} chat${n === 1 ? '' : 's'}. They're still open: tell each what to do next.` : 'No chats are running.');
+};
 $('#mainchat').innerHTML = icon('chat');
 $('#mainchat').onclick = (e) => {
   e.stopPropagation();
@@ -593,6 +609,18 @@ function taskMenu(t, e) {
   const M = data.models;
   const items = [
     { label: 'Open', icon: 'send', run: () => desk.openTask(t.id) },
+    ...(t.chatLive
+      ? [
+          {
+            label: 'Stop its chat',
+            icon: 'square',
+            run: async () => {
+              await desk.chatInterrupt(t.id);
+              toast('Stopped. Its chat is still open: tell it what to do next.');
+            },
+          },
+        ]
+      : []),
     ...(t.claude
       ? [
           {

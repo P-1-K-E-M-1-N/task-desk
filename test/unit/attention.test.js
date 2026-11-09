@@ -53,5 +53,5 @@ test('step: a question shows even before the AI was busy, and goes when the prom
 
 test('userTyped: keys yes, terminal answers no', () => {
   for (const k of ['y', '1', '\r', '\x1b[A', '\x1b[B', '\x1b', 'hello', '\x1b[H']) assert.ok(userTyped(k), JSON.stringify(k));
-  for (const r of ['\x1b[12;1R', '\x1b[?1;2c', '\x1b[<0;10;5M', '\x1b[5~']) assert.ok(!userTyped(r), JSON.stringify(r));
+  for (const r of ['\x1b[12;1R', '\x1b[?1;2c', '\x1b[<0;10;5M', '\x1b[5~', '\x1b[I', '\x1b[O']) assert.ok(!userTyped(r), JSON.stringify(r));
 });

@@ -28,7 +28,7 @@ The same list is in the ⋯ menu and the tray icon's right-click menu. The tray 
    - **Only tasks I add here.**
    - Either way, a box for typing tasks appears at the top of the project ("Add a task to…"). Press Enter and Claude drafts a plan for it. Those tasks show under "My list".
 4. **When I press Done, my notes go to:** kept in Task Desk (open them from the ⋯ menu), or added to the end of a file in the project folder (TASK_RESULTS.md by default) so that project's agents can read what you did.
-5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask.
+5. **The chat:** whether it may change files in the folder. It's off by default: Claude helps but leaves the folder alone unless you ask. The second box, **Start a task's chat as soon as I open the task**, is off by default too: the chat waits for you to read the plan and press **Start**.
 6. **Anything Claude should know** (optional): notes for the planner, like "Repairs go through Mike".
 7. **Color:** used for the project's dot.
 8. **Look** (optional): give the project its own theme, frame and colors. See "A look for each project" below.
@@ -126,7 +126,7 @@ The size is remembered on this computer. It isn't synced through OneDrive, becau
 - **Card details:** a red-orange stripe marks urgent items, the lightning bolt marks quick wins (10 minutes or less), and a green ring shows how many steps you've ticked.
 - **Badge:** the number on the tray icon is your open-task count.
 
-**Plans** are written by the task's AI itself (Claude Code by default). When a new task shows up, the app quietly runs it in the background (`claude -p`), in that project's folder.
+**Plans** are written by the task's AI itself (Claude Code by default). When a new task shows up, the app quietly runs it in the background (`claude -p`), in that project's folder, two tasks at a time. While it does, a line at the top of the box says so, and each waiting card shows a sparkle (dim while it waits its turn, pulsing while its plan is written). This is only planning: no task is worked on until you open it and press **Start**.
 - **Read-only:** the planner can only read files. It can't write, run commands or browse the web.
 - **What it returns:** a short summary, the task type, a time estimate and 3-7 steps with buttons attached.
 - **Caching:** plans are saved in `data\plans\` and only redone if the task's wording changes. You can also press **Regenerate**.
@@ -134,6 +134,8 @@ The size is remembered on this computer. It isn't synced through OneDrive, becau
 - **Cost:** each plan uses some of your normal Claude plan usage. There are no API keys or extra bills.
 
 **The chat** is the real `claude` program running inside the window (the same as in your terminal), styled to match. It uses your existing Claude Code login.
+- **Start:** opening a task doesn't start its chat. Read the plan, then press **Start** in the chat panel (**Resume** if the task had a chat before). Tick **Start chats on their own** under the button to skip this for the whole project; untick it to go back. Chats that were running when Task Desk updated itself carry on by themselves.
+- **Stop:** the **Stop** button above the chat stops what Claude is doing, like pressing Esc. The chat stays open for your next message. **Stop all** at the bottom of the box, or in the tray menu, stops every chat at once, and right-clicking a task offers **Stop its chat**. **Close the chat** (⋯ above the chat) ends the chat itself; **Resume** brings it back.
 - **First open:** the app makes a copy ("fork") of the project folder's most recent Claude Code session, so the chat starts out knowing what your other Claude Code work in that folder knows. Because it's a copy, it never adds messages to that session.
 - **Closing and reopening a task** brings back that task's own chat.
 - **Fallbacks:** if there's no session to copy, it tries `--continue`, then starts a fresh chat.

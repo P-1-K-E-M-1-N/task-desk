@@ -6,6 +6,17 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- **A task's chat waits for Start.** Opening a task shows its plan and a **Start** button in the chat panel. Claude does nothing on the task until you press it, so you can read the plan first. A task that had a chat before shows **Resume** instead. Chats that were running when Task Desk updated itself still carry on by themselves.
+- **Start chats on their own, per project.** Tick **Start chats on their own** under the Start button (or the new box in **5 The chat** when you edit a project) and that project's chats start as soon as you open a task, as before. Untick it to go back.
+- **Stop buttons.** **Stop** above a task's chat (and above a main chat) stops what Claude is doing, like pressing Esc in the chat. The chat stays open, so you can tell it what to do instead. **Stop all** at the bottom of the box (and in the tray menu) does that for every chat at once, and right-clicking a task offers **Stop its chat**. A stopped main chat isn't handed task notes until you type in it again.
+
+### Changed
+- **Writing plans looks like writing plans.** When a project is added, a line at the top of the box says plans are being written, that Claude only reads the project for this, and that no task is worked on until you open it. A task waiting for its plan shows a dim sparkle, and the one being written shows a pulsing one.
+- ⋯ **Stop the chat** in a task's chat panel is now **Close the chat**, since **Stop** is its own button.
+
+### Fixed
+- Clicking into a chat window no longer counts as typing, so a "Your turn" badge stays until you actually type.
 ## 1.2.4 - 2026-11-08
 
 ### Added

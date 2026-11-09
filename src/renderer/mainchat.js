@@ -177,6 +177,12 @@ async function choose(info, none) {
 
 $('#cother').onclick = () => choose();
 $('#cnew').onclick = () => start('new');
+$('#cstop').innerHTML = `${icon('square')}<span>Stop</span>`;
+$('#cstop').onclick = async () => {
+  const ok = await desk.mainInterrupt();
+  toast(ok ? 'Stopped. The main chat is still open: tell it what to do next.' : "The main chat isn't running.");
+  term.focus();
+};
 
 // A refreshed window picks the running chat back up; otherwise it starts.
 desk.mainInfo().then(showName);

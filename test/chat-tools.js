@@ -4,7 +4,7 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
-const { useTestSettings, launchOpts, DATA } = require('./env');
+const { useTestSettings, launchOpts, DATA, pressStart } = require('./env');
 
 const ROOT = path.join(__dirname, '..');
 const STATE = path.join(DATA, 'state.test.json');
@@ -40,6 +40,7 @@ const ok = (name, cond, extra = '') => {
   ]);
   win.on('pageerror', (e) => ok('no page errors', false, e.message));
   await win.waitForSelector('.step', { timeout: 15000 });
+  await pressStart(win);
   const tid = await win.evaluate(() => new URLSearchParams(location.search).get('id'));
 
   const term = () => win.evaluate(() => document.querySelector('.xterm-rows')?.innerText || '');
