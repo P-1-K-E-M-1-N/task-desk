@@ -6,6 +6,8 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+## 1.2.5 - 2026-11-09
+
 ### Added
 - **A task's chat waits for Start.** Opening a task shows its plan and a **Start** button in the chat panel. Claude does nothing on the task until you press it, so you can read the plan first. A task that had a chat before shows **Resume** instead. Chats that were running when Task Desk updated itself still carry on by themselves.
 - **Start chats on their own, per project.** Tick **Start chats on their own** under the Start button (or the new box in **5 The chat** when you edit a project) and that project's chats start as soon as you open a task, as before. Untick it to go back.
