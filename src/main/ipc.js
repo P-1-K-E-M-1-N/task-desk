@@ -22,6 +22,7 @@ const safety = require('./safety');
 const snooze = require('./snooze');
 const claims = require('./claims');
 const handoff = require('./handoff');
+const jira = require('./jira');
 const desk = require('./desk');
 const windows = require('./windows');
 const menu = require('./menu');
@@ -262,6 +263,7 @@ async function toolCall(id, tool, args) {
       toWindow(id, { kind: 'note', text: reason, notes: st.notes });
     }
     state.update(id, { status: 'snoozed', snoozeUntil: d.toISOString() });
+    jira.snoozed(t, d, reason);
     toWindow(id, { kind: 'snoozed', until: d.toISOString() });
     desk.broadcast();
     return {
@@ -329,6 +331,8 @@ function register() {
     const d = snooze.until(when);
     if (!d) return null;
     state.update(id, { status: 'snoozed', snoozeUntil: d.toISOString() });
+    const t = desk.findTask(id);
+    if (t) jira.snoozed(t, d);
     desk.broadcast();
     return d.toISOString();
   });
@@ -363,6 +367,8 @@ function register() {
     }
     state.update(id, { status: status === 'done' ? 'done' : 'skipped', notes, finishedAt: new Date().toISOString() });
     claims.release(id);
+    // Its Jira work item (if it has one) gets the notes, and moves to Done.
+    jira.finished(t, status === 'done' ? 'done' : 'skipped', entry);
     // The project's main chat hears about it (when it's open and free; else when it opens).
     const gist = [status === 'done' ? 'Done' : 'Skipped', entry.ticked ? `${entry.ticked} steps` : '', notes ? `Notes: ${notes}` : '']
       .filter(Boolean)
@@ -504,6 +510,28 @@ function register() {
     desk.refresh();
     desk.startPolling();
     return true;
+  });
+  // ----- Jira (see jira.js) -----
+  // The user's picks from the box: { <task id>: true (to Jira) or false (not) }.
+  handle('jira:choose', (e, choices) => {
+    if (!choices || typeof choices !== 'object') return false;
+    jira.choose(Object.fromEntries(Object.entries(choices).filter(([id]) => typeof id === 'string' && desk.findTask(id))));
+    desk.broadcast();
+    return true;
+  });
+  handle('jira:check', () => jira.check());
+  handle('jira:retry', async () => {
+    await jira.retry();
+    desk.broadcast();
+  });
+  // Open a task's work item in the browser: only on this computer's Jira site, only a work item key.
+  handle('jira:open', (e, id) => {
+    const t = desk.findTask(String(id || ''));
+    const info = t && jira.cardInfo(t);
+    if (!info || !info.url)
+      return { ok: false, error: 'Check your Jira connection first (⋯ menu, Jira), so Task Desk knows your Jira site.' };
+    shell.openExternal(info.url);
+    return { ok: true };
   });
   handle('project:preview', (e, draft) => projects.preview(draft));
   handle('project:suggest', (e, folder) => projects.suggest(folder));

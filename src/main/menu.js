@@ -8,6 +8,7 @@ const state = require('./state');
 const chat = require('./chat');
 const projects = require('./projects');
 const ai = require('./ai');
+const jira = require('./jira');
 const desk = require('./desk');
 const windows = require('./windows');
 const shortcuts = require('./shortcuts');
@@ -243,6 +244,18 @@ function menu() {
         { label: 'A project can use its own: Edit project, box 9', enabled: false },
       ],
     },
+    {
+      label: 'Jira',
+      submenu: [
+        { label: 'Check my Jira connection…', click: checkJira },
+        { label: 'Find acli.exe…', click: findAcli },
+        ...(jira.statusOf(view) && jira.statusOf(view).error
+          ? [{ label: `Try "${cur.name}"'s Jira changes again`, click: () => jira.retry().then(desk.broadcast) }]
+          : []),
+        { type: 'separator' },
+        { label: 'A project tracks its tasks in Jira: Edit project, box 10', enabled: false },
+      ],
+    },
     ...(resultsFor(view)
       ? [
           {
@@ -320,6 +333,19 @@ function menu() {
       click: (i) => shortcuts.setAutostart(i.checked),
     },
     {
+      label: 'Keep in front of other windows',
+      submenu: [
+        ['box', 'Just the task box'],
+        ['all', 'The task box and every Task Desk window'],
+        ['none', 'Nothing: they go behind other windows'],
+      ].map(([mode, label]) => ({
+        label,
+        type: 'radio',
+        checked: windows.inFront() === mode,
+        click: () => windows.setInFront(mode),
+      })),
+    },
+    {
       label: 'Show in the taskbar',
       type: 'checkbox',
       checked: config.get().showInTaskbar !== false,
@@ -349,6 +375,33 @@ function menu() {
       },
     },
   ]);
+}
+
+// Jira goes through Atlassian's own CLI, signed in by the user (see jira.js).
+async function checkJira() {
+  const r = await jira.check();
+  dialog.showMessageBox({
+    type: r.ok ? 'info' : 'warning',
+    buttons: ['OK'],
+    message: !r.installed
+      ? "Atlassian's CLI isn't installed yet"
+      : r.ok
+        ? `Jira is connected${r.site ? `: ${r.site}` : ''}`
+        : "acli is installed but isn't signed in to Jira",
+    detail: r.ok
+      ? r.text
+      : `${r.text}${r.installed ? '\n\nSign in once in PowerShell with:\n\n  acli jira auth login --web' : ''}\n\nTask Desk never signs in or installs anything for you, and never sees your Jira password or token.`,
+  });
+}
+async function findAcli() {
+  const pick = dialog.showOpenDialogSync({
+    title: "Find Atlassian's CLI (acli.exe)",
+    properties: ['openFile'],
+    filters: [{ name: 'acli.exe', extensions: ['exe'] }],
+  });
+  if (!pick || !/^acli\.exe$/i.test(path.basename(pick[0]))) return;
+  config.set({ acliPath: pick[0] });
+  checkJira();
 }
 
 // Company-safe mode on or off for this computer (see config.safeMode).

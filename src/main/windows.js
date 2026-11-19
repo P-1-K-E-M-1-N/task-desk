@@ -40,6 +40,23 @@ const mainWins = new Map();
 
 const webPreferences = () => ({ preload: desk.PRELOAD, contextIsolation: true, sandbox: true });
 
+// Which windows stay in front of other programs (⋯ menu, "Keep in front"):
+//  'box'  the task box only (the default),
+//  'all'  the box and every Task Desk window (tasks, main chats, the project editor),
+//  'none' nothing: they go behind other programs like any window.
+const IN_FRONT = ['box', 'all', 'none'];
+const inFront = () => (IN_FRONT.includes(config.get().inFront) ? config.get().inFront : 'box');
+// A task, project or main chat window, in front or not.
+function front(w) {
+  if (w && !w.isDestroyed()) w.setAlwaysOnTop(inFront() === 'all', 'floating');
+}
+function setInFront(mode) {
+  if (!IN_FRONT.includes(mode)) return;
+  config.set({ inFront: mode });
+  if (box && !box.isDestroyed()) box.setAlwaysOnTop(mode !== 'none', 'floating');
+  for (const w of [...taskWins.values(), ...projectWins.values(), ...mainWins.values()]) front(w);
+}
+
 function windowBg() {
   const pair = THEME_BG[config.get().look.theme] || THEME_BG.clay;
   return pair[nativeTheme.shouldUseDarkColors ? 1 : 0];
@@ -151,7 +168,7 @@ function createBox() {
     frame: false,
     transparent: true,
     resizable: s.boxLocked === false && !s.collapsed,
-    alwaysOnTop: true,
+    alwaysOnTop: inFront() !== 'none',
     skipTaskbar: s.showInTaskbar === false,
     show: false,
     icon: desk.ICON_PNG,
@@ -159,7 +176,7 @@ function createBox() {
     hasShadow: true,
     webPreferences: webPreferences(),
   });
-  box.setAlwaysOnTop(true, 'floating');
+  box.setAlwaysOnTop(inFront() !== 'none', 'floating');
   // "Pin to taskbar" on the box's button pins Task Desk itself (not plain Electron).
   if (process.platform === 'win32') {
     box.setAppDetails({
@@ -295,6 +312,7 @@ function openTask(id, bounds) {
   }
   // resume: reopened after an update with its chat running (notes from older versions don't say: yes).
   const resume = !!bounds && bounds.chat !== false;
+  front(w);
   w.loadFile(path.join(desk.RENDERER, 'task.html'), { query: resume ? { id, resume: '1' } : { id } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
@@ -347,6 +365,7 @@ function openProjectEditor(id) {
     title: id ? 'Edit project' : 'Add a project',
     webPreferences: webPreferences(),
   });
+  front(w);
   w.loadFile(path.join(desk.RENDERER, 'project.html'), { query: { id: id || '' } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
@@ -387,6 +406,7 @@ function openMainChat(key, bounds) {
     w.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
     if (bounds.maximized) w.maximize();
   }
+  front(w);
   w.loadFile(path.join(desk.RENDERER, 'mainchat.html'), { query: { project: key } });
   w.webContents.on('did-finish-load', () => w.webContents.setZoomFactor(ZOOM[config.get().look.size] || 1));
   w.once('ready-to-show', () => w.show());
@@ -404,6 +424,8 @@ const liveWins = () => [box, ...taskWins.values(), ...projectWins.values(), ...m
 
 Object.assign(module.exports, {
   box: () => box,
+  inFront,
+  setInFront,
   taskWins,
   projectWins,
   scopeOf,

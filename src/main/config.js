@@ -45,6 +45,11 @@ const MACHINE_KEYS = [
   'passEnv',
   // Each project's main chat on this computer ({ <project id>: { id, cwd, first, at } }, see mainchat.js).
   'mainChats',
+  // Which windows stay in front of other programs: 'box' (the default), 'all' or 'none' (see windows.inFront).
+  'inFront',
+  // Jira (see jira.js): Atlassian's CLI program on this computer, if it isn't on PATH, and the site's address.
+  'acliPath',
+  'jiraSite',
 ];
 
 const DEFAULTS = {

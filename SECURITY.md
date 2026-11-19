@@ -70,7 +70,22 @@ Knowing the boundaries makes it clear what counts as a bug.
   the user's own unrestricted Claude Code session (`claude --resume`, as if they
   ran it by hand), in a window that only it can type into: the other pages
   can't send it keys.
-- **On the user's behalf.** The app opens pages and drafts. It never sends,
+- **Jira.** Only for a project where the user turned it on (box 10). The app
+  runs Atlassian's own CLI (`acli.exe`, by its full path, never through a shell
+  or by a bare name from the current folder), signed in by the user in their
+  browser; the app never sees or stores a Jira password, token or key. It
+  creates work items in the one Jira project the user named, comments on them,
+  links them ("Blocks") and moves them to the status the user named, and only
+  for tasks the user picked (or every task, if they chose that). Text for a
+  description or comment goes through a temporary file in `data\jira\`, deleted
+  right after, never on the command line, and every value is passed as
+  `--flag=value` so a task title can't turn into a flag. Which `acli.exe` to
+  run and the Jira site are settings of this computer (`machine.json`), never
+  taken from synced settings. The Done comment includes a few lines the AI
+  writes from the task's chat, so a chat's content can reach Jira: the user
+  turns Jira on per project.
+- **On the user's behalf.** The app opens pages and drafts. Apart from the
+  Jira changes above, which the user turns on per project, it never sends,
   posts, buys or signs up for anything itself.
 
 ## The self-updater

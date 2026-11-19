@@ -69,6 +69,9 @@
   .celebrate .tile { margin: 0 auto 12px; width: 52px; height: 52px; border-radius: 16px; --tc: var(--ok); }
   .celebrate .tile svg.i { width: 26px; height: 26px; stroke-width: 2.4; }
   code { font-family: var(--mono); font-size: 11.5px; padding: 1px 4px; border-radius: 4px; background: var(--surface-2); }
+  .jira-more { margin: 10px 0 0 26px; }
+  .jira-more .row .box { flex: 1; }
+  #f-jira:not(.on) .jira-more { display: none; }
   .link { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--clay); cursor: pointer; text-decoration: underline; }
 </style>
 </head>
@@ -84,7 +87,7 @@
     <div class="scroll">
       <h1 id="title">Add a project</h1>
       <p class="lead">A project is a folder you work in. Task Desk reads its to-do list (it never changes it) and gives every task a plan and a chat.</p>
-      <p class="lead steps">Fill in boxes <b>1</b> to <b>9</b> below. Only <b>1 Name</b> is required; the rest already have sensible choices. Choosing the folder in <b>2</b> fills in <b>1</b> and <b>3</b> for you when it can.</p>
+      <p class="lead steps">Fill in boxes <b>1</b> to <b>10</b> below. Only <b>1 Name</b> is required; the rest already have sensible choices. Choosing the folder in <b>2</b> fills in <b>1</b> and <b>3</b> for you when it can.</p>
 
       <div class="field" id="f-name">
         <label class="label" for="name"><span class="num">1</span>Name</label>
@@ -161,6 +164,26 @@
           <option value="gemini">Google Gemini (Gemini CLI)</option>
         </select>
         <div class="hint">Runs this project's chats and writes its plans. Each one is that company's own app, signed in with your own account (no API keys). The desk's choice is in the ⋯ menu.</div>
+      </div>
+
+      <div class="field" id="f-jira">
+        <span class="label"><span class="num">10</span>Jira <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></span>
+        <label class="check"><input type="checkbox" id="jiraOn"><span>Track this project's tasks in Jira</span></label>
+        <div class="hint">Each task you pick becomes a Jira work item. Done adds your notes and what the chat did, and moves it to Done. Snooze and Skip add a comment. Task Desk uses Atlassian's own CLI, signed in once in your browser: it never sees your Jira password or token. Check the connection in the ⋯ menu, Jira.</div>
+        <div id="jiraMore" class="jira-more">
+          <div class="row"><input class="box" id="jiraKey" maxlength="20" placeholder="Project key, e.g. OPS"><input class="box" id="jiraType" maxlength="40" placeholder="Work item type: Task"></div>
+          <div class="row" style="margin-top:8px"><input class="box" id="jiraEpic" maxlength="30" placeholder="Epic: auto, none, or a key like OPS-12"><input class="box" id="jiraDone" maxlength="40" placeholder="Status for Done: Done"></div>
+          <input class="box" id="jiraLabels" maxlength="200" placeholder="Labels, comma-separated (optional)" style="margin-top:8px">
+          <div class="hint">Epic "auto" makes one epic named after the project the first time and puts every task under it. Tasks that wait for another get a "Blocks" link.</div>
+          <label class="choice" data-name="jiraPick" data-value="ask" style="margin-top:9px">
+            <input type="radio" name="jiraPick" value="ask"><b>Let me pick which new tasks go to Jira</b>
+            <span class="hint">New tasks show up in the box with a "Send to Jira?" list. Tick the ones that belong there.</span>
+          </label>
+          <label class="choice" data-name="jiraPick" data-value="all">
+            <input type="radio" name="jiraPick" value="all"><b>Send every new task</b>
+            <span class="hint">You can still take one off Jira from its right-click menu before it's sent.</span>
+          </label>
+        </div>
       </div>
     </div>
     <div class="foot">

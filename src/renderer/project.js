@@ -59,15 +59,29 @@ const draft = () => ({
   ai: $('#ai').value,
   notes: $('#notes').value,
   color,
+  jira: {
+    on: $('#jiraOn').checked,
+    key: $('#jiraKey').value.trim(),
+    type: $('#jiraType').value.trim(),
+    epic: $('#jiraEpic').value.trim() || 'auto',
+    doneStatus: $('#jiraDone').value.trim(),
+    labels: $('#jiraLabels').value,
+    pick: radio('jiraPick'),
+  },
 });
+
+// Box 10: the Jira details show while "Track this project's tasks in Jira" is ticked.
+const showJira = () => $('#f-jira').classList.toggle('on', $('#jiraOn').checked);
+$('#jiraOn').addEventListener('change', showJira);
 
 function showError(r) {
   document.querySelectorAll('.err').forEach((e) => e.remove());
   document.querySelectorAll('.bad').forEach((e) => e.classList.remove('bad'));
   if (!r || r.ok) return;
   const field =
-    { name: '#f-name', folder: '#f-folder', tasksFile: '#f-tasksFile', results: '#f-results', resultsFile: '#f-results' }[r.field] ||
-    '#f-name';
+    { name: '#f-name', folder: '#f-folder', tasksFile: '#f-tasksFile', results: '#f-results', resultsFile: '#f-results', jira: '#f-jira' }[
+      r.field
+    ] || '#f-name';
   const f = $(field);
   f.classList.add('bad');
   f.append(h('div', { class: 'err' }, r.error));
@@ -202,6 +216,7 @@ async function init() {
   drawColors();
   setRadio('source', 'file');
   setRadio('results', 'app');
+  setRadio('jiraPick', 'ask');
   // "Only show lines that mention me" looks for your name (set from the ⋯ menu, Your name…).
   const me = await desk.getMe();
   $('#myName').textContent = me.name ? `(${me.name})` : '(set your name first: ⋯ menu, Your name…)';
@@ -233,6 +248,15 @@ async function init() {
   resultsPath = p.resultsPath;
   setRadio('source', p.source);
   setRadio('results', p.results);
+  const j = p.jira || {};
+  $('#jiraOn').checked = !!j.on;
+  $('#jiraKey').value = j.key || '';
+  $('#jiraType').value = j.type && j.type !== 'Task' ? j.type : '';
+  $('#jiraEpic').value = !j.epic || j.epic === 'AUTO' ? '' : j.epic.toLowerCase() === 'none' ? 'none' : j.epic;
+  $('#jiraDone').value = j.doneStatus && j.doneStatus !== 'Done' ? j.doneStatus : '';
+  $('#jiraLabels').value = (j.labels || []).join(', ');
+  setRadio('jiraPick', j.pick === 'all' ? 'all' : 'ask');
+  showJira();
   drawColors();
   $('#add').hidden = true;
   $('#cancel').textContent = 'Close';

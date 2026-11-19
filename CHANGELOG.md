@@ -6,6 +6,10 @@ Changes a user would notice, newest first. The format follows
 
 ## Unreleased
 
+### Added
+- **Jira** (Jira Cloud): a project can track its tasks in Jira (box 10 of the project form). You pick which new tasks go (or send them all), each becomes a work item under the project's epic with its plan's steps, tasks that wait for another get a "Blocks" link, and Done adds your notes and a summary of the chat and moves the work item to your done status. Skip and Snooze add a comment. Task Desk uses Atlassian's own CLI (`acli`), signed in once in your browser: no Jira password or token in the app. **Set up Jira for "…"** in the clipboard menu has the project's own AI look at how your team uses Jira and say what to fill in.
+- **Keep in front of other windows** in the ⋯ menu: just the task box (as before), every Task Desk window, or nothing.
+
 ## 1.2.5 - 2026-11-09
 
 ### Added

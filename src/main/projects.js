@@ -130,7 +130,11 @@ function clean(d) {
     // Its own look (colors, frame…) instead of the desk's. Only the changed settings are kept.
     ownLook: !!d.ownLook,
     look: (d.id && get(d.id) && get(d.id).look) || null,
+    // Tracking its tasks in Jira (box 10, see jira.js).
+    jira: require('./jira').cleanSettings(d.jira),
   };
+  if (d.jira && d.jira.on && !p.jira.on)
+    return { ok: false, error: 'Type the Jira project key (like OPS) to track this project in Jira.', field: 'jira' };
   if (p.ownLook && !p.look) p.look = { accent: p.color };
   if (!p.name) return { ok: false, error: 'Give the project a name.', field: 'name' };
   if (p.folder && !(fs.existsSync(p.folder) && fs.statSync(p.folder).isDirectory()))

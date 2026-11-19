@@ -86,9 +86,27 @@ On a new desk, Task Desk asks what to call you, which the AI uses. Then it shows
 
 **Start and Stop.** Adding a project only writes plans: Claude reads the project to plan each task, and a line at the top of the box says so. Opening a task doesn't start its chat. Read the plan, then press **Start**. To skip that for a project, tick **Start chats on their own** under the Start button, or in box 5 when you edit the project. **Stop** above a chat stops what Claude is doing, like pressing Esc, and leaves the chat open for your next message. **Stop all**, at the bottom of the box and in the tray menu, does that for every chat.
 
-**Right-click a task** for more: open it, stop its chat, choose its Claude model, snooze it until tomorrow or a day you pick, redraft its plan, or copy its text.
+**Right-click a task** for more: open it, stop its chat, choose its Claude model, snooze it until tomorrow or a day you pick, send it to Jira or open it there, redraft its plan, or copy its text.
 
 **A project's main chat.** With one project showing, the chat-bubble button at the top of the box opens that project's *main chat*: your own Claude Code session that writes the project's tasks (the one you set the project up with), not a task's chat. Task Desk finds it among the Claude Code sessions saved on this computer. It's the newest session that wrote the project's checklist file, or that you gave Task Desk's instructions to (the **Copy for another AI chat** text), wherever you started it. It reopens right where you left off, in a Task Desk window, as plain Claude Code with your normal settings: none of the task chats' limits apply. **Other sessions** lets you pick a different one, and **New main chat** starts one in the project's folder; Task Desk remembers your choice on this computer. If the same session is also open in a terminal, close it there first, so the two don't both write to it. Closing the window stops the chat; it resumes next time.
+
+**Tracking tasks in Jira.** A project can send its tasks to your team's Jira (Jira Cloud), so the work you do in Task Desk shows up there too. Task Desk never asks for your Jira password or an API token: it uses Atlassian's own free command-line tool, `acli`, which you install and sign in to once in your browser. Then **⋯ menu → Jira → Check my Jira connection…** should say it's connected.
+
+```powershell
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Programs\acli"
+Invoke-WebRequest -Uri https://acli.atlassian.com/windows/latest/acli_windows_amd64/acli.exe -OutFile "$env:LOCALAPPDATA\Programs\acli\acli.exe"
+& "$env:LOCALAPPDATA\Programs\acli\acli.exe" jira auth login --web
+```
+
+Task Desk looks for `acli.exe` there and on your PATH (or pick it with **Jira → Find acli.exe…**). Then turn it on per project in **box 10** of the project form: the Jira project key (like `OPS`), the work item type (`Task` unless your team uses another), an epic (`auto` makes one named after the project and puts every task under it, `none`, or an existing epic's key), the status your team calls done, and any labels. Every work item also gets the label `task-desk`. What happens next:
+- **Which tasks go.** With **Let me pick**, new tasks show a "send to Jira?" line at the top of the box: **Choose** lists them with checkboxes. The ticked ones go, and the rest stay in Task Desk only. **Send every new task** skips the question. Right-click a task to send it later, or to keep it out before it's sent.
+- **What Jira gets.** One work item per task, with the task and its plan's steps as the description. A task that has to wait for another (see "What order the tasks are in") gets a **Blocks** link from that one. Its card in the box shows the key (`OPS-12`); right-click to open it in Jira.
+- **When you finish.** **Done** adds a comment with your notes, what you pasted and a few lines on what the chat did (the AI sums up the chat), then moves the work item to your done status. **Skip** and **Snooze** add a comment.
+- **When Jira can't be reached** (offline, or `acli` signed out), the changes wait in order and go through later. A line in the box says so, with **Try again**.
+
+Not sure what to put in box 10? With the project showing, the clipboard button's **Set up Jira for "…"** copies instructions for the project's own AI chat. It looks at how your team already uses Jira (read-only), tells you what to type in box 10, and writes a `JIRA.md` in the project folder that records your team's Jira process for the project's agents.
+
+**Keep in front.** By default the task box stays in front of other windows and the task windows don't. **⋯ menu → Keep in front of other windows** changes that: **Just the task box**, **The task box and every Task Desk window**, or **Nothing**, so they go behind other programs like any window.
 
 **Claude and your Chrome browser.** A chat doesn't get your Chrome unless you turn it on. The **Chrome** button above a task's chat goes from **off** to **look only** (Claude reads the pages you open from the plan when you ask) to **working** (it may also click and type there, which uses more tokens; you still press send, submit or pay yourself). Turning it on or off restarts the chat, which picks up where it was. **Claude and Chrome** in the ⋯ menu sets the starting point for every task.
 
@@ -144,7 +162,7 @@ Most settings are changed in the app. They're stored as JSON in the data folder.
 
 `data\taskdesk.log` is the app's log: errors you never saw on screen, useful in a bug report. `data\update.log` is the self-updater's.
 
-`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update (`autoUpdate`, off for new installs), Company-safe mode (`safeMode`), extra variables the AI apps may see (`passEnv`), where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**), and `folders`: where a project's folder (or the workspace's) is on this computer when it differs from your other computers'. With your data in OneDrive, folders can be at different paths on each computer; see [docs/GUIDE.md](docs/GUIDE.md).
+`data\machine.json` holds settings for this computer only: window position and size, the size lock, auto-start, the taskbar button, auto-update (`autoUpdate`, off for new installs), Company-safe mode (`safeMode`), extra variables the AI apps may see (`passEnv`), where the data folder is (`dataDir`, set by **Keep my data in OneDrive…**), `folders`: where a project's folder (or the workspace's) is on this computer when it differs from your other computers', which windows stay in front (`inFront`: `box`, `all` or `none`), and Jira's `acliPath` and `jiraSite` (found by **Check my Jira connection…**). With your data in OneDrive, folders can be at different paths on each computer; see [docs/GUIDE.md](docs/GUIDE.md).
 
 Environment variables (mostly for tests and development):
 
@@ -155,6 +173,7 @@ Environment variables (mostly for tests and development):
 | `TASKDESK_USERDATA` | no | Separate Electron profile, so a second copy can run beside the main one |
 | `TASKDESK_NO_UPDATE` | no | Turn off the daily self-update |
 | `TASKDESK_SAFE_MODE` | no | `1` turns on [Company-safe mode](#company-safe-mode) for good (for an IT team) |
+| `TASKDESK_FAKE_ACLI` | no | `<node.exe>\|<script.js>`: a pretend Atlassian CLI for Jira, with the same limits as `TASKDESK_FAKE_AI` |
 | `TASKDESK_FAKE_AI` | no | `<node.exe>\|<script.js>`: run a pretend AI app instead of the real one. Only in a test run, and only a script from the app's own `test\` folder. `TASKDESK_FAKE_CLAUDE` is the older name. |
 | `CODEX_HOME` | no | Read by the app to find Codex's saved sessions (defaults to `%USERPROFILE%\.codex`) |
 

@@ -173,6 +173,7 @@ function render() {
   if (drafting)
     $('#planning').textContent =
       `Writing plans for ${drafting} task${drafting === 1 ? '' : 's'}, two at a time. Claude only reads the project for this. No task is worked on until you open it${tasks.some((t) => t.autoStart) ? '' : ' and press Start'}.`;
+  drawJira();
   // Stop all: shown while any chat is running.
   $('#stopall').hidden = !data.liveChats;
   $('#stopall').innerHTML = `${icon('square')}<span>Stop all${data.liveChats > 1 ? ` (${data.liveChats})` : ''}</span>`;
@@ -292,7 +293,7 @@ function card(t, i) {
         <div class="ttl"></div>
         <div class="meta">
           <span class="lane"${showProject ? ' style="text-transform:none"' : ''}><span class="dot" style="background:${safeColor(tag.color)}"></span><span class="nm"></span></span>
-          <span class="sep">·</span><span>${esc(fmtMin(t.minutes))}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${esc(ownModel(t))}</span>` : ''}${t.doing ? `<span class="doing" title="What its chat is doing now (it said so)">${icon('sparkle')}<span class="dtxt"></span></span>` : ''}
+          <span class="sep">·</span><span>${esc(fmtMin(t.minutes))}</span>${quick}${t.updatedAfter ? `<span class="upd">${icon('refresh')}Updated</span>` : ''}${t.waitsOn ? `<span class="waits">${icon('lock')}after ${t.waitsOn.titles.length === 1 ? '1 task' : `${t.waitsOn.titles.length} tasks`}</span>` : ''}${ownModel(t) ? `<span class="ownmodel">${esc(ownModel(t))}</span>` : ''}${t.jira && (t.jira.key || t.jira.want) ? `<span class="jirakey${t.jira.key ? '' : ' waiting'}">${esc(t.jira.key || 'Jira…')}</span>` : ''}${t.doing ? `<span class="doing" title="What its chat is doing now (it said so)">${icon('sparkle')}<span class="dtxt"></span></span>` : ''}
         </div>
       </div>
       <div class="right">${right}</div>`,
@@ -305,6 +306,10 @@ function card(t, i) {
     el.querySelector('.waits').title =
       `Do this after: ${t.waitsOn.titles.map((x) => `"${x}"`).join(', ')}.${t.waitsOn.why ? ` ${t.waitsOn.why}` : ''}`;
   if (ownModel(t)) el.querySelector('.ownmodel').title = "This task's own Claude model and effort";
+  if (el.querySelector('.jirakey'))
+    el.querySelector('.jirakey').title = t.jira.key
+      ? `In Jira as ${t.jira.key}. Right-click to open it.`
+      : 'On its way to Jira (it goes as soon as Jira answers).';
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -385,12 +390,76 @@ function tickUpdated() {
 }
 setInterval(tickUpdated, 5000);
 
+// ---------- Jira ----------
+// New tasks of a project that tracks its tasks in Jira wait here until you say
+// which ones go there. Changes Jira hasn't taken yet (offline, signed out) show
+// as a line with Try again.
+function drawJira() {
+  const J = data.jira || { pick: [], errors: [] };
+  const line = $('#jiraline');
+  const pick = J.pick || [];
+  const err = (J.errors || [])[0];
+  line.hidden = !pick.length && !err;
+  if (pick.length) {
+    line.innerHTML = `<span></span><button class="link">Choose</button>`;
+    line.querySelector('span').textContent = `${pick.length} new task${pick.length === 1 ? '' : 's'}: send to Jira?`;
+    line.querySelector('button').onclick = () => jiraPicker(pick);
+  } else if (err) {
+    line.innerHTML = `<span></span><button class="link">Try again</button>`;
+    line.querySelector('span').textContent =
+      `Jira (${err.name}) hasn't taken ${err.waiting} change${err.waiting === 1 ? '' : 's'}: ${err.error}`.slice(0, 220);
+    line.querySelector('button').onclick = async () => {
+      await desk.jiraRetry();
+      toast('Trying Jira again.');
+    };
+  }
+}
+function jiraPicker(pick) {
+  document.querySelector('.jirapick')?.remove();
+  const rows = pick.map((t) => {
+    const l = h(
+      'label',
+      {},
+      h('input', { type: 'checkbox', checked: true, 'data-id': t.id }),
+      h('span', {}, t.title, h('em', {}, `${t.projectName} → ${t.key || 'Jira'}`))
+    );
+    return l;
+  });
+  const close = () => wrap.remove();
+  const send = async (all) => {
+    const choices = {};
+    wrap.querySelectorAll('input[data-id]').forEach((i) => (choices[i.dataset.id] = all === null ? false : i.checked));
+    await desk.jiraChoose(choices);
+    const n = Object.values(choices).filter(Boolean).length;
+    toast(n ? `Sending ${n} task${n === 1 ? '' : 's'} to Jira.` : 'None of them go to Jira. Right-click a task to send it later.');
+    close();
+  };
+  const wrap = h(
+    'div',
+    { class: 'jirapick', onclick: (e) => e.target === wrap && close() },
+    h(
+      'div',
+      { class: 'panel' },
+      h('h3', {}, 'Which tasks go to Jira?'),
+      h('p', {}, 'Ticked ones become Jira work items. The rest stay in Task Desk only; you can send one later from its right-click menu.'),
+      h('div', { class: 'rows' }, ...rows),
+      h(
+        'div',
+        { class: 'foot' },
+        h('button', { class: 'btn', onclick: () => send(null) }, 'None of these'),
+        h('button', { class: 'btn primary', onclick: () => send(true) }, 'Send ticked to Jira')
+      )
+    )
+  );
+  document.body.append(wrap);
+}
+
 // ---------- copy instructions for another AI chat ----------
 // Ready-to-paste text that tells another Claude Code (or Codex, Gemini…) chat
 // how to work with Task Desk: where to put the tasks it needs you to do, and
 // where your Done notes come back. Filled in for the project on show.
 const FORM =
-  '1 Name · 2 Folder · 3 Where its tasks come from · 4 When I press Done, my notes go to · 5 The chat (may it change files?) · 6 Anything the AI should know (optional) · 7 Color · 8 Look (optional) · 9 Which AI (optional)';
+  '1 Name · 2 Folder · 3 Where its tasks come from · 4 When I press Done, my notes go to · 5 The chat (may it change files?) · 6 Anything the AI should know (optional) · 7 Color · 8 Look (optional) · 9 Which AI (optional) · 10 Jira (optional: track its tasks in Jira)';
 const CHECKLIST_RULES =
   'one task per line as "- [ ] what to do", grouped under "## Section" headings. Write each task so it can be done without this chat: what to do, where (links, file paths), and what "done" looks like. Only list things I have to do myself (send, sign up, decide, pay, check). Never tick my tasks yourself: I finish them in Task Desk.';
 function setupText() {
@@ -416,8 +485,25 @@ function projectText(p) {
       `- My results: when I finish or skip a task, Task Desk appends my notes and anything I pasted to ${p.resultsPath}. Read it at the start of every session and act on the new entries. Don't edit or reorder it.`
     );
   else lines.push("- My results: Task Desk keeps my notes. I'll paste anything you need from them.");
+  if (p.jira && p.jira.on)
+    lines.push(
+      `- Jira: Task Desk sends the tasks I pick to our Jira project ${p.jira.key} and closes them when I press Done, so write each task so it reads well as a Jira work item. If JIRA.md is in this folder, follow the team's process in it.`
+    );
   lines.push(`- If I ask how to change the project's settings in Task Desk, answer by its form's numbered boxes: ${FORM}.`);
   return lines.join('\n');
+}
+// For the project's own AI chat: look at how the team's Jira project already
+// works (read-only, through acli) and say what to put in box 10, plus a JIRA.md
+// that records the team's process for the project's agents.
+function jiraText(p) {
+  return [
+    `I want Task Desk (a desktop app) to track the hands-on tasks for "${p.name}"${p.folder ? ` (folder: ${p.folder})` : ''} in our Jira Cloud. It talks to Jira only through Atlassian's CLI (acli), which I sign in to myself; never ask me for a Jira password or API token, and don't sign in or install anything for me.`,
+    '',
+    "1. Check acli is set up: run `acli jira auth status`. If acli isn't found or isn't signed in, stop and tell me the commands to run myself (install: Atlassian's Windows guide, https://developer.atlassian.com/cloud/acli/guides/install-windows/ ; sign in: `acli jira auth login --web`).",
+    '2. Look, read-only, at how our team already uses Jira: `acli jira project list --recent`, `acli jira project view --key <KEY> --json`, and a few recent work items with `acli jira workitem view <KEY-123> --json`. Work out: which project this belongs in, the work item type we use for small tasks, whether we group work under epics (and which one fits), the labels we use, and the exact name of our "done" status. Don\'t create, edit, move or comment on anything in Jira.',
+    `3. Tell me what to type in Task Desk's project form, box 10 "Jira" (Edit project → 10): Track this project's tasks in Jira (tick), Project key, Work item type, Epic ("auto" makes one epic named after the project, "none", or an existing epic's key), Status for Done, Labels, and whether to "Let me pick which new tasks go to Jira" or "Send every new task". Give the exact text for each.`,
+    '4. Write JIRA.md in this project\'s folder: a short record of the team\'s Jira process you found (project, types, statuses and what they mean, labels, epics, who does what) and what Task Desk does (one work item per task I send, a "Blocks" link when one task waits for another, a comment and a move to the done status when I press Done, a comment on Skip and Snooze). Read it at the start of each session, and when you add tasks for me, write them so they read well as Jira work items.',
+  ].join('\n');
 }
 function workspaceText() {
   const name = (data.factory && data.factory.name) || 'the workspace';
@@ -449,6 +535,12 @@ $('#copyfor').onclick = async (e) => {
             icon: 'copy',
             hint: 'for its AI',
             run: () => copy(projectText(p), `the "${p.name}" instructions`),
+          },
+          {
+            label: `Set up Jira for "${p.name}"`,
+            icon: 'external',
+            hint: 'for its AI',
+            run: () => copy(jiraText(p), 'the Jira setup instructions'),
           },
         ]
       : []),
@@ -658,6 +750,31 @@ function taskMenu(t, e) {
           );
         }),
     },
+    ...(t.jira
+      ? t.jira.key
+        ? [
+            {
+              label: `Open ${t.jira.key} in Jira`,
+              icon: 'external',
+              run: async () => {
+                const r = await desk.jiraOpen(t.id);
+                if (r && !r.ok) toast(r.error);
+              },
+            },
+          ]
+        : t.jira.want
+          ? [{ label: "Don't send it to Jira", icon: 'x', run: () => desk.jiraChoose({ [t.id]: false }) }]
+          : [
+              {
+                label: 'Send it to Jira',
+                icon: 'send',
+                run: async () => {
+                  await desk.jiraChoose({ [t.id]: true });
+                  toast('On its way to Jira.');
+                },
+              },
+            ]
+      : []),
     {
       label: 'Redraft its plan',
       icon: 'refresh',

@@ -483,6 +483,7 @@ module.exports = {
   allowed,
   sessionFor,
   handover,
+  savedConversation,
   screenText,
   choices,
   locate,
